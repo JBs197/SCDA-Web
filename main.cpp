@@ -2,7 +2,7 @@
 
 using namespace std;
 mutex m_err;
-const string root = "F:";
+const string sroot = "F:";
 
 int main()
 {

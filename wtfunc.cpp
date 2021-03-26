@@ -1,9 +1,29 @@
 #include "wtfunc.h"
 
-void WTFUNC::init_app_box(Wt::WPanel* app_box)
+/*
+vector<Wt::WString> WTFUNC::get_wsvec(vector<string>& svec)
 {
-	app_box->setTitle(L"Statistics Canada Database Analysis Tool");
-	app_box->
+	vector<Wt::WString> wsvec(svec.size());
+	Wt::WString wstemp;
+	for (int ii = 0; ii < svec.size(); ii++)
+	{
+		wstemp = Wt::WString::fromUTF8(svec[ii]);
+		wsvec[ii] = wstemp;
+	}
+	return wsvec;
+}
+*/
+
+void WTFUNC::init_app_box(Wt::WContainerWidget* app_box)
+{
+	app_box->addWidget(make_unique<Wt::WText>("Statistics Canada Data Analysis Web Tool"));
+
+}
+void WTFUNC::init_proj_dir(string exec_dir)
+{
+	size_t pos1 = exec_dir.rfind('\\');  // Debug or release.
+	pos1 = exec_dir.rfind('\\', pos1 - 1);  // Project folder.
+	proj_dir = exec_dir.substr(0, pos1);
 }
 vector<string> WTFUNC::make_wrun_args(string exec_dir)
 {
