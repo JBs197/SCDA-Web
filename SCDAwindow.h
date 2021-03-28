@@ -1,5 +1,6 @@
 #pragma once
 #include <Wt/WApplication.h>
+#include <Wt/WServer.h>
 #include <Wt/WBreak.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WTabWidget.h>

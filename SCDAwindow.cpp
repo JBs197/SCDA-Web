@@ -65,6 +65,7 @@ void SCDAwindow::init_proj_dir(string exec_dir)
 }
 void SCDAwindow::list_update(vector<string>& slist)
 {
+	// REDO
 	selBox_tlist = new Wt::WSelectionBox();
 	string temp;
 	if (tnum < list_max)
@@ -72,17 +73,17 @@ void SCDAwindow::list_update(vector<string>& slist)
 		for (int ii = 0; ii < slist.size(); ii++)
 		{
 			Wt::WString wstemp = Wt::WString(slist[ii]);
-			dselB_tlist->addItem(wstemp);
+			selBox_tlist->addItem(wstemp);
 		}
 	}
 	else
 	{
 		temp = to_string(tnum) + " results from the database.";
 		Wt::WString wstemp = Wt::WString(temp);
-		selB_tlist.addItem(wstemp);
-		selB_tlist.addItem("Apply more filters to view results here.");
+		selBox_tlist->addItem(wstemp);
+		selBox_tlist->addItem("Apply more filters to view results here.");
 	}
-	dselB_tlist.release();
+
 }
 void SCDAwindow::on_cb_year_changed()
 {
@@ -142,6 +143,6 @@ void SCDAwindow::table_update(string tname)
 			}
 		}
 	}
-	WApplication* app = Wt::WApplication::instance();
-	app->SCDAwindow  // RESUME HERE
+	//WApplication* app = Wt::WApplication::instance();
+
 }
