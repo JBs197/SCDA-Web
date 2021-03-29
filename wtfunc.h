@@ -19,8 +19,7 @@ class WTFUNC
 public:
 	explicit WTFUNC() {}
 	~WTFUNC() {}
-	//vector<Wt::WString> get_wsvec(vector<string>&);
-	void init_app_box(Wt::WContainerWidget*);
+
 	void init_proj_dir(string);
 	vector<string> make_wrun_args(string);
 

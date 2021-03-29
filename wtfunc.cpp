@@ -1,24 +1,5 @@
 #include "wtfunc.h"
 
-/*
-vector<Wt::WString> WTFUNC::get_wsvec(vector<string>& svec)
-{
-	vector<Wt::WString> wsvec(svec.size());
-	Wt::WString wstemp;
-	for (int ii = 0; ii < svec.size(); ii++)
-	{
-		wstemp = Wt::WString::fromUTF8(svec[ii]);
-		wsvec[ii] = wstemp;
-	}
-	return wsvec;
-}
-*/
-
-void WTFUNC::init_app_box(Wt::WContainerWidget* app_box)
-{
-	app_box->addWidget(make_unique<Wt::WText>("Statistics Canada Data Analysis Web Tool"));
-
-}
 void WTFUNC::init_proj_dir(string exec_dir)
 {
 	size_t pos1 = exec_dir.rfind('\\');  // Debug or release.
