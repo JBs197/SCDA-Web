@@ -11,11 +11,13 @@ const int maxTreeLayers = 6; // Not counting the root.
 class DataEvent
 {
 public:
-	vector<vector<int>> tree_st;
-	vector<string> tree_pl;
+	const vector<vector<int>> tree_st;
+	const vector<string> tree_pl;
 
 	enum eType { Connect, Tree, Table };
 	string getSessionID() { return sessionID; }
+	vector<string> get_tree_pl() const { return tree_pl; }
+	vector<vector<int>> get_tree_st() const { return tree_st; }
 	int type() const { return etype; }
 	
 private:
@@ -46,7 +48,7 @@ public:
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init(int&);
 	vector<string> getYearList();
-	void updateFilter(string, vector<string>);
+	void pullTree(string, vector<string>);
 
 private:
 	SQLFUNC sf;

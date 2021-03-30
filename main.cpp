@@ -4,7 +4,7 @@
 
 using namespace std;
 mutex m_err, m_server;
-const string sroot = "F:";
+const string sroot = "D:";
 
 class SCDAapp : public Wt::WApplication
 {
@@ -43,6 +43,7 @@ int main()
 	WTFUNC wtf;
 	const vector<string> args = wtf.make_wrun_args(exec_dir);
 
+	
 	Wt::WServer wtServer(exec_dir, args);
 	SCDAserver myServer(wtServer);
 	wtServer.addEntryPoint(Wt::EntryPointType::Application, bind(makeApp, placeholders::_1, ref(myServer)));
@@ -54,6 +55,7 @@ int main()
 		cerr << "wtServer is shutting down: " << signal << endl;
 		wtServer.stop();
 	}
+	
 
 	/*
 	Wt::WRun(exec_dir, args, [](const Wt::WEnvironment& env) {

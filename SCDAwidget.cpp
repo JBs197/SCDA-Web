@@ -13,7 +13,7 @@ void SCDAwidget::askTree()
 	wstemp = cbRegion->currentText();
 	temp = wstemp.toUTF8();
 	filters[2] = temp;
-	sRef.updateFilter(sessionID, filters);
+	sRef.pullTree(sessionID, filters);
 }
 void SCDAwidget::connect()
 {
@@ -28,6 +28,7 @@ void SCDAwidget::init()
 	clear();
 	int numTables;
 	sRef.init(numTables);
+	connect();
 	string temp;
 
 	auto uniqueBoxControl = make_unique<Wt::WContainerWidget>();
@@ -43,13 +44,11 @@ void SCDAwidget::init()
 	auto uniquePanelRegion = make_unique<Wt::WPanel>();
 	panelRegion = uniquePanelRegion.get();
 	auto uniqueCbRegion = make_unique<Wt::WComboBox>();
-	cbRegion = uniqueCbDesc.get();
+	cbRegion = uniqueCbRegion.get();
 	auto uniqueBoxTreelist = make_unique<Wt::WContainerWidget>();
 	boxTreelist = uniqueBoxTreelist.get();
 	auto uniqueSbList = make_unique<Wt::WSelectionBox>();
 	sbList = uniqueSbList.get();
-	//auto uniqueTreeCata = make_unique<Wt::WTree>();
-	//treeCata = uniqueTreeCata.get();
 	auto uniqueBoxTable = make_unique<Wt::WContainerWidget>();
 	boxTable = uniqueBoxTable.get();
 	auto uniqueWtTable = make_unique<Wt::WTable>();
@@ -113,61 +112,68 @@ void SCDAwidget::init()
 	vLayout->addWidget(move(uniquePbTest));
 	this->setLayout(move(vLayout));
 
-	connect();
 }
 void SCDAwidget::processDataEvent(const DataEvent& event)
 {
 	Wt::WApplication* app = Wt::WApplication::instance();
 	app->triggerUpdate();
 	int display = event.type();
-	vector<Wt::WString> wsvec;
-	int rootKids, pivot, node, parent;
-	unique_ptr<Wt::WTreeNode> pParent, pNode;
 	switch (display)
 	{
 	case 0:
 		break;
 	case 1:
+		vector<vector<int>> tree_st = event.get_tree_st();
+		vector<string> tree_pl = event.get_tree_pl();
 		boxTreelist->clear();  
 		auto tree = make_unique<Wt::WTree>();
 		treeCata = boxTreelist->addWidget(move(tree));
 		const Wt::WString wstemp(event.tree_pl[0].c_str());
-		auto troot = make_unique<Wt::WTreeNode>(wstemp);
-		auto treeRoot = troot.get();
-		treeCata->setTreeRoot(move(troot));
-		rootKids = event.tree_st[0].size() - 1;
-		if (rootKids == 0) { return; }  // Sure ???
-		pivot = 0;
-		node = 0;
-		do
-		{
-			parent = node;
-			node = event.tree_st[node][pivot + 1];
-			for (int ii = 0; ii < event.tree_st[node].size(); ii++)
-			{
-				if (event.tree_st[node][ii] < 0)
-				{
-					pivot = ii;
-					break;
-				}
-			}
-			const Wt::WString wstemp(event.tree_pl[node].c_str());
-			wsvec.push_back(wstemp);
-		} while (event.tree_st[node].size() > pivot + 1);
-		for (int ii = 0; ii < wsvec.size(); ii++)
-		{
-			if (ii > 0)
-			{
-
-			}
-			else
-			{
-				pParent.reset()
-			}
-		}
-
+		auto tRoot = make_unique<Wt::WTreeNode>(wstemp);
+		auto treeRoot = tRoot.get();
+		treeCata->setTreeRoot(move(tRoot));
+		processDataEventHelper(tree_st, tree_pl, 0, treeRoot);		
+		treeRoot->expand();
+		break;
 	}
 }
+void SCDAwidget::processDataEventHelper(vector<vector<int>>& tree_st, vector<string>& tree_pl, int pl_index, Wt::WTreeNode*& me)
+{
+	vector<int> kids;
+	vector<Wt::WTreeNode*> pkids;
+	int pivot;
+	int rowSize = tree_st[pl_index].size();
+	for (int ii = 0; ii < rowSize; ii++)
+	{
+		if (tree_st[pl_index][ii] < 0)
+		{
+			pivot = ii;
+			break;
+		}
+		else if (ii == rowSize - 1)
+		{
+			pivot = 0;
+		}
+	}
+	if (rowSize <= pivot + 1) { return; }  // Not a parent.
+	kids.resize(rowSize - pivot - 1);
+	pkids.resize(rowSize - pivot - 1);
+	for (int ii = 0; ii < kids.size(); ii++)
+	{
+		kids[ii] = abs(tree_st[pl_index][pivot + 1 + ii]);
+	}
+	for (int ii = 0; ii < kids.size(); ii++)
+	{
+		const Wt::WString wstemp(tree_pl[kids[ii]].c_str());
+		auto branch = make_unique<Wt::WTreeNode>(wstemp);
+		pkids[ii] = me->addChildNode(move(branch));
+	}
+	for (int ii = 0; ii < pkids.size(); ii++)
+	{
+		processDataEventHelper(tree_st, tree_pl, kids[ii], pkids[ii]);
+	}
+}
+/*
 void SCDAwidget::updateTree(vector<vector<int>> tree_st, vector<string> tree_pl)
 {
 	Wt::WTreeNode* wroot = treeCata->treeRoot();
@@ -175,3 +181,4 @@ void SCDAwidget::updateTree(vector<vector<int>> tree_st, vector<string> tree_pl)
 	int bbq = 2;
 
 }
+*/

@@ -38,11 +38,8 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 		}
 	}
 }
-void SCDAserver::updateFilter(string sID, vector<string> filters)
+void SCDAserver::pullTree(string sID, vector<string> filters)
 {
-	lock_guard<mutex> lock(m_server);
-	Wt::WApplication* app = Wt::WApplication::instance();
-
 	// Get the list of years to display.
 	vector<string> tree_pl;
 	tree_pl.push_back("Census Tables");
@@ -57,14 +54,19 @@ void SCDAserver::updateFilter(string sID, vector<string> filters)
 		for (int ii = 0; ii < results1.size(); ii++)
 		{
 			tree_pl[1 + ii] = results1[ii];
-			tree_st[1 + ii] = { 0, ii + 1 };
+			tree_st[1 + ii] = { 0, -1 * (ii + 1) };
+			tree_st[0].push_back(1 + ii);
 		}
 	}
 	else 
 	{
 		tree_pl.push_back(filters[0]); 
-		tree_st.push_back({ 0,1 });
+		tree_st.push_back({ 0, -1 });
+		tree_st[0].push_back(1);
 	}
+
+	// Get the description for each catalogue, in each year.
+	// RESUME HERE.
 
 	postDataEvent(DataEvent(DataEvent::Tree, sID, tree_st, tree_pl), sID);
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include <Wt/WBootstrapTheme.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WHBoxLayout.h>
 #include <Wt/WVBoxLayout.h>
@@ -31,6 +32,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void connect();
 	void init();
 	void processDataEvent(const DataEvent& event);
+	void processDataEventHelper(vector<vector<int>>&, vector<string>&, int, Wt::WTreeNode*&);
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) { init(); }
