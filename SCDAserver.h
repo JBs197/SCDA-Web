@@ -6,10 +6,14 @@
 using namespace std;
 extern const string sroot;
 extern mutex m_server;
+const int maxTreeLayers = 6; // Not counting the root.
 
 class DataEvent
 {
 public:
+	vector<vector<int>> tree_st;
+	vector<string> tree_pl;
+
 	enum eType { Connect, Tree, Table };
 	string getSessionID() { return sessionID; }
 	int type() const { return etype; }
@@ -17,8 +21,6 @@ public:
 private:
 	eType etype;
 	string sessionID;
-	vector<vector<int>> tree_st;
-	vector<string> tree_pl;
 
 	// Constructor for eType Connect.
 	DataEvent(eType et, const string& sID) : etype(et), sessionID(sID) {}

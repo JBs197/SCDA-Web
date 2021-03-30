@@ -120,13 +120,52 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	Wt::WApplication* app = Wt::WApplication::instance();
 	app->triggerUpdate();
 	int display = event.type();
+	vector<Wt::WString> wsvec;
+	int rootKids, pivot, node, parent;
+	unique_ptr<Wt::WTreeNode> pParent, pNode;
 	switch (display)
 	{
 	case 0:
 		break;
 	case 1:
-		boxTreelist->clear();  // RESUME HERE. Get tree from event to widget.
-		treeCata = boxTreelist->addWidget(event.makeTree());  
+		boxTreelist->clear();  
+		auto tree = make_unique<Wt::WTree>();
+		treeCata = boxTreelist->addWidget(move(tree));
+		const Wt::WString wstemp(event.tree_pl[0].c_str());
+		auto troot = make_unique<Wt::WTreeNode>(wstemp);
+		auto treeRoot = troot.get();
+		treeCata->setTreeRoot(move(troot));
+		rootKids = event.tree_st[0].size() - 1;
+		if (rootKids == 0) { return; }  // Sure ???
+		pivot = 0;
+		node = 0;
+		do
+		{
+			parent = node;
+			node = event.tree_st[node][pivot + 1];
+			for (int ii = 0; ii < event.tree_st[node].size(); ii++)
+			{
+				if (event.tree_st[node][ii] < 0)
+				{
+					pivot = ii;
+					break;
+				}
+			}
+			const Wt::WString wstemp(event.tree_pl[node].c_str());
+			wsvec.push_back(wstemp);
+		} while (event.tree_st[node].size() > pivot + 1);
+		for (int ii = 0; ii < wsvec.size(); ii++)
+		{
+			if (ii > 0)
+			{
+
+			}
+			else
+			{
+				pParent.reset()
+			}
+		}
+
 	}
 }
 void SCDAwidget::updateTree(vector<vector<int>> tree_st, vector<string> tree_pl)
