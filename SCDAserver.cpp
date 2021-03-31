@@ -45,28 +45,60 @@ void SCDAserver::pullTree(string sID, vector<string> filters)
 	tree_pl.push_back("Census Tables");
 	vector<vector<int>> tree_st;
 	tree_st.push_back({ 0 });
-	vector<string> results1;
+	vector<string> yearsFiltered;
 	if (filters[0] == "All")
 	{
-		results1 = sf.select_years();
-		tree_pl.resize(1 + results1.size());
-		tree_st.resize(1 + results1.size());
-		for (int ii = 0; ii < results1.size(); ii++)
-		{
-			tree_pl[1 + ii] = results1[ii];
-			tree_st[1 + ii] = { 0, -1 * (ii + 1) };
-			tree_st[0].push_back(1 + ii);
-		}
+		yearsFiltered = sf.select_years();
 	}
-	else 
+	else
 	{
-		tree_pl.push_back(filters[0]); 
-		tree_st.push_back({ 0, -1 });
-		tree_st[0].push_back(1);
+		yearsFiltered.push_back(filters[0]);
+	}
+	int numYears = yearsFiltered.size();
+	tree_pl.resize(1 + numYears);
+	tree_st.resize(1 + numYears);
+	for (int ii = 0; ii < numYears; ii++)
+	{
+		tree_pl[1 + ii] = yearsFiltered[ii];
+		tree_st[1 + ii] = { 0, -1 * (ii + 1) };
+		tree_st[0].push_back(1 + ii);
 	}
 
-	// Get the description for each catalogue, in each year.
-	// RESUME HERE.
+	// Add the list of catalogue descriptions to the tree.
+	string syear;
+	vector<vector<string>> cataNameDesc;  // Form [cata index][cata name, cata desc].
+	vector<string> search = { "Name", "Description" };
+	string tname = "TCatalogueIndex";
+	vector<string> conditions(1);
+	vector<int> ivec;
+	int numCatas = 0;
+	int nextIndex = 1 + numYears;
+	for (int ii = 1; ii <= numYears; ii++)  // Do not include the root.
+	{
+		syear = tree_pl[ii];  // ii is the tree index of the parent year node.
+		conditions[0] = "Year = " + syear;
+		cataNameDesc.clear();
+		sf.select(search, tname, cataNameDesc, conditions);
+		numCatas += cataNameDesc.size();
+		tree_pl.resize(1 + numYears + numCatas);
+		tree_st.resize(1 + numYears + numCatas);
+		ivec = tree_st[ii];
+		ivec[ivec.size() - 1] *= -1;
+		for (int jj = 0; jj < cataNameDesc.size(); jj++)  // jj is the catalogue index.
+		{
+			tree_pl[nextIndex + jj] = cataNameDesc[jj][1];
+			tree_st[nextIndex + jj] = ivec;
+			tree_st[nextIndex + jj].push_back(-1 * (nextIndex + jj));
+			tree_st[ii].push_back(nextIndex + jj);
+		}
+		nextIndex = 1 + numYears + numCatas;
+	}
+
+	// Add the list of geographic regions to the tree.
+	for (int ii = 0; ii < cataNameDesc.size(); ii++)
+	{
+
+	}
 
 	postDataEvent(DataEvent(DataEvent::Tree, sID, tree_st, tree_pl), sID);
 }

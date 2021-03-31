@@ -13,9 +13,11 @@ class DataEvent
 public:
 	const vector<vector<int>> tree_st;
 	const vector<string> tree_pl;
+	const vector<string> list;
 
-	enum eType { Connect, Tree, Table };
+	enum eType { Connect, Tree, List, Table };
 	string getSessionID() { return sessionID; }
+	vector<string> get_list() const { return list; }
 	vector<string> get_tree_pl() const { return tree_pl; }
 	vector<vector<int>> get_tree_st() const { return tree_st; }
 	int type() const { return etype; }
@@ -26,6 +28,10 @@ private:
 
 	// Constructor for eType Connect.
 	DataEvent(eType et, const string& sID) : etype(et), sessionID(sID) {}
+
+	// Constructor for eType List.
+	DataEvent(eType et, const string& sID, const vector<string>& lst) 
+		: etype(et), sessionID(sID), list(lst) {}
 
 	// Constructor for eTypes Tree, Table.
 	DataEvent(eType et, const string& sID, const vector<vector<int>>& t_st, 

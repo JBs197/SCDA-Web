@@ -15,8 +15,10 @@ using namespace std;
 
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
+	vector<int> cbActive;
 	string db_path = sroot + "\\SCDA.db";
 	const int num_filters = 3;
+	string selectedCataName;
 	string sessionID;
 
 	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable;
@@ -37,7 +39,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) { init(); }
 
-	void askTree();
-	void updateTree(vector<vector<int>>, vector<string>);
+	void askTree();  // Populates only the year and catalogue layers of the tree.
+	void askRegion();  // Populates the region data for a single catalogue, on demand.
+	void cbYearClicked();
 };
 

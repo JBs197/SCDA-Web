@@ -1,7 +1,10 @@
 #include "SCDAwidget.h"
 
-void SCDAwidget::askTree()
+void SCDAwidget::askRegion()
 {
+	// This function is called whenever cbDesc is specified, or when a 
+	// catalogue subtree is expanded.
+
 	vector<string> filters;
 	filters.resize(num_filters);
 	Wt::WString wstemp = cbYear->currentText();
@@ -13,7 +16,73 @@ void SCDAwidget::askTree()
 	wstemp = cbRegion->currentText();
 	temp = wstemp.toUTF8();
 	filters[2] = temp;
+
+	temp = "All";
+	for (int ii = 0; ii < num_filters; ii++)
+	{
+		if (filters[ii] == temp)
+		{
+			cbActive[ii] = 0;
+		}
+		else
+		{
+			cbActive[ii] = 1;
+		}
+	}
+
 	sRef.pullTree(sessionID, filters);
+}
+void SCDAwidget::askTree()
+{
+	// This function is called whenever any filter is changed.
+
+	vector<string> filters;
+	filters.resize(num_filters);
+	Wt::WString wstemp = cbYear->currentText();
+	string temp = wstemp.toUTF8();
+	filters[0] = temp;
+	wstemp = cbDesc->currentText();
+	temp = wstemp.toUTF8();
+	filters[1] = temp;
+	wstemp = cbRegion->currentText();
+	temp = wstemp.toUTF8();
+	filters[2] = temp;
+
+	temp = "All";
+	for (int ii = 0; ii < num_filters; ii++)
+	{
+		if (filters[ii] == temp)
+		{
+			cbActive[ii] = 0;
+		}
+		else
+		{
+			cbActive[ii] = 1;
+		}
+	}
+
+	sRef.pullTree(sessionID, filters);
+}
+void SCDAwidget::cbYearClicked()
+{
+	// Update cbActive.
+	Wt::WString yearFilter = cbYear->currentText();
+	Wt::WString wstemp("All");
+	if (yearFilter == wstemp)
+	{
+		cbActive.assign(num_filters, 0);
+	}
+	else
+	{
+		cbActive[0] = 1;
+		for (int ii = 1; ii < num_filters; ii++)
+		{
+			cbActive[ii] = 0;
+		}
+	}
+
+	// Pull the filtered tree from the database.
+	askTree();
 }
 void SCDAwidget::connect()
 {
@@ -29,6 +98,7 @@ void SCDAwidget::init()
 	int numTables;
 	sRef.init(numTables);
 	connect();
+	cbActive.assign(num_filters, 0);
 	string temp;
 
 	auto uniqueBoxControl = make_unique<Wt::WContainerWidget>();
@@ -74,10 +144,14 @@ void SCDAwidget::init()
 	// Initial values for cbDesc.
 	wstemp = Wt::WString("All");
 	cbDesc->addItem(wstemp);
+	cbDesc->changed().connect(this, &SCDAwidget::askTree);
+	cbDesc->setEnabled(0);
 
 	// Initial values for cbRegion.
 	wstemp = Wt::WString("All");
 	cbRegion->addItem(wstemp);
+	cbRegion->changed().connect(this, &SCDAwidget::askRegion);
+	cbRegion->setEnabled(0);
 
 	uniquePanelYear->setTitle("Select a Year");
 	uniquePanelYear->setCentralWidget(move(uniqueCbYear));
@@ -116,25 +190,87 @@ void SCDAwidget::init()
 void SCDAwidget::processDataEvent(const DataEvent& event)
 {
 	Wt::WApplication* app = Wt::WApplication::instance();
-	app->triggerUpdate();
+	app->triggerUpdate();			
 	int display = event.type();
 	switch (display)
 	{
-	case 0:
+	case 0:  // Connect.
+	{
 		break;
-	case 1:
+	}
+	case 1:  // Tree.
+	{
 		vector<vector<int>> tree_st = event.get_tree_st();
 		vector<string> tree_pl = event.get_tree_pl();
-		boxTreelist->clear();  
+		boxTreelist->clear();
 		auto tree = make_unique<Wt::WTree>();
 		treeCata = boxTreelist->addWidget(move(tree));
 		const Wt::WString wstemp(event.tree_pl[0].c_str());
 		auto tRoot = make_unique<Wt::WTreeNode>(wstemp);
 		auto treeRoot = tRoot.get();
 		treeCata->setTreeRoot(move(tRoot));
-		processDataEventHelper(tree_st, tree_pl, 0, treeRoot);		
+		processDataEventHelper(tree_st, tree_pl, 0, treeRoot);
 		treeRoot->expand();
+
+		vector<int> cataInYear;
+		Wt::WString wsAll = "All";
+		if (cbActive[0] == 0)
+		{
+			cbDesc->clear();
+			cbDesc->addItem(wsAll);
+			cbDesc->setEnabled(0);
+			cbRegion->clear();
+			cbRegion->addItem(wsAll);
+			cbRegion->setEnabled(0);
+		}
+		else if (cbActive[1] == 0)
+		{
+			cbDesc->clear();
+			cbDesc->addItem(wsAll);
+			cataInYear.assign(tree_st[1].begin() + 2, tree_st[1].end());
+			for (int ii = 0; ii < cataInYear.size(); ii++)
+			{
+				Wt::WString wstemp = Wt::WString::fromUTF8(tree_pl[cataInYear[ii]]);
+				cbDesc->addItem(wstemp);
+			}
+			cbDesc->setEnabled(1);
+
+			cbRegion->clear();
+			cbRegion->addItem(wsAll);
+			cbRegion->setEnabled(0);
+		}
+		else                                    // A catalogue has been specified.
+		{
+			askRegion();   // Is this correct??
+		}
+
+	}
+
+	/*
+	case 2:  // List.
+	{
+		vector<string> list = event.get_list();
+		Wt::WComboBox* pCb = nullptr;
+		switch (cbRecent)
+		{
+		case 1:
+		{
+			pCb = cbDesc;
+			break;
+		}
+		}
+		pCb->clear();
+		pCb->addItem("All");
+		for (int ii = 0; ii < list.size(); ii++)
+		{
+			Wt::WString wstemp(list[ii].c_str());
+			pCb->addItem(wstemp);
+		}
+		pCb->setEnabled(1);
 		break;
+	}
+	*/
+
 	}
 }
 void SCDAwidget::processDataEventHelper(vector<vector<int>>& tree_st, vector<string>& tree_pl, int pl_index, Wt::WTreeNode*& me)
@@ -155,6 +291,11 @@ void SCDAwidget::processDataEventHelper(vector<vector<int>>& tree_st, vector<str
 			pivot = 0;
 		}
 	}
+	if (pivot == 2)  // This node has exactly 2 parents (root->year) so it's a catalogue.
+	{
+		me->expanded().connect(this, &SCDAwidget::)  // RESUME HERE. Incorporate regions.
+		//cbYear->changed().connect(this, &SCDAwidget::askTree);
+	}
 	if (rowSize <= pivot + 1) { return; }  // Not a parent.
 	kids.resize(rowSize - pivot - 1);
 	pkids.resize(rowSize - pivot - 1);
@@ -173,12 +314,4 @@ void SCDAwidget::processDataEventHelper(vector<vector<int>>& tree_st, vector<str
 		processDataEventHelper(tree_st, tree_pl, kids[ii], pkids[ii]);
 	}
 }
-/*
-void SCDAwidget::updateTree(vector<vector<int>> tree_st, vector<string> tree_pl)
-{
-	Wt::WTreeNode* wroot = treeCata->treeRoot();
-	string temp = wroot->id();
-	int bbq = 2;
 
-}
-*/
