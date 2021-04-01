@@ -15,6 +15,10 @@ bool SCDAserver::connect(User* user, const DataEventCallback& handleEvent)
 	}
 	else { return 0; }
 }
+void SCDAserver::err(string func)
+{
+	jf.err(func);
+}
 void SCDAserver::init(int& numTables)
 {
 	sf.init(db_path);
@@ -37,6 +41,22 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 			break;
 		}
 	}
+}
+void SCDAserver::pullRegion(string sID, string desc)
+{
+	vector<string> cataNames;
+	vector<string> search = { "Name" };
+	string tname = "TCatalogueIndex";
+	vector<string> conditions = { "Description = '" + desc + "'" };
+	sf.select(search, tname, cataNames, conditions);
+	if (cataNames.size() != 1) { err("Not-one names returned from desc-SCDAserver.pullRegion"); }
+
+	vector<vector<int>> tree_st;
+	vector<string> tree_pl;
+	tname = "TG_Region$" + cataNames[0];
+	sf.select_tree(tname, tree_st, tree_pl);
+
+	postDataEvent(DataEvent(DataEvent::Tree, sID, tree_st, tree_pl), sID);
 }
 void SCDAserver::pullTree(string sID, vector<string> filters)
 {
@@ -92,12 +112,6 @@ void SCDAserver::pullTree(string sID, vector<string> filters)
 			tree_st[ii].push_back(nextIndex + jj);
 		}
 		nextIndex = 1 + numYears + numCatas;
-	}
-
-	// Add the list of geographic regions to the tree.
-	for (int ii = 0; ii < cataNameDesc.size(); ii++)
-	{
-
 	}
 
 	postDataEvent(DataEvent(DataEvent::Tree, sID, tree_st, tree_pl), sID);

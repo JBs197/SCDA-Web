@@ -1,7 +1,7 @@
 #pragma once
 #include <Wt/WServer.h>
+#include "jfunc.h"
 #include "sqlfunc.h"
-#include "wtfunc.h"
 
 using namespace std;
 extern const string sroot;
@@ -15,7 +15,7 @@ public:
 	const vector<string> tree_pl;
 	const vector<string> list;
 
-	enum eType { Connect, Tree, List, Table };
+	enum eType { Connect, Tree, Subtree, List, Table };
 	string getSessionID() { return sessionID; }
 	vector<string> get_list() const { return list; }
 	vector<string> get_tree_pl() const { return tree_pl; }
@@ -33,7 +33,7 @@ private:
 	DataEvent(eType et, const string& sID, const vector<string>& lst) 
 		: etype(et), sessionID(sID), list(lst) {}
 
-	// Constructor for eTypes Tree, Table.
+	// Constructor for eTypes Tree, Subtree, Table.
 	DataEvent(eType et, const string& sID, const vector<vector<int>>& t_st, 
 		const vector<string>& t_pl) : etype(et), sessionID(sID), tree_st(t_st), tree_pl(t_pl) {}
 
@@ -54,9 +54,11 @@ public:
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init(int&);
 	vector<string> getYearList();
+	void pullRegion(string, string);
 	void pullTree(string, vector<string>);
 
 private:
+	JFUNC jf;
 	SQLFUNC sf;
 	struct UserInfo
 	{
@@ -69,6 +71,7 @@ private:
 	typedef map<User*, UserInfo> userMap;
 	userMap users;
 
+	void err(string);
 	void postDataEvent(const DataEvent& event, string sID);
 };
 

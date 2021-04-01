@@ -1,36 +1,14 @@
 #include "SCDAwidget.h"
 
-void SCDAwidget::askRegion()
+void SCDAwidget::askRegion(string syear, string sdesc)
 {
 	// This function is called whenever cbDesc is specified, or when a 
 	// catalogue subtree is expanded.
-
-	vector<string> filters;
-	filters.resize(num_filters);
-	Wt::WString wstemp = cbYear->currentText();
-	string temp = wstemp.toUTF8();
-	filters[0] = temp;
-	wstemp = cbDesc->currentText();
-	temp = wstemp.toUTF8();
-	filters[1] = temp;
-	wstemp = cbRegion->currentText();
-	temp = wstemp.toUTF8();
-	filters[2] = temp;
-
-	temp = "All";
-	for (int ii = 0; ii < num_filters; ii++)
-	{
-		if (filters[ii] == temp)
-		{
-			cbActive[ii] = 0;
-		}
-		else
-		{
-			cbActive[ii] = 1;
-		}
-	}
-
-	sRef.pullTree(sessionID, filters);
+	
+	vector<Wt::WString> cataAncestry = { Wt::WString::fromUTF8(syear), Wt::WString::fromUTF8(sdesc) };
+	regionQuery.push_back(cataAncestry);
+	//string desc = cataAncestry[1].toUTF8();
+	sRef.pullRegion(sessionID, sdesc);
 }
 void SCDAwidget::askTree()
 {
@@ -209,7 +187,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		auto tRoot = make_unique<Wt::WTreeNode>(wstemp);
 		auto treeRoot = tRoot.get();
 		treeCata->setTreeRoot(move(tRoot));
-		processDataEventHelper(tree_st, tree_pl, 0, treeRoot);
+		processDataEventHelper(Tree, tree_st, tree_pl, 0, treeRoot);
 		treeRoot->expand();
 
 		vector<int> cataInYear;
@@ -241,9 +219,56 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		}
 		else                                    // A catalogue has been specified.
 		{
-			askRegion();   // Is this correct??
+			//askRegion();   // Is this correct??
 		}
 
+	}
+	case 2:  // Subtree.
+	{
+		// Make a pointer to the parent catalogue in the main tree.
+		vector<vector<int>> tree_st = event.get_tree_st();
+		vector<string> tree_pl = event.get_tree_pl();
+		const Wt::WString wsYear = regionQuery[0][0];
+		const Wt::WString wsDesc = regionQuery[0][1];
+		regionQuery.erase(regionQuery.begin());
+		vector<Wt::WTreeNode*> pYears = treeCata->treeRoot()->childNodes();
+		Wt::WTreeNode* pYear = nullptr;
+		Wt::WTreeNode* pDesc = nullptr;
+		Wt::WText* wsText = nullptr;
+		for (int ii = 0; ii < pYears.size(); ii++)
+		{
+			wsText = pYears[ii]->label();
+			const Wt::WString wstemp = wsText->text();
+			if (wstemp == wsYear)
+			{
+				pYear = pYears[ii];
+				break;
+			}
+		}
+		vector<Wt::WTreeNode*> pDescs = pYear->childNodes();
+		for (int ii = 0; ii < pDescs.size(); ii++)
+		{
+			wsText = pDescs[ii]->label();
+			const Wt::WString wstemp = wsText->text();
+			if (wstemp == wsDesc)
+			{
+				pDesc = pDescs[ii];
+				break;
+			}
+		}
+		
+		// Use the catalogue pointer as the root for the subtree.
+		vector<Wt::WTreeNode*> child = pDesc->childNodes();
+		pDesc->removeChildNode(child[0]);  // Remove the dummy entry.
+		vector<int> roots = jf.get_roots(tree_st);
+		for (int ii = 0; ii < roots.size(); ii++)
+		{
+			const Wt::WString wstemp(tree_pl[roots[ii]].c_str());
+			auto subRoot = make_unique<Wt::WTreeNode>(wstemp);
+			auto subTreeRoot = subRoot.get();
+			pDesc->addChildNode(move(subRoot));
+			processDataEventHelper(Subtree, tree_st, tree_pl, roots[ii], subTreeRoot);
+		}
 	}
 
 	/*
@@ -273,12 +298,13 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 
 	}
 }
-void SCDAwidget::processDataEventHelper(vector<vector<int>>& tree_st, vector<string>& tree_pl, int pl_index, Wt::WTreeNode*& me)
+void SCDAwidget::processDataEventHelper(treeType tt, vector<vector<int>>& tree_st, vector<string>& tree_pl, int pl_index, Wt::WTreeNode*& me)
 {
 	vector<int> kids;
 	vector<Wt::WTreeNode*> pkids;
 	int pivot;
 	int rowSize = tree_st[pl_index].size();
+
 	for (int ii = 0; ii < rowSize; ii++)
 	{
 		if (tree_st[pl_index][ii] < 0)
@@ -293,10 +319,30 @@ void SCDAwidget::processDataEventHelper(vector<vector<int>>& tree_st, vector<str
 	}
 	if (pivot == 2)  // This node has exactly 2 parents (root->year) so it's a catalogue.
 	{
-		me->expanded().connect(this, &SCDAwidget::)  // RESUME HERE. Incorporate regions.
-		//cbYear->changed().connect(this, &SCDAwidget::askTree);
+		Wt::WTreeNode* pYear = me->parentNode();
+		Wt::WText* yearText = me->label();
+		const Wt::WString wsyear = yearText->text();
+		Wt::WText* cataText = me->label();
+		const Wt::WString cataDesc = cataText->text();
+		const string sdesc = tree_pl[pl_index];
+		int iparent = tree_st[pl_index][1];
+		const string syear = tree_pl[iparent];
+		auto fn = bind(&SCDAwidget::askRegion, syear, sdesc);
+		me->expanded().connect([=](const string syear, const string sdesc) {
+			this->askRegion(syear, sdesc);  // RESUME HERE.
+			});
 	}
-	if (rowSize <= pivot + 1) { return; }  // Not a parent.
+	if (rowSize <= pivot + 1)  // Not a parent.
+	{
+		if (tt == 1) { return; }
+		else if (tt == 0)  // Catalogue nodes receive a dummy entry by default. If the user
+		{                  // tries to view a catalogue, it will be loaded on demand.
+			const Wt::WString wstemp("void");
+			auto branch = make_unique<Wt::WTreeNode>(wstemp);
+			me->addChildNode(move(branch));
+			return;
+		}
+	}  
 	kids.resize(rowSize - pivot - 1);
 	pkids.resize(rowSize - pivot - 1);
 	for (int ii = 0; ii < kids.size(); ii++)
@@ -308,10 +354,11 @@ void SCDAwidget::processDataEventHelper(vector<vector<int>>& tree_st, vector<str
 		const Wt::WString wstemp(tree_pl[kids[ii]].c_str());
 		auto branch = make_unique<Wt::WTreeNode>(wstemp);
 		pkids[ii] = me->addChildNode(move(branch));
+		
 	}
 	for (int ii = 0; ii < pkids.size(); ii++)
 	{
-		processDataEventHelper(tree_st, tree_pl, kids[ii], pkids[ii]);
+		processDataEventHelper(tt, tree_st, tree_pl, kids[ii], pkids[ii]);
 	}
 }
 
