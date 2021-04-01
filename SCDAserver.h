@@ -1,5 +1,6 @@
 #pragma once
 #include <Wt/WServer.h>
+#include <functional>
 #include "jfunc.h"
 #include "sqlfunc.h"
 
@@ -14,9 +15,11 @@ public:
 	const vector<vector<int>> tree_st;
 	const vector<string> tree_pl;
 	const vector<string> list;
+	const vector<string> ancestry;
 
 	enum eType { Connect, Tree, Subtree, List, Table };
 	string getSessionID() { return sessionID; }
+	vector<string> get_ancestry() const { return ancestry; }
 	vector<string> get_list() const { return list; }
 	vector<string> get_tree_pl() const { return tree_pl; }
 	vector<vector<int>> get_tree_st() const { return tree_st; }
@@ -33,9 +36,14 @@ private:
 	DataEvent(eType et, const string& sID, const vector<string>& lst) 
 		: etype(et), sessionID(sID), list(lst) {}
 
-	// Constructor for eTypes Tree, Subtree, Table.
+	// Constructor for eTypes Tree, Table.
 	DataEvent(eType et, const string& sID, const vector<vector<int>>& t_st, 
 		const vector<string>& t_pl) : etype(et), sessionID(sID), tree_st(t_st), tree_pl(t_pl) {}
+
+	// Constructor for eType Subtree.
+	DataEvent(eType et, const vector<string>& anc, const vector<vector<int>>& t_st,
+		const vector<string>& t_pl) : etype(et), 
+		sessionID(anc[0]), tree_st(t_st), tree_pl(t_pl), ancestry(anc) {}
 
 	friend class SCDAserver;
 };
@@ -54,7 +62,7 @@ public:
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init(int&);
 	vector<string> getYearList();
-	void pullRegion(string, string);
+	void pullRegion(vector<string>);
 	void pullTree(string, vector<string>);
 
 private:

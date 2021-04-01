@@ -42,12 +42,14 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 		}
 	}
 }
-void SCDAserver::pullRegion(string sID, string desc)
+void SCDAserver::pullRegion(vector<string> ancestry)
 {
+	// ancestry has form [sessionID, syear, sdesc].
+
 	vector<string> cataNames;
 	vector<string> search = { "Name" };
 	string tname = "TCatalogueIndex";
-	vector<string> conditions = { "Description = '" + desc + "'" };
+	vector<string> conditions = { "Description = '" + ancestry[2] + "'" };
 	sf.select(search, tname, cataNames, conditions);
 	if (cataNames.size() != 1) { err("Not-one names returned from desc-SCDAserver.pullRegion"); }
 
@@ -56,7 +58,7 @@ void SCDAserver::pullRegion(string sID, string desc)
 	tname = "TG_Region$" + cataNames[0];
 	sf.select_tree(tname, tree_st, tree_pl);
 
-	postDataEvent(DataEvent(DataEvent::Tree, sID, tree_st, tree_pl), sID);
+	postDataEvent(DataEvent(DataEvent::Subtree, ancestry, tree_st, tree_pl), ancestry[0]);
 }
 void SCDAserver::pullTree(string sID, vector<string> filters)
 {

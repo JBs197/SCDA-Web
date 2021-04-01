@@ -19,7 +19,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string db_path = sroot + "\\SCDA.db";
 	JFUNC jf;
 	const int num_filters = 3;
-	vector<vector<Wt::WString>> regionQuery;
 	string selectedCataName;
 	string sessionID;
 	enum treeType { Tree, Subtree };
@@ -37,14 +36,13 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void connect();
 	void init();
 	void processDataEvent(const DataEvent& event);
-	void processDataEventHelper(treeType, vector<vector<int>>&, vector<string>&, int, Wt::WTreeNode*&);
+	void processDataEventHelper(treeType, vector<vector<int>>&, vector<string>&, int, Wt::WTreeNode*&, string);
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) { init(); }
 
 	void askTree();  // Populates only the year and catalogue layers of the tree.
-	//void askRegion(Wt::WString, Wt::WString);  // Populates the region data for a single catalogue, on demand.
-	void askRegion(string, string);
+	static void askRegion(SCDAserver&, vector<string>);  // Populates the region data for a single catalogue, on demand.
 	void cbYearClicked();
 };
 

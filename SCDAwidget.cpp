@@ -1,14 +1,11 @@
 #include "SCDAwidget.h"
 
-void SCDAwidget::askRegion(string syear, string sdesc)
+void SCDAwidget::askRegion(SCDAserver& sRef, vector<string> ancestry)
 {
 	// This function is called whenever cbDesc is specified, or when a 
-	// catalogue subtree is expanded.
+	// catalogue subtree is expanded. Form [sessionID, syear, sname].
 	
-	vector<Wt::WString> cataAncestry = { Wt::WString::fromUTF8(syear), Wt::WString::fromUTF8(sdesc) };
-	regionQuery.push_back(cataAncestry);
-	//string desc = cataAncestry[1].toUTF8();
-	sRef.pullRegion(sessionID, sdesc);
+	sRef.pullRegion(ancestry);
 }
 void SCDAwidget::askTree()
 {
@@ -128,7 +125,6 @@ void SCDAwidget::init()
 	// Initial values for cbRegion.
 	wstemp = Wt::WString("All");
 	cbRegion->addItem(wstemp);
-	cbRegion->changed().connect(this, &SCDAwidget::askRegion);
 	cbRegion->setEnabled(0);
 
 	uniquePanelYear->setTitle("Select a Year");
@@ -168,7 +164,8 @@ void SCDAwidget::init()
 void SCDAwidget::processDataEvent(const DataEvent& event)
 {
 	Wt::WApplication* app = Wt::WApplication::instance();
-	app->triggerUpdate();			
+	app->triggerUpdate();
+	string sessionID = app->sessionId();
 	int display = event.type();
 	switch (display)
 	{
@@ -187,7 +184,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		auto tRoot = make_unique<Wt::WTreeNode>(wstemp);
 		auto treeRoot = tRoot.get();
 		treeCata->setTreeRoot(move(tRoot));
-		processDataEventHelper(Tree, tree_st, tree_pl, 0, treeRoot);
+		processDataEventHelper(Tree, tree_st, tree_pl, 0, treeRoot, sessionID);
 		treeRoot->expand();
 
 		vector<int> cataInYear;
@@ -221,16 +218,16 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		{
 			//askRegion();   // Is this correct??
 		}
-
+		break;
 	}
 	case 2:  // Subtree.
 	{
 		// Make a pointer to the parent catalogue in the main tree.
 		vector<vector<int>> tree_st = event.get_tree_st();
 		vector<string> tree_pl = event.get_tree_pl();
-		const Wt::WString wsYear = regionQuery[0][0];
-		const Wt::WString wsDesc = regionQuery[0][1];
-		regionQuery.erase(regionQuery.begin());
+		vector<string> ancestry = event.get_ancestry();
+		const Wt::WString wsYear = Wt::WString::fromUTF8(ancestry[1]);
+		const Wt::WString wsDesc = Wt::WString::fromUTF8(ancestry[2]);
 		vector<Wt::WTreeNode*> pYears = treeCata->treeRoot()->childNodes();
 		Wt::WTreeNode* pYear = nullptr;
 		Wt::WTreeNode* pDesc = nullptr;
@@ -267,8 +264,9 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 			auto subRoot = make_unique<Wt::WTreeNode>(wstemp);
 			auto subTreeRoot = subRoot.get();
 			pDesc->addChildNode(move(subRoot));
-			processDataEventHelper(Subtree, tree_st, tree_pl, roots[ii], subTreeRoot);
+			processDataEventHelper(Subtree, tree_st, tree_pl, roots[ii], subTreeRoot, sessionID);
 		}
+		break;
 	}
 
 	/*
@@ -298,7 +296,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 
 	}
 }
-void SCDAwidget::processDataEventHelper(treeType tt, vector<vector<int>>& tree_st, vector<string>& tree_pl, int pl_index, Wt::WTreeNode*& me)
+void SCDAwidget::processDataEventHelper(treeType tt, vector<vector<int>>& tree_st, vector<string>& tree_pl, int pl_index, Wt::WTreeNode*& me, string sessionID)
 {
 	vector<int> kids;
 	vector<Wt::WTreeNode*> pkids;
@@ -317,27 +315,22 @@ void SCDAwidget::processDataEventHelper(treeType tt, vector<vector<int>>& tree_s
 			pivot = 0;
 		}
 	}
-	if (pivot == 2)  // This node has exactly 2 parents (root->year) so it's a catalogue.
+	if (tt == 0 && pivot == 2)  // This node has exactly 2 parents (root->year) so it's a catalogue.
 	{
-		Wt::WTreeNode* pYear = me->parentNode();
-		Wt::WText* yearText = me->label();
-		const Wt::WString wsyear = yearText->text();
-		Wt::WText* cataText = me->label();
-		const Wt::WString cataDesc = cataText->text();
-		const string sdesc = tree_pl[pl_index];
+		vector<string> ancestry(3);
+		ancestry[0] = sessionID;
+		ancestry[2] = tree_pl[pl_index];
 		int iparent = tree_st[pl_index][1];
-		const string syear = tree_pl[iparent];
-		auto fn = bind(&SCDAwidget::askRegion, syear, sdesc);
-		me->expanded().connect([=](const string syear, const string sdesc) {
-			this->askRegion(syear, sdesc);  // RESUME HERE.
-			});
+		ancestry[1] = tree_pl[iparent];
+		function<void()> fn = bind(&SCDAwidget::askRegion, ref(sRef), ancestry);
+		me->expanded().connect(fn);
 	}
 	if (rowSize <= pivot + 1)  // Not a parent.
 	{
 		if (tt == 1) { return; }
 		else if (tt == 0)  // Catalogue nodes receive a dummy entry by default. If the user
 		{                  // tries to view a catalogue, it will be loaded on demand.
-			const Wt::WString wstemp("void");
+			const Wt::WString wstemp("Loading...");
 			auto branch = make_unique<Wt::WTreeNode>(wstemp);
 			me->addChildNode(move(branch));
 			return;
@@ -351,14 +344,14 @@ void SCDAwidget::processDataEventHelper(treeType tt, vector<vector<int>>& tree_s
 	}
 	for (int ii = 0; ii < kids.size(); ii++)
 	{
-		const Wt::WString wstemp(tree_pl[kids[ii]].c_str());
+		const Wt::WString wstemp(tree_pl[kids[ii]]);
 		auto branch = make_unique<Wt::WTreeNode>(wstemp);
 		pkids[ii] = me->addChildNode(move(branch));
 		
 	}
 	for (int ii = 0; ii < pkids.size(); ii++)
 	{
-		processDataEventHelper(tt, tree_st, tree_pl, kids[ii], pkids[ii]);
+		processDataEventHelper(tt, tree_st, tree_pl, kids[ii], pkids[ii], sessionID);
 	}
 }
 
