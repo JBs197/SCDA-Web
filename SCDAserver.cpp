@@ -24,6 +24,10 @@ void SCDAserver::init(int& numTables)
 	sf.init(db_path);
 	sf.all_tables(numTables);
 }
+long long SCDAserver::getTimer()
+{
+	return jf.timerStop();
+}
 vector<string> SCDAserver::getYearList()
 {
 	return sf.select_years();
@@ -44,8 +48,8 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 }
 void SCDAserver::pullRegion(vector<string> ancestry)
 {
+	jf.timerStart();
 	// ancestry has form [sessionID, syear, sdesc].
-
 	vector<string> cataNames;
 	vector<string> search = { "Name" };
 	string tname = "TCatalogueIndex";
@@ -54,11 +58,31 @@ void SCDAserver::pullRegion(vector<string> ancestry)
 	if (cataNames.size() != 1) { err("Not-one names returned from desc-SCDAserver.pullRegion"); }
 
 	vector<vector<int>> tree_st;
-	vector<string> tree_pl;
+	vector<wstring> wtree_pl;
 	tname = "TG_Region$" + cataNames[0];
-	sf.select_tree(tname, tree_st, tree_pl);
+	sf.select_tree(tname, tree_st, wtree_pl);
+	postDataEvent(DataEvent(DataEvent::Subtree, ancestry, tree_st, wtree_pl), ancestry[0]);
+	long long timer = jf.timerStop();
+	cout << "pullRegion: " << timer << "ms" << endl;
+}
+void SCDAserver::pullRegion2(vector<string> ancestry)
+{
+	jf.timerStart();  // THIS FUNCTION IS TBD: make it to reduce catalogue load times.
+	// ancestry has form [sessionID, syear, sdesc].
+	vector<string> cataNames;
+	vector<string> search = { "Name" };
+	string tname = "TCatalogueIndex";
+	vector<string> conditions = { "Description = '" + ancestry[2] + "'" };
+	sf.select(search, tname, cataNames, conditions);
+	if (cataNames.size() != 1) { err("Not-one names returned from desc-SCDAserver.pullRegion"); }
 
-	postDataEvent(DataEvent(DataEvent::Subtree, ancestry, tree_st, tree_pl), ancestry[0]);
+	vector<vector<int>> tree_st;
+	vector<wstring> wtree_pl;
+	tname = "TG_Region$" + cataNames[0];
+	sf.select_tree(tname, tree_st, wtree_pl);
+	postDataEvent(DataEvent(DataEvent::Subtree, ancestry, tree_st, wtree_pl), ancestry[0]);
+	long long timer = jf.timerStop();
+	cout << "pullRegion: " << timer << "ms" << endl;
 }
 void SCDAserver::pullTree(string sID, vector<string> filters)
 {
@@ -117,4 +141,17 @@ void SCDAserver::pullTree(string sID, vector<string> filters)
 	}
 
 	postDataEvent(DataEvent(DataEvent::Tree, sID, tree_st, tree_pl), sID);
+}
+void SCDAserver::setYear(vector<string> ancestry)
+{
+	jf.timerStart();
+	// ancestry has form [sessionID, syear].
+	vector<string> results = { ancestry[1] };
+	vector<string> search = { "Description" };
+	string tname = "TCatalogueIndex";
+	vector<string> conditions = { "Year = " + ancestry[1] };
+	sf.select(search, tname, results, conditions);
+	postDataEvent(DataEvent(DataEvent::DescList, ancestry[0], results), ancestry[0]);
+	long long timer = jf.timerStop();
+	cout << "server setYear: " << timer << "ms" << endl;
 }

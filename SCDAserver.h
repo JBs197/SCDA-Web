@@ -13,16 +13,20 @@ class DataEvent
 {
 public:
 	const vector<vector<int>> tree_st;
+	const vector<wstring> wtree_pl;
 	const vector<string> tree_pl;
 	const vector<string> list;
 	const vector<string> ancestry;
+	const string stext;
 
-	enum eType { Connect, Tree, Subtree, List, Table };
+	enum eType { Connect, Tree, Subtree, Table, Label, YearList, DescList };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<string> get_list() const { return list; }
+	string get_text() const { return stext; }
 	vector<string> get_tree_pl() const { return tree_pl; }
 	vector<vector<int>> get_tree_st() const { return tree_st; }
+	vector<wstring> get_wtree_pl() const { return wtree_pl; }
 	int type() const { return etype; }
 	
 private:
@@ -40,10 +44,17 @@ private:
 	DataEvent(eType et, const string& sID, const vector<vector<int>>& t_st, 
 		const vector<string>& t_pl) : etype(et), sessionID(sID), tree_st(t_st), tree_pl(t_pl) {}
 
-	// Constructor for eType Subtree.
+	// Constructors for eType Subtree.
 	DataEvent(eType et, const vector<string>& anc, const vector<vector<int>>& t_st,
-		const vector<string>& t_pl) : etype(et), 
+		const vector<string>& t_pl) : etype(et),
 		sessionID(anc[0]), tree_st(t_st), tree_pl(t_pl), ancestry(anc) {}
+	DataEvent(eType et, const vector<string>& anc, const vector<vector<int>>& t_st,
+		const vector<wstring>& wt_pl) : etype(et), 
+		sessionID(anc[0]), tree_st(t_st), wtree_pl(wt_pl), ancestry(anc) {}
+
+	// Constructor for eType Label.
+	DataEvent(eType et, const string& sID, const string& txt)
+		: etype(et), sessionID(sID), stext(txt) {}
 
 	friend class SCDAserver;
 };
@@ -61,9 +72,12 @@ public:
 
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init(int&);
+	long long getTimer();
 	vector<string> getYearList();
 	void pullRegion(vector<string>);
+	void pullRegion2(vector<string>);
 	void pullTree(string, vector<string>);
+	void setYear(vector<string>);
 
 private:
 	JFUNC jf;
@@ -74,7 +88,10 @@ private:
 		DataEventCallback eventCallback;
 	};
 
+	unordered_map<string, int> cataMap;  // Cata desc -> gidTree index.
 	const string db_path = sroot + "\\SCDA.db";
+	vector<vector<vector<int>>> gidTreeSt;  // Form [gidTree index][node index][ancestry, node, children]
+	vector<vector<int>> gidTreePl;  // Form [gidTree index][node index] GID.
 	Wt::WServer& serverRef;
 	typedef map<User*, UserInfo> userMap;
 	userMap users;
