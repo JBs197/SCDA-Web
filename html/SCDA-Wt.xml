@@ -7,5 +7,8 @@
 <p>This will be a welcome message that will provide basic context and instructions on how to use the SCDA Web Tool. Until then, this is simply a placeholder and a test for the HTML formatting.</p>
 
   </message>
+  <message id="cbYear">Select a Year</message>
+  <message id="cbDesc">Select a Catalogue Description</message>
+  <message id="cbRegion">Select a Geographical Region</message>
 
 </messages>

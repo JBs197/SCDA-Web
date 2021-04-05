@@ -1,97 +1,89 @@
 #include "SCDAwidget.h"
 
+/*
 void SCDAwidget::askRegion(SCDAserver& sRef, vector<string> ancestry)
 {
 	// This function is called whenever cbDesc is specified, or when a 
 	// catalogue subtree is expanded. Form [sessionID, syear, sname, geo1, geo2, ...].
 	sRef.pullRegion(ancestry);
 }
-void SCDAwidget::askTree()
+void SCDAwidget::askRegionNX(vector<string> ancestry)
 {
-	// This function is called whenever any filter is changed.
-
-	vector<string> filters;
-	filters.resize(num_filters);
-	Wt::WString wstemp = cbYear->currentText();
-	string temp = wstemp.toUTF8();
-	filters[0] = temp;
-	wstemp = cbDesc->currentText();
-	temp = wstemp.toUTF8();
-	filters[1] = temp;
-	wstemp = cbRegion->currentText();
-	temp = wstemp.toUTF8();
-	filters[2] = temp;
-
-	temp = "All";
-	for (int ii = 0; ii < num_filters; ii++)
-	{
-		if (filters[ii] == temp)
-		{
-			cbActive[ii] = 0;
-		}
-		else
-		{
-			cbActive[ii] = 1;
-		}
-	}
-
-	sRef.pullTree(sessionID, filters);
+	// This function is called whenever cbDesc is specified, or when a 
+	// catalogue subtree is expanded. Form [sessionID, syear, sname, geo1, geo2, ...].
+	sRef.pullRegion(ancestry);
 }
+*/
+
 void SCDAwidget::cbDescClicked()
 {
-	const Wt::WString wsdesc = cbDesc->currentText();
-	const Wt::WString wsyear(activeYear);
-	Wt::WTreeNode* pRoot = treeCata->treeRoot();
-	vector<Wt::WTreeNode*> pYears = pRoot->childNodes();
-	if (wsdesc == wsAll)
+	Wt::WString wsTemp;
+	Wt::WString wsDesc = cbDesc->currentText();
+	int yearIndex;
+	Wt::WString wsYear = Wt::WString::fromUTF8(activeYear);
+	vector<Wt::WTreeNode*> pYears = treeRoot->childNodes();
+	for (int ii = 0; ii < pYears.size(); ii++)
+	{
+		wsTemp = pYears[ii]->label()->text();
+		if (wsTemp == wsYear)
+		{
+			yearIndex = ii;
+			break;
+		}
+	}
+	vector<Wt::WTreeNode*> pDescs = pYears[yearIndex]->childNodes();
+	Wt::WApplication* app = Wt::WApplication::instance();
+	vector<string> prompt = { app->sessionId() };
+	
+	if (wsDesc == wsAll)
 	{
 		activeDesc = "All";
 		for (int ii = 0; ii < pYears.size(); ii++)
 		{
-			Wt::WString wstemp = pYears[ii]->label()->text();
-			if (wstemp == wsyear)
+			if (ii != yearIndex)
 			{
-				pYears[ii]->setHidden(0);
+				pYears[ii]->collapse();
+			}
+			else
+			{
 				pYears[ii]->expand();
+				pYears[ii]->setHidden(0);
 			}
 		}
-		panelRegion->setTitle("Select a Geographical Region");
+		for (int ii = 0; ii < pDescs.size(); ii++)
+		{
+			pDescs[ii]->setHidden(0);
+			pDescs[ii]->collapse();
+		}
+		panelRegion->setTitle(defNames[2]);
 		cbRegion->setCurrentIndex(0);
 		cbRegion->setEnabled(0);
 	}
 	else
 	{
-		Wt::WApplication* app = Wt::WApplication::instance();
-		vector<string> ancestry(3);
-		ancestry[0] = app->sessionId();
-		ancestry[1] = wsyear.toUTF8();
-		ancestry[2] = wsdesc.toUTF8();
-		activeDesc = ancestry[2];
-		setDesc(sRef, ancestry);
-		int pyIndex;
+		prompt.resize(3);
+		prompt[1] = activeYear;
+		prompt[2] = wsDesc.toUTF8();
+		setLayer(Description, prompt);
+		activeDesc = prompt[2];
 		for (int ii = 0; ii < pYears.size(); ii++)
 		{
-			Wt::WString wstemp = pYears[ii]->label()->text();
-			if (wstemp == wsyear)
+			if (ii != yearIndex)
 			{
-				pYears[ii]->setHidden(0);
-				pYears[ii]->expand();
-				pyIndex = ii;
+				pYears[ii]->setHidden(1);
 			}
 			else
 			{
-				pYears[ii]->setHidden(1);
-				pYears[ii]->collapse();
+				pYears[ii]->expand();
+				pYears[ii]->setHidden(0);
 			}
 		}
-		vector<Wt::WTreeNode*> pDescs = pYears[pyIndex]->childNodes();
 		for (int ii = 0; ii < pDescs.size(); ii++)
 		{
-			Wt::WString wstemp = pDescs[ii]->label()->text();
-			if (wstemp == wsdesc)
+			wsTemp = pDescs[ii]->label()->text();
+			if (wsTemp == wsDesc)
 			{
 				pDescs[ii]->setHidden(0);
-				pDescs[ii]->expand();
 			}
 			else
 			{
@@ -101,20 +93,27 @@ void SCDAwidget::cbDescClicked()
 		}
 	}
 }
+void SCDAwidget::cbRegionClicked()
+{
+
+}
 void SCDAwidget::cbYearClicked()
 {
 	Wt::WString wsyear = cbYear->currentText();
-	Wt::WTreeNode* pRoot = treeCata->treeRoot();
-	vector<Wt::WTreeNode*> pYears = pRoot->childNodes();
+	vector<Wt::WTreeNode*> pYears = treeRoot->childNodes();
+	Wt::WApplication* app = Wt::WApplication::instance();
+	vector<string> prompt = { app->sessionId() };
 	if (wsyear == wsAll)
 	{
+		setLayer(Root, prompt);
 		activeYear = "All";
 		for (int ii = 0; ii < pYears.size(); ii++)
 		{
 			pYears[ii]->collapse();
 			pYears[ii]->setHidden(0);
 		}
-		panelDesc->setTitle("Select a Catalogue Description");
+		panelDesc->setTitle(defNames[1]);
+		panelRegion->setTitle(defNames[2]);
 		cbDesc->setCurrentIndex(0);
 		cbDesc->setEnabled(0);
 		cbRegion->setCurrentIndex(0);
@@ -122,12 +121,9 @@ void SCDAwidget::cbYearClicked()
 	}
 	else
 	{
-		Wt::WApplication* app = Wt::WApplication::instance();
-		vector<string> ancestry(3);
-		ancestry[0] = app->sessionId();
-		ancestry[1] = wsyear.toUTF8();
-		activeYear = ancestry[1];
-		setYear(sRef, ancestry);
+		prompt.push_back(wsyear.toUTF8());
+		setLayer(Year, prompt);
+		activeYear = prompt[1];
 		for (int ii = 0; ii < pYears.size(); ii++)
 		{
 			Wt::WString wstemp = pYears[ii]->label()->text();
@@ -154,12 +150,63 @@ void SCDAwidget::connect()
 }
 void SCDAwidget::init()
 {
-	clear();
 	int numTables;
 	sRef.init(numTables);
 	connect();
-	cbActive.assign(num_filters, 0);
-	string temp;
+	Wt::WApplication* app = Wt::WApplication::instance();
+	vector<string> prompt = { app->sessionId() };
+
+	defNames.resize(3);
+	defNames[0] = Wt::WString::tr("cbYear");
+	defNames[1] = Wt::WString::tr("cbDesc");
+	defNames[2] = Wt::WString::tr("cbRegion");
+	makeUI();
+	initUI(numTables);
+	setLayer(Root, prompt);
+
+	//cbActive.assign(num_filters, 0);
+	//askTree();
+}
+void SCDAwidget::initUI(int numTables)
+{
+	Wt::WString wstemp;
+
+	// Initial values for panelYear.
+	panelYear->setTitle(defNames[0]);
+	cbYear->changed().connect(this, &SCDAwidget::cbYearClicked);
+
+	// Initial values for panelDesc.
+	panelDesc->setTitle(defNames[1]);
+	cbDesc->changed().connect(this, &SCDAwidget::cbDescClicked);
+	cbDesc->addItem(wsAll);
+	cbDesc->setEnabled(0);
+
+	// Initial values for panelRegion.
+	panelRegion->setTitle(defNames[2]);
+	cbRegion->changed().connect(this, &SCDAwidget::cbRegionClicked);
+	cbRegion->addItem(wsAll);
+	cbRegion->setEnabled(0);
+
+	// Initial values for the tree widget.
+	auto tRoot = make_unique<Wt::WTreeNode>("Census Tables");
+	treeRoot = tRoot.get();
+	treeCata->setTreeRoot(move(tRoot));
+
+	// Initial values for the text widget.
+	string temp = "Database has " + to_string(numTables) + " table results.";
+	wstemp = Wt::WString(temp);
+	textTest->setText(wstemp);
+
+	// Initial values for the test button.
+	pbTest->clicked().connect(this, &SCDAwidget::pbTestClicked);
+
+}
+void SCDAwidget::makeUI()
+{
+	this->clear();
+	auto vLayout = make_unique<Wt::WVBoxLayout>();
+	auto hLayoutFilterTree = make_unique<Wt::WHBoxLayout>();
+	auto hLayoutTextButton = make_unique<Wt::WHBoxLayout>();
 
 	auto uniqueBoxControl = make_unique<Wt::WContainerWidget>();
 	boxControl = uniqueBoxControl.get();
@@ -177,247 +224,286 @@ void SCDAwidget::init()
 	cbRegion = uniqueCbRegion.get();
 	auto uniqueBoxTreelist = make_unique<Wt::WContainerWidget>();
 	boxTreelist = uniqueBoxTreelist.get();
-	auto uniqueSbList = make_unique<Wt::WSelectionBox>();
-	sbList = uniqueSbList.get();
+	auto uniqueTree = make_unique<Wt::WTree>();
+	treeCata = uniqueTree.get();
 	auto uniqueBoxTable = make_unique<Wt::WContainerWidget>();
 	boxTable = uniqueBoxTable.get();
-	auto uniqueWtTable = make_unique<Wt::WTable>();
-	wtTable = uniqueWtTable.get();
+	auto uniqueTable = make_unique<Wt::WTable>();
+	wtTable = uniqueTable.get();
+	auto uniqueBoxText = make_unique<Wt::WContainerWidget>();
+	boxText = uniqueBoxText.get();
 	auto uniqueTextTest = make_unique<Wt::WText>();
 	textTest = uniqueTextTest.get();
+	auto uniqueBoxLineEdit = make_unique<Wt::WContainerWidget>();
+	boxLineEdit = uniqueBoxLineEdit.get();
+	auto uniqueLineEdit = make_unique<Wt::WLineEdit>();
+	lineEdit = uniqueLineEdit.get();
+	auto uniqueBoxButton = make_unique<Wt::WContainerWidget>();
+	boxButton = uniqueBoxButton.get();
 	auto uniquePbTest = make_unique<Wt::WPushButton>("TEST BUTTON");
 	pbTest = uniquePbTest.get();
-	auto vLayout = make_unique<Wt::WVBoxLayout>();  
-	auto hLayout = make_unique<Wt::WHBoxLayout>();
+	//auto uniqueSbList = make_unique<Wt::WSelectionBox>();
+	//sbList = uniqueSbList.get();
 
-	// Initial values for cbYear.
-	vector<string> year_list = sRef.getYearList();
-	cbYear->changed().connect(this, &SCDAwidget::cbYearClicked);
-	Wt::WString wstemp = Wt::WString("All");
-	cbYear->addItem(wstemp);
-	for (int ii = 0; ii < year_list.size(); ii++)
-	{
-		Wt::WString wstemp = Wt::WString(year_list[ii]);
-		cbYear->addItem(wstemp);
-	}
+	auto lenAuto = Wt::WLength();
+	auto len4 = Wt::WLength("400px");
+	auto len3 = Wt::WLength("300px");
+	auto len1 = Wt::WLength("100px");
+	boxControl->resize(len4, lenAuto);
+	boxTreelist->resize(len4, lenAuto);
+	boxText->resize(len3, lenAuto);
+	boxLineEdit->resize(len4, lenAuto);
+	boxButton->resize(len1, lenAuto);
 
-	// Initial values for cbDesc.
-	wstemp = Wt::WString("All");
-	cbDesc->addItem(wstemp);
-	cbDesc->changed().connect(this, &SCDAwidget::cbDescClicked);
-	cbDesc->setEnabled(0);
-
-	// Initial values for cbRegion.
-	wstemp = Wt::WString("All");
-	cbRegion->addItem(wstemp);
-	cbRegion->setEnabled(0);
-
-	uniquePanelYear->setTitle("Select a Year");
 	uniquePanelYear->setCentralWidget(move(uniqueCbYear));
-	uniqueBoxControl->addWidget(move(uniquePanelYear));
-	uniquePanelDesc->setTitle("Select a Catalogue Description");
 	uniquePanelDesc->setCentralWidget(move(uniqueCbDesc));
-	uniqueBoxControl->addWidget(move(uniquePanelDesc));
-	uniquePanelRegion->setTitle("Select a Geographical Region");
 	uniquePanelRegion->setCentralWidget(move(uniqueCbRegion));
+	uniqueBoxControl->addWidget(move(uniquePanelYear));
+	uniqueBoxControl->addWidget(move(uniquePanelDesc));
 	uniqueBoxControl->addWidget(move(uniquePanelRegion));
+	uniqueBoxTreelist->addWidget(move(uniqueTree));
+	uniqueBoxTable->addWidget(move(uniqueTable));
+	uniqueBoxText->addWidget(move(uniqueTextTest));
+	uniqueBoxLineEdit->addWidget(move(uniqueLineEdit));
+	uniqueBoxButton->addWidget(move(uniquePbTest));
 
-	// Initial values for treeCata.
-	askTree();
+	hLayoutFilterTree->addWidget(move(uniqueBoxControl));
+	hLayoutFilterTree->addWidget(move(uniqueBoxTreelist));
 
-	// Initial values for sbList.
-	uniqueSbList->setHidden(1);
-	//uniqueBoxTreelist->addWidget(move(uniqueSbList));
+	hLayoutTextButton->addWidget(move(uniqueBoxText));
+	hLayoutTextButton->addWidget(move(uniqueBoxLineEdit));
+	hLayoutTextButton->addWidget(move(uniqueBoxButton));
 
-	uniqueBoxTable->addWidget(move(uniqueWtTable));
+	vLayout->addLayout(move(hLayoutFilterTree));
+	vLayout->addLayout(move(hLayoutTextButton));
+	vLayout->addWidget(move(uniqueBoxTable));
 
-	// Initial values for textTest.
-	temp = "Database has " + to_string(numTables) + " table results.";
-	Wt::WString wstext(temp.c_str());
-	uniqueTextTest->setText(wstext);
-
-	hLayout->addWidget(move(uniqueBoxControl));
-	hLayout->addWidget(move(uniqueBoxTreelist));
-	hLayout->addWidget(move(uniqueBoxTable));	
-	
-	vLayout->addLayout(move(hLayout));
-	vLayout->addWidget(move(uniqueTextTest));
-	vLayout->addWidget(move(uniquePbTest));
 	this->setLayout(move(vLayout));
-
+}
+void SCDAwidget::pbTestClicked()
+{
+	vector<string> prompt(2);
+	Wt::WApplication* app = Wt::WApplication::instance();
+	prompt[0] = app->sessionId();
+	Wt::WString wsTable = lineEdit->text();
+	prompt[1] = wsTable.toUTF8();
+	if (prompt[1].size() < 1) 
+	{ 
+		prompt[1] = "TG_Region$97-570-X1986002"; 
+	}
+	setTable(prompt);
 }
 void SCDAwidget::processDataEvent(const DataEvent& event)
 {
+	jf.timerStart();
 	Wt::WApplication* app = Wt::WApplication::instance();
 	app->triggerUpdate();
+	vector<Wt::WTreeNode*> pYears, pDescs, pRegions;
+	Wt::WTreeNode* pTemp;
+	Wt::WString wsYear, wsDesc;
 	string sessionID = app->sessionId();
-	int display = event.type();
-	bool wstr = 0;
+	vector<string> slist, nextPrompt;
+	vector<vector<wstring>> wtable;
+	unordered_map<wstring, int> mapW;
 	long long timer;
-	switch (display)
+	int inum;
+
+	int etype = event.type();
+	switch (etype)
 	{
 	case 0:  // Connect.
-	{
 		break;
-	}
-	case 1:  // Tree.
-	{
-		vector<vector<int>> tree_st = event.get_tree_st();
-		vector<string> tree_pl = event.get_tree_pl();
-		boxTreelist->clear();
-		auto tree = make_unique<Wt::WTree>();
-		treeCata = boxTreelist->addWidget(move(tree));
-		const Wt::WString wstemp(event.tree_pl[0].c_str());
-		auto tRoot = make_unique<Wt::WTreeNode>(wstemp);
-		auto treeRoot = tRoot.get();
-		treeCata->setTreeRoot(move(tRoot));
-		processDataEventHelper(Tree, tree_st, tree_pl, 0, treeRoot, sessionID);
+	case 1:  // Populate the table widget.
+		wtable = event.get_wtable();
+		wtTable->setHeaderCount(1, Wt::Orientation::Horizontal);
+		wtTable->setHeaderCount(1, Wt::Orientation::Vertical);
+		for (int ii = 0; ii < wtable.size(); ii++)
+		{
+			for (int jj = 0; jj < wtable[ii].size(); jj++)
+			{
+				const Wt::WString wsCell(wtable[ii][jj]);
+				auto cellText = make_unique<Wt::WText>(wsCell);
+				cellText->setMargin(len5p);
+				wtTable->elementAt(ii, jj)->addWidget(move(cellText));
+			}
+		}
+		break;
+	case 2:  // Set the root layer.
+		slist = event.get_list();
+		pYears = treeRoot->childNodes();
+		while (pYears.size() > 0)
+		{
+			treeRoot->removeChildNode(pYears[0]);
+			pYears.erase(pYears.begin());
+		}
+		nextPrompt.resize(2);
+		nextPrompt[0] = sessionID;
+		cbYear->clear();
+		cbYear->addItem(wsAll);
+		for (int ii = 0; ii < slist.size(); ii++)
+		{
+			const Wt::WString wsYear(slist[ii]);
+			cbYear->addItem(wsYear);
+			auto uniqueTemp = make_unique<Wt::WTreeNode>(wsYear);
+			nextPrompt[1] = slist[ii];
+			function<void()> fn = bind(&SCDAwidget::setLayer, this, Year, nextPrompt);
+			uniqueTemp->expanded().connect(fn);
+			pTemp = treeRoot->addChildNode(move(uniqueTemp));
+			pTemp->addChildNode(make_unique<Wt::WTreeNode>("Loading..."));
+		}
 		treeRoot->expand();
-
-		vector<int> cataInYear;
-		Wt::WString wsAll = "All";
-		if (cbActive[0] == 0)
-		{
-			cbDesc->clear();
-			cbDesc->addItem(wsAll);
-			cbDesc->setEnabled(0);
-			cbRegion->clear();
-			cbRegion->addItem(wsAll);
-			cbRegion->setEnabled(0);
-		}
-		else if (cbActive[1] == 0)
-		{
-			cbDesc->clear();
-			cbDesc->addItem(wsAll);
-			cataInYear.assign(tree_st[1].begin() + 2, tree_st[1].end());
-			for (int ii = 0; ii < cataInYear.size(); ii++)
-			{
-				Wt::WString wstemp = Wt::WString::fromUTF8(tree_pl[cataInYear[ii]]);
-				cbDesc->addItem(wstemp);
-			}
-			cbDesc->setEnabled(1);
-
-			cbRegion->clear();
-			cbRegion->addItem(wsAll);
-			cbRegion->setEnabled(0);
-		}
-		else                                    // A catalogue has been specified.
-		{
-			//askRegion();   // Is this correct??
-		}
 		break;
-	}
-	case 2:  // Subtree.
-	{
-		jf.timerStart();
-		// Make a pointer to the parent catalogue in the main tree.
-		vector<vector<int>> tree_st = event.get_tree_st();
-		vector<string> tree_pl = event.get_tree_pl();
-		if (tree_pl.size() < 1) { wstr = 1; }
-		vector<wstring> wtree_pl = event.get_wtree_pl();
-		vector<string> ancestry = event.get_ancestry();
-		const Wt::WString wsYear = Wt::WString::fromUTF8(ancestry[1]);
-		const Wt::WString wsDesc = Wt::WString::fromUTF8(ancestry[2]);
-		vector<Wt::WTreeNode*> pYears = treeCata->treeRoot()->childNodes();
-		Wt::WTreeNode* pYear = nullptr;
-		Wt::WTreeNode* pDesc = nullptr;
-		Wt::WText* wsText = nullptr;
-		for (int ii = 0; ii < pYears.size(); ii++)
+	case 3:  // Set the year layer.
+		slist = event.get_list();
+		pYears = treeRoot->childNodes();
+		pDescs = pYears[treeActive[1]]->childNodes();
+		while (pDescs.size() > 0)
 		{
-			wsText = pYears[ii]->label();
-			const Wt::WString wstemp = wsText->text();
-			if (wstemp == wsYear)
-			{
-				pYear = pYears[ii];
-				break;
-			}
+			pYears[treeActive[1]]->removeChildNode(pDescs[0]);
+			pDescs.erase(pDescs.begin());
 		}
-		vector<Wt::WTreeNode*> pDescs = pYear->childNodes();
-		for (int ii = 0; ii < pDescs.size(); ii++)
+		wsYear = pYears[treeActive[1]]->label()->text();
+		nextPrompt.resize(3);
+		nextPrompt[0] = sessionID;
+		nextPrompt[1] = wsYear.toUTF8();
+		cbDesc->clear();
+		cbDesc->addItem(wsAll);
+		for (int ii = 0; ii < slist.size(); ii++)
 		{
-			wsText = pDescs[ii]->label();
-			const Wt::WString wstemp = wsText->text();
-			if (wstemp == wsDesc)
+			const Wt::WString wsDesc(slist[ii]);
+			cbDesc->addItem(wsDesc);
+			auto uniqueTemp = make_unique<Wt::WTreeNode>(wsDesc);
+			nextPrompt[2] = slist[ii];
+			function<void()> fn = bind(&SCDAwidget::setLayer, this, Description, nextPrompt);
+			uniqueTemp->expanded().connect(fn);
+			pTemp = pYears[treeActive[1]]->addChildNode(move(uniqueTemp));
+			pTemp->addChildNode(make_unique<Wt::WTreeNode>("Loading..."));
+		}
+		pYears[treeActive[1]]->expand();
+		cbDesc->setEnabled(1);
+		activeYear = nextPrompt[1];
+		break;
+	case 4:  // Set the description layer.
+		wtable = event.get_wtable();
+		timer = jf.timerRestart();
+		jf.logTime("get_wtable", timer);
+		pYears = treeRoot->childNodes();
+		pDescs = pYears[treeActive[1]]->childNodes();
+		pRegions = pDescs[treeActive[2]]->childNodes();
+		while (pRegions.size() > 0)
+		{
+			pDescs[treeActive[2]]->removeChildNode(pRegions[0]);
+			pRegions.erase(pRegions.begin());
+		}
+		wsYear = pYears[treeActive[1]]->label()->text();
+		wsDesc = pDescs[treeActive[2]]->label()->text();
+		nextPrompt.resize(4);
+		nextPrompt[0] = sessionID;
+		nextPrompt[1] = wsYear.toUTF8();
+		nextPrompt[2] = wsDesc.toUTF8();
+		timer = jf.timerRestart();
+		jf.logTime("misc before widgets", timer);
+		cbRegion->clear();
+		cbRegion->addItem(wsAll);
+		inum = 0;
+		for (int ii = 0; ii < wtable.size(); ii++)
+		{
+			if (wtable[ii][2].size() < 1)
 			{
-				pDesc = pDescs[ii];
-				break;
+				mapW.emplace(wtable[ii][0], inum);
+				const Wt::WString wsRegion(wtable[ii][1]);
+				cbRegion->addItem(wsRegion);
+				auto uniqueTemp = make_unique<Wt::WTreeNode>(wsRegion);
+				pTemp = pDescs[treeActive[2]]->addChildNode(move(uniqueTemp));
 			}
 		}
 		timer = jf.timerRestart();
-		cout << "PDE(get cata pointer): " << timer << "ms" << endl;
-
-		// Use the catalogue pointer as the root for the subtree.
-		vector<Wt::WTreeNode*> child = pDesc->childNodes();
-		pDesc->removeChildNode(child[0]);  // Remove the dummy entry.
-		vector<int> roots = jf.get_roots(tree_st);
-		for (int ii = 0; ii < roots.size(); ii++)
+		jf.logTime("add region roots", timer);
+		pRegions = pDescs[treeActive[2]]->childNodes();
+		for (int ii = 0; ii < wtable.size(); ii++)
 		{
-			if (wstr)
+			if (wtable[ii][2].size() > 0)
 			{
-				const Wt::WString wstemp(wtree_pl[roots[ii]]);
-				auto subRoot = make_unique<Wt::WTreeNode>(wstemp);
-				auto subTreeRoot = subRoot.get();
-				pDesc->addChildNode(move(subRoot));
-				processDataEventHelper(Subtree, tree_st, wtree_pl, roots[ii], subTreeRoot, sessionID);
-			}
-			else
-			{
-				const Wt::WString wstemp(tree_pl[roots[ii]]);
-				auto subRoot = make_unique<Wt::WTreeNode>(wstemp);
-				auto subTreeRoot = subRoot.get();
-				pDesc->addChildNode(move(subRoot));
-				processDataEventHelper(Subtree, tree_st, tree_pl, roots[ii], subTreeRoot, sessionID);
+				try	{ inum = mapW.at(wtable[ii][2]); }
+				catch (out_of_range& oor) { jf.err("mapW-SCDAwidget.processDataEvent"); }
+				const Wt::WString wsRegion(wtable[ii][1]);
+				cbRegion->addItem(wsRegion);
+				auto uniqueTemp = make_unique<Wt::WTreeNode>(wsRegion);
+				nextPrompt[3] = jf.utf16to8(wtable[ii][1]);
+				function<void()> fn = bind(&SCDAwidget::setLayer, this, Region, nextPrompt);
+				uniqueTemp->expanded().connect(fn);
+				pTemp = pRegions[inum]->addChildNode(move(uniqueTemp));
+				pTemp->addChildNode(make_unique<Wt::WTreeNode>("Loading..."));
 			}
 		}
 		timer = jf.timerRestart();
-		cout << "PDE(build tree): " << timer << "ms" << endl;
-		break;
-	}
-	case 4:  // Label.
-	{
-		string message = event.get_text();
-		textTest->setText(Wt::WString::fromUTF8(message));
-		break;
-	}
-	case 6:  // DescList.
-	{
-		vector<string> list = event.get_list();
-		activeYear = list[0];
-		const Wt::WString wsyear(list[0]);
-		Wt::WTreeNode* pRoot = treeCata->treeRoot();
-		vector<Wt::WTreeNode*> pYears = pRoot->childNodes();
-		Wt::WString wstemp;
-		string temp;
-		for (int ii = 0; ii < pYears.size(); ii++)
+		jf.logTime("add secondary regions", timer);
+		pDescs[treeActive[2]]->expand();
+		for (int ii = 0; ii < pRegions.size(); ii++)
 		{
-			wstemp = pYears[ii]->label()->text();
-			if (wstemp == wsyear)
+			pRegions[ii]->expand();
+		}
+		cbRegion->setEnabled(1);
+		activeDesc = nextPrompt[2];
+		break;
+	}
+
+	timer = jf.timerStop();
+	jf.logTime("processDataEvent#" + to_string(etype), timer);
+}
+void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
+{
+	jf.timerStart();
+	sRef.pullLayer(layer, prompt);
+	treeActive.clear();
+	treeActive.resize(layer + 1);
+	Wt::WString wsTemp, wsYear, wsDesc;
+	vector<Wt::WTreeNode*> pYears, pDescs;
+	for (int ii = 0; ii <= layer; ii++)
+	{
+		switch (ii)
+		{
+		case 0:  // set Root
+			treeActive[0] = 0;
+			break;
+		case 1:  // set Year
+			wsYear = Wt::WString::fromUTF8(prompt[1]);
+			pYears = treeRoot->childNodes();
+			for (int jj = 0; jj < pYears.size(); jj++)
 			{
-				pYears[ii]->expand();
-				panelDesc->setTitle("Select a Catalogue Description (" + wsyear + ")");
-				cbDesc->clear();
-				cbDesc->addItem(wsAll);
-				for (int jj = 1; jj < list.size(); jj++)
+				wsTemp = pYears[jj]->label()->text();
+				if (wsTemp == wsYear)
 				{
-					const Wt::WString wsDesc(list[jj]);
-					cbDesc->addItem(wsDesc);
+					pYears[jj]->setHidden(0);
+					pYears[jj]->expand();
+					treeActive[1] = jj;
+					break;
 				}
-				cbDesc->setEnabled(1);
-				break;
 			}
+			panelDesc->setTitle(defNames[1] + " (" + wsYear + ")");
+			break;
+		case 2:  // set Desc
+			wsDesc = Wt::WString::fromUTF8(prompt[2]);
+			pDescs = pYears[treeActive[1]]->childNodes();
+			for (int jj = 0; jj < pDescs.size(); jj++)
+			{
+				wsTemp = pDescs[jj]->label()->text();
+				if (wsTemp == wsDesc)
+				{
+					pDescs[jj]->setHidden(0);
+					pDescs[jj]->expand();
+					treeActive[2] = jj;
+					break;
+				}
+			}
+			panelRegion->setTitle(defNames[2] + " (" + wsDesc + ")");
+			break;
 		}
-		break;
 	}
-
-	}
+	long long timer = jf.timerStop();
+	jf.logTime("setLayer(" + to_string(layer) + ")", timer);
 }
-void SCDAwidget::setDesc(SCDAserver& sRef, vector<string> ancestry)
+void SCDAwidget::setTable(vector<string> prompt)
 {
-	// RESUME HERE.
-}
-void SCDAwidget::setYear(SCDAserver& sRef, vector<string> ancestry)
-{
-	// This function is called whenever a 'year' branch is expanded in the tree widget,
-	// or when a year is specified in the 'year' combobox.
-	sRef.setYear(ancestry);
+	sRef.pullTable(prompt);
 }

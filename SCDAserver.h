@@ -16,13 +16,17 @@ public:
 	const vector<wstring> wtree_pl;
 	const vector<string> tree_pl;
 	const vector<string> list;
+	const vector<wstring> wlist;
+	const vector<vector<wstring>> wtable;
 	const vector<string> ancestry;
 	const string stext;
 
-	enum eType { Connect, Tree, Subtree, Table, Label, YearList, DescList };
+	enum eType { Connect, Table, RootLayer, YearLayer, DescLayer, RegionLayer };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<string> get_list() const { return list; }
+	vector<wstring> get_wlist() const { return wlist; }
+	vector<vector<wstring>> get_wtable() const { return wtable; }
 	string get_text() const { return stext; }
 	vector<string> get_tree_pl() const { return tree_pl; }
 	vector<vector<int>> get_tree_st() const { return tree_st; }
@@ -36,21 +40,18 @@ private:
 	// Constructor for eType Connect.
 	DataEvent(eType et, const string& sID) : etype(et), sessionID(sID) {}
 
-	// Constructor for eType List.
+	// Constructor for eTypes Table, DescLayer.
+	DataEvent(eType et, const string& sID, const vector<vector<wstring>>& wtbl)
+		: etype(et), sessionID(sID), wtable(wtbl) {}
+
+	// Constructor for eTypes RootLayer, YearLayer.
 	DataEvent(eType et, const string& sID, const vector<string>& lst) 
 		: etype(et), sessionID(sID), list(lst) {}
 
-	// Constructor for eTypes Tree, Table.
-	DataEvent(eType et, const string& sID, const vector<vector<int>>& t_st, 
-		const vector<string>& t_pl) : etype(et), sessionID(sID), tree_st(t_st), tree_pl(t_pl) {}
+	// Constructor for eTypes RegionList.
+	DataEvent(eType et, const string& sID, const vector<wstring>& wlst)
+		: etype(et), sessionID(sID), wlist(wlst) {}
 
-	// Constructors for eType Subtree.
-	DataEvent(eType et, const vector<string>& anc, const vector<vector<int>>& t_st,
-		const vector<string>& t_pl) : etype(et),
-		sessionID(anc[0]), tree_st(t_st), tree_pl(t_pl), ancestry(anc) {}
-	DataEvent(eType et, const vector<string>& anc, const vector<vector<int>>& t_st,
-		const vector<wstring>& wt_pl) : etype(et), 
-		sessionID(anc[0]), tree_st(t_st), wtree_pl(wt_pl), ancestry(anc) {}
 
 	// Constructor for eType Label.
 	DataEvent(eType et, const string& sID, const string& txt)
@@ -74,9 +75,9 @@ public:
 	void init(int&);
 	long long getTimer();
 	vector<string> getYearList();
-	void pullRegion(vector<string>);
-	void pullRegion2(vector<string>);
-	void pullTree(string, vector<string>);
+	void pullLayer(int layer, vector<string> prompt);
+	void pullTable(vector<string> prompt);
+	void setDesc(vector<string>);
 	void setYear(vector<string>);
 
 private:
