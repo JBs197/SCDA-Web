@@ -7,7 +7,6 @@
 using namespace std;
 extern const string sroot;
 extern mutex m_server;
-const int maxTreeLayers = 6; // Not counting the root.
 
 class DataEvent
 {
@@ -40,18 +39,13 @@ private:
 	// Constructor for eType Connect.
 	DataEvent(eType et, const string& sID) : etype(et), sessionID(sID) {}
 
-	// Constructor for eTypes Table, DescLayer.
+	// Constructor for eTypes Table, DescLayer, RegionLayer.
 	DataEvent(eType et, const string& sID, const vector<vector<wstring>>& wtbl)
 		: etype(et), sessionID(sID), wtable(wtbl) {}
 
 	// Constructor for eTypes RootLayer, YearLayer.
 	DataEvent(eType et, const string& sID, const vector<string>& lst) 
 		: etype(et), sessionID(sID), list(lst) {}
-
-	// Constructor for eTypes RegionList.
-	DataEvent(eType et, const string& sID, const vector<wstring>& wlst)
-		: etype(et), sessionID(sID), wlist(wlst) {}
-
 
 	// Constructor for eType Label.
 	DataEvent(eType et, const string& sID, const string& txt)

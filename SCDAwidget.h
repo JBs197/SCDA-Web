@@ -18,8 +18,7 @@ using namespace std;
 
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
-	string activeDesc;
-	string activeYear;
+	string activeDesc, activeRegion, activeYear;
 	vector<int> cbActive;
 	string db_path = sroot + "\\SCDA.db";
 	vector<Wt::WString> defNames;
@@ -33,9 +32,9 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	const Wt::WString wsAll = Wt::WString("All");
 
 	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButton, *boxLineEdit;
-	Wt::WComboBox *cbYear, *cbDesc, *cbRegion;
+	Wt::WComboBox *cbYear, *cbDesc, *cbRegion, *cbDiv;
 	Wt::WLineEdit* lineEdit;
-	Wt::WPanel *panelYear, *panelDesc, *panelRegion;
+	Wt::WPanel *panelYear, *panelDesc, *panelRegion, *panelDiv;
 	Wt::WPushButton* pbTest;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
@@ -45,6 +44,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WTreeNode* treeRoot;
 
 	void cbDescClicked();
+	void cbDivClicked();
 	void cbRegionClicked();
 	void cbYearClicked();
 	void connect();

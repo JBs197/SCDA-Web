@@ -50,9 +50,10 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 {
 	// prompt form [sessionID, syear, sdesc, sregion, sdiv, ...] as applicable.
 	jf.timerStart();
-	string tname, sname;
+	string tname, sname, gid;
 	vector<string> search, conditions, yearList, descList, regionList;
 	vector<vector<wstring>> results;
+	int maxCol;
 
 	switch (layer)
 	{
@@ -67,7 +68,8 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 		sf.select(search, tname, descList, conditions);
 		postDataEvent(DataEvent(DataEvent::YearLayer, prompt[0], descList), prompt[0]);
 		break;
-	case 2:  // set Desc  NOTE that this layer returns the first TWO layers of regions.
+	case 2:  // set Desc  NOTE: this layer returns the first TWO layers of regions.
+	{
 		search = { "Name" };
 		tname = "TCatalogueIndex";
 		conditions = { "Description = '" + prompt[2] + "'" };
@@ -78,6 +80,32 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 		sf.select(search, tname, results, conditions);
 		postDataEvent(DataEvent(DataEvent::DescLayer, prompt[0], results), prompt[0]);
 		break;
+	}
+	case 3:  // set Region   NOTE: this layer returns the remainder of TGRegion.
+	{
+		search = { "Name" };
+		tname = "TCatalogueIndex";
+		conditions = { "Description = '" + prompt[2] + "'" };
+		sf.select(search, tname, sname, conditions);
+		
+		tname = "TG_Region$" + sname;
+		maxCol = sf.get_num_col(tname);
+
+		search = { "GID" };  
+		conditions = { "[Region Name] = '" + prompt[3] + "'" };
+		sf.select(search, tname, gid, conditions);
+
+		search = { "GID", "[Region Name]" };
+		conditions = { "param3 = " + gid };
+		for (int ii = 4; ii < maxCol; ii++)
+		{
+			search.push_back("param" + to_string(ii));
+		}
+		sf.select(search, tname, results, conditions);
+
+		postDataEvent(DataEvent(DataEvent::RegionLayer, prompt[0], results), prompt[0]);
+		break;
+	}
 	}
 	long long timer = jf.timerStop();
 	jf.logTime("pullLayer(" + to_string(layer) + ")", timer);

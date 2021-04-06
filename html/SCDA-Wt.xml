@@ -10,5 +10,6 @@
   <message id="cbYear">Select a Year</message>
   <message id="cbDesc">Select a Catalogue Description</message>
   <message id="cbRegion">Select a Geographical Region</message>
+  <message id="cbDivision">Select a Regional Division</message>
 
 </messages>
