@@ -20,7 +20,7 @@ public:
 	const vector<string> ancestry;
 	const string stext;
 
-	enum eType { Connect, Table, RootLayer, YearLayer, DescLayer, RegionLayer };
+	enum eType { Connect, Table, RootLayer, YearLayer, DescLayer, RegionLayer, DivLayer };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<string> get_list() const { return list; }
@@ -46,6 +46,10 @@ private:
 	// Constructor for eTypes RootLayer, YearLayer.
 	DataEvent(eType et, const string& sID, const vector<string>& lst) 
 		: etype(et), sessionID(sID), list(lst) {}
+
+	// Constructor for eType DivLayer.
+	DataEvent(eType et, const string& sID, const vector<wstring>& wlst)
+		: etype(et), sessionID(sID), wtree_pl(wlst) {}
 
 	// Constructor for eType Label.
 	DataEvent(eType et, const string& sID, const string& txt)

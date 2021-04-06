@@ -95,13 +95,9 @@ void SCDAwidget::cbDescClicked()
 }
 void SCDAwidget::cbDivClicked()
 {
-
-}
-void SCDAwidget::cbRegionClicked()
-{
 	Wt::WString wsTemp;
-	Wt::WString wsRegion = cbRegion->currentText();
-	int yearIndex, descIndex;
+	Wt::WString wsDiv = cbDiv->currentText();
+	int yearIndex, descIndex, region1Index, region2Index;
 	Wt::WString wsYear = Wt::WString::fromUTF8(activeYear);
 	vector<Wt::WTreeNode*> pYears = treeRoot->childNodes();
 	for (int ii = 0; ii < pYears.size(); ii++)
@@ -126,7 +122,186 @@ void SCDAwidget::cbRegionClicked()
 		}
 	}
 
-	vector<Wt::WTreeNode*> pRegions = pDescs[descIndex]->childNodes();
+	vector<Wt::WTreeNode*> pRegion1s = pDescs[descIndex]->childNodes();
+	region1Index = treeActive[3];
+	vector<Wt::WTreeNode*> pRegion2s = pRegion1s[region1Index]->childNodes();
+	region2Index = treeActive[4];
+	Wt::WString wsRegion = pRegion2s[region2Index]->label()->text();
+
+	wstring wtemp = wsDiv.value();
+	activeDiv = jf.utf16to8(wtemp);
+
+	vector<vector<Wt::WTreeNode*>> pDivs;
+
+	Wt::WApplication* app = Wt::WApplication::instance();
+	vector<string> prompt = { app->sessionId() };
+
+	if (wsDiv == wsAll)
+	{
+		activeDiv = "All";
+		for (int ii = 0; ii < pYears.size(); ii++)
+		{
+			if (ii != yearIndex)
+			{
+				pYears[ii]->collapse();
+			}
+			else
+			{
+				pYears[ii]->expand();
+				pYears[ii]->setHidden(0);
+			}
+		}
+		for (int ii = 0; ii < pDescs.size(); ii++)
+		{
+			if (ii != descIndex)
+			{
+				pDescs[ii]->collapse();
+			}
+			else
+			{
+				pDescs[ii]->expand();
+				pDescs[ii]->setHidden(0);
+			}
+		}
+		for (int ii = 0; ii < pRegion1s.size(); ii++)
+		{
+			if (ii != region1Index)
+			{
+				pRegion1s[ii]->collapse();
+			}
+			else
+			{
+				pRegion1s[ii]->expand();
+				pRegion1s[ii]->setHidden(0);
+			}
+		}
+		for (int ii = 0; ii < pRegion2s.size(); ii++)
+		{
+			pRegion2s[ii]->setHidden(0);
+			pRegion2s[ii]->collapse();
+		}
+	}
+	else
+	{
+		prompt.resize(4);
+		prompt[1] = activeYear;
+		prompt[2] = activeDesc;
+		prompt[3] = activeDiv;
+		setLayer(Division, prompt);
+
+		for (int ii = 0; ii < pYears.size(); ii++)
+		{
+			if (ii != yearIndex)
+			{
+				pYears[ii]->setHidden(1);
+			}
+			else
+			{
+				pYears[ii]->expand();
+				pYears[ii]->setHidden(0);
+			}
+		}
+		for (int ii = 0; ii < pDescs.size(); ii++)
+		{
+			if (ii != descIndex)
+			{
+				pDescs[ii]->setHidden(1);
+			}
+			else
+			{
+				pDescs[ii]->expand();
+				pDescs[ii]->setHidden(0);
+			}
+		}
+		for (int ii = 0; ii < pRegion1s.size(); ii++)
+		{
+			if (ii != region1Index)
+			{
+				pRegion1s[ii]->setHidden(1);
+			}
+			else
+			{
+				pRegion1s[ii]->expand();
+				pRegion1s[ii]->setHidden(0);
+			}
+		}
+		for (int ii = 0; ii < pRegion2s.size(); ii++)
+		{
+			if (ii != region2Index)
+			{
+				pRegion2s[ii]->setHidden(1);
+			}
+			else
+			{
+				pRegion2s[ii]->expand();
+				pRegion2s[ii]->setHidden(0);
+			}
+		}
+
+
+	}
+}
+void SCDAwidget::cbRegionClicked()
+{
+	bool letmeout = 0;
+	wstring wtemp;
+	Wt::WString wsTemp;
+	Wt::WString wsRegion = cbRegion->currentText();
+	int yearIndex, descIndex, region1Index, region2Index;
+	Wt::WString wsYear = Wt::WString::fromUTF8(activeYear);
+	vector<Wt::WTreeNode*> pYears = treeRoot->childNodes();
+	for (int ii = 0; ii < pYears.size(); ii++)
+	{
+		wsTemp = pYears[ii]->label()->text();
+		if (wsTemp == wsYear)
+		{
+			yearIndex = ii;
+			break;
+		}
+	}
+
+	Wt::WString wsDesc = Wt::WString::fromUTF8(activeDesc);
+	vector<Wt::WTreeNode*> pDescs = pYears[yearIndex]->childNodes();
+	for (int ii = 0; ii < pDescs.size(); ii++)
+	{
+		wsTemp = pDescs[ii]->label()->text();
+		if (wsTemp == wsDesc)
+		{
+			descIndex = ii;
+			break;
+		}
+	}
+
+	vector<Wt::WTreeNode*> pRegion1s = pDescs[descIndex]->childNodes();
+	vector<vector<Wt::WTreeNode*>> pRegion2s;
+	for (int ii = 0; ii < pRegion1s.size(); ii++)
+	{
+		pRegion2s.push_back(pRegion1s[ii]->childNodes());
+	}
+	for (int ii = 0; ii < pRegion2s.size(); ii++)
+	{
+		wsTemp = pRegion1s[ii]->label()->text();
+		if (wsTemp == wsRegion)
+		{
+			region1Index = ii;
+			region2Index = -1;
+			break;
+		}
+		for (int jj = 0; jj < pRegion2s[ii].size(); jj++)
+		{
+			wsTemp = pRegion2s[ii][jj]->label()->text();
+			if (wsTemp == wsRegion)
+			{
+				region1Index = ii;
+				region2Index = jj;
+				letmeout = 1;
+				break;
+			}
+		}
+		if (letmeout) { break; }
+	}
+	letmeout = 0;
+
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt = { app->sessionId() };
 
@@ -157,23 +332,55 @@ void SCDAwidget::cbRegionClicked()
 				pDescs[ii]->setHidden(0);
 			}
 		}
-		for (int ii = 0; ii < pRegions.size(); ii++)
+		for (int ii = 0; ii < pRegion1s.size(); ii++)
 		{
-			pRegions[ii]->setHidden(0);
-			pRegions[ii]->collapse();
+			pRegion1s[ii]->expand();
+			pRegion1s[ii]->setHidden(0);
+		}
+		for (int ii = 0; ii < pRegion2s.size(); ii++)
+		{
+			for (int jj = 0; jj < pRegion2s[ii].size(); jj++)
+			{
+				pRegion2s[ii][jj]->setHidden(0);
+				pRegion2s[ii][jj]->collapse();
+			}
 		}
 		panelDiv->setTitle(defNames[3]);
 		cbDiv->setCurrentIndex(0);
 		cbDiv->setEnabled(0);
+	}
+	else if (region2Index < 0)
+	{
+		for (int ii = 0; ii < pRegion1s.size(); ii++)
+		{
+			if (ii == region1Index)
+			{
+				pRegion1s[ii]->setHidden(0);
+				pRegion1s[ii]->expand();
+				for (int jj = 0; jj < pRegion2s[region1Index].size(); jj++)
+				{
+					pRegion2s[region1Index][jj]->setHidden(0);
+					pRegion2s[region1Index][jj]->collapse();
+				}
+			}
+			else
+			{
+				pRegion1s[ii]->setHidden(1);
+			}
+		}
+		wtemp = wsRegion.value();
+		activeRegion = jf.utf16to8(wtemp);
 	}
 	else
 	{
 		prompt.resize(4);
 		prompt[1] = activeYear;
 		prompt[2] = activeDesc;
-		prompt[3] = wsRegion.toUTF8();
+		wtemp = wsRegion.value();
+		prompt[3] = jf.utf16to8(wtemp);
 		setLayer(Region, prompt);
 		activeRegion = prompt[3];
+
 		for (int ii = 0; ii < pYears.size(); ii++)
 		{
 			if (ii != yearIndex)
@@ -198,17 +405,33 @@ void SCDAwidget::cbRegionClicked()
 				pDescs[ii]->setHidden(0);
 			}
 		}
-		for (int ii = 0; ii < pRegions.size(); ii++)
+		for (int ii = 0; ii < pRegion1s.size(); ii++)
 		{
-			wsTemp = pRegions[ii]->label()->text();
-			if (wsTemp == wsRegion)
+			if (ii != region1Index)
 			{
-				pRegions[ii]->setHidden(0);
+				pRegion1s[ii]->setHidden(1);
 			}
 			else
 			{
-				pRegions[ii]->setHidden(1);
-				pRegions[ii]->collapse();
+				pRegion1s[ii]->expand();
+				pRegion1s[ii]->setHidden(0);
+			}
+		}
+		for (int ii = 0; ii < pRegion2s[region1Index].size(); ii++)
+		{
+			if (region2Index < 0)
+			{
+				pRegion2s[region1Index][ii]->collapse();
+				pRegion2s[region1Index][ii]->setHidden(0);
+			}
+			else if (ii != region2Index)
+			{
+				pRegion2s[region1Index][ii]->setHidden(1);
+			}
+			else
+			{
+				pRegion2s[region1Index][ii]->expand();
+				pRegion2s[region1Index][ii]->setHidden(0);
 			}
 		}
 	}
@@ -373,11 +596,13 @@ void SCDAwidget::makeUI()
 	//sbList = uniqueSbList.get();
 
 	auto lenAuto = Wt::WLength();
+	auto len5 = Wt::WLength("500px");
 	auto len4 = Wt::WLength("400px");
 	auto len3 = Wt::WLength("300px");
 	auto len1 = Wt::WLength("100px");
 	boxControl->resize(len4, lenAuto);
-	boxTreelist->resize(len4, lenAuto);
+	boxTreelist->resize(len4, len5);
+	boxTreelist->setOverflow(Wt::Overflow::Auto);
 	boxText->resize(len3, lenAuto);
 	boxLineEdit->resize(len4, lenAuto);
 	boxButton->resize(len1, lenAuto);
@@ -428,15 +653,19 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	Wt::WApplication* app = Wt::WApplication::instance();
 	app->triggerUpdate();
 	vector<Wt::WTreeNode*> pYears, pDescs, pRegion1s, pRegion2s, pDivs;
-	Wt::WTreeNode* pTemp;
+	vector<vector<Wt::WTreeNode*>> pTemps;
+	Wt::WTreeNode* pParent = nullptr;
+	Wt::WTreeNode* pTemp = nullptr;
 	Wt::WString wsYear, wsDesc, wsRegion;
+	wstring wtemp;
 	string sessionID = app->sessionId();
 	vector<string> slist, nextPrompt;
+	vector<wstring> wlist;
 	vector<vector<wstring>> wtable;
 	unordered_map<wstring, int> mapW;
 	long long timer;
 	vector<int> tempIndex;
-	int inum;
+	int inum, maxCol;
 
 	int etype = event.type();
 	switch (etype)
@@ -500,6 +729,8 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		wsYear = pYears[treeActive[1]]->label()->text();
 		nextPrompt.resize(3);
 		nextPrompt[0] = sessionID;
+		wtemp = wsYear.value();
+		nextPrompt[1] = jf.utf16to8(wtemp);
 		nextPrompt[1] = wsYear.toUTF8();
 		cbDesc->clear();
 		cbDesc->addItem(wsAll);
@@ -545,7 +776,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		tempIndex.push_back(0);
 		for (int ii = 0; ii < wtable.size(); ii++)
 		{
-			if (wtable[ii][2].size() < 1)
+			if (wtable[ii].size() < 3)
 			{
 				mapW.emplace(wtable[ii][0], tempIndex[0]);
 				tempIndex[0]++;
@@ -560,7 +791,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		pRegion1s = pDescs[treeActive[2]]->childNodes();
 		for (int ii = 0; ii < wtable.size(); ii++)
 		{
-			if (wtable[ii][2].size() > 0)
+			if (wtable[ii].size() > 2)
 			{
 				try { inum = mapW.at(wtable[ii][2]); }
 				catch (out_of_range& oor) { jf.err("mapW-SCDAwidget.processDataEvent"); }
@@ -588,7 +819,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	case 5:  // Set the region layer.
 	{
 		// wtable columns:  GID, Region Name, param4, param5, ...
-		wtable = event.get_wtable();   
+		wtable = event.get_wtable();
 		timer = jf.timerRestart();
 		jf.logTime("get_wtable", timer);
 		pYears = treeRoot->childNodes();
@@ -598,7 +829,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		pDivs = pRegion2s[treeActive[4]]->childNodes();
 		while (pDivs.size() > 0)
 		{
-			pRegion2s[treeActive[3]]->removeChildNode(pRegion2s[0]);
+			pRegion2s[treeActive[4]]->removeChildNode(pDivs[0]);
 			pDivs.erase(pDivs.begin());
 		}
 		wsYear = pYears[treeActive[1]]->label()->text();
@@ -608,59 +839,125 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		nextPrompt[0] = sessionID;
 		nextPrompt[1] = wsYear.toUTF8();
 		nextPrompt[2] = wsDesc.toUTF8();
-		nextPrompt[3] = wsRegion.toUTF8();
+		wtemp = wsRegion.value();
+		nextPrompt[3] = jf.utf16to8(wtemp);
 		timer = jf.timerRestart();
 		jf.logTime("misc before widgets", timer);
 		cbDiv->clear();
 		cbDiv->addItem(wsAll);
 		inum = 0;
 
-		// Incorporate non-leaf layers.
-		for (int ii = 2; ii < wtable[0].size(); ii++)
+		// Incorporate the first new layer, that uses prompt as root.
+		tempIndex.push_back(0);
+		pParent = pRegion2s[treeActive[4]];
+		maxCol = jf.maxNumCol(wtable);
+		if (maxCol == 2)  // If all entries are the final tree layer...
 		{
-			for (int jj = 0; jj < wtable.size(); jj++)
+			for (int ii = 0; ii < wtable.size(); ii++)
 			{
-				if (wtable[jj][ii].size() < 1)
+				mapW.emplace(wtable[ii][0], tempIndex[0]);
+				tempIndex[0]++;
+				const Wt::WString wsDiv(wtable[ii][1]);
+				cbDiv->addItem(wsDiv);
+				auto uniqueTemp = make_unique<Wt::WTreeNode>(wsDiv);
+				pTemp = pParent->addChildNode(move(uniqueTemp));
+			}
+			pTemps.push_back(pRegion2s[treeActive[4]]->childNodes());
+			timer = jf.timerRestart();
+			jf.logTime("add (single) region roots", timer);
+		}
+		else
+		{
+			for (int ii = 0; ii < wtable.size(); ii++)
+			{
+				if (wtable[ii].size() < 3)
 				{
-					mapW.emplace(wtable[ii][0], inum);
-					inum++;
-					const Wt::WString wsRegion(wtable[ii][1]);
-					cbRegion->addItem(wsRegion);
-					auto uniqueTemp = make_unique<Wt::WTreeNode>(wsRegion);
-					pTemp = pDescs[treeActive[2]]->addChildNode(move(uniqueTemp));
+					mapW.emplace(wtable[ii][0], tempIndex[0]);
+					tempIndex[0]++;
+					const Wt::WString wsDiv(wtable[ii][1]);
+					cbDiv->addItem(wsDiv);
+					auto uniqueTemp = make_unique<Wt::WTreeNode>(wsDiv);
+					pTemp = pParent->addChildNode(move(uniqueTemp));
 				}
 			}
+			pTemps.push_back(pRegion2s[treeActive[4]]->childNodes());  // First generation of new parents.
+			timer = jf.timerRestart();
+			jf.logTime("add region roots", timer);
 
-
-		}
-		timer = jf.timerRestart();
-		jf.logTime("add region roots", timer);
-		pRegions = pDescs[treeActive[2]]->childNodes();
-		for (int ii = 0; ii < wtable.size(); ii++)
-		{
-			if (wtable[ii][2].size() > 0)
+			// Incorporate all subsequent layers.
+			for (int ii = 2; ii < maxCol; ii++)
 			{
-				try { inum = mapW.at(wtable[ii][2]); }
-				catch (out_of_range& oor) { jf.err("mapW-SCDAwidget.processDataEvent"); }
-				const Wt::WString wsRegion(wtable[ii][1]);
-				cbRegion->addItem(wsRegion);
-				auto uniqueTemp = make_unique<Wt::WTreeNode>(wsRegion);
-				nextPrompt[3] = jf.utf16to8(wtable[ii][1]);
-				function<void()> fn = bind(&SCDAwidget::setLayer, this, Region, nextPrompt);
-				uniqueTemp->expanded().connect(fn);
-				pTemp = pRegions[inum]->addChildNode(move(uniqueTemp));
-				pTemp->addChildNode(make_unique<Wt::WTreeNode>("Loading..."));
+				tempIndex.push_back(0);
+				for (int jj = 0; jj < wtable.size(); jj++)
+				{
+					if (wtable[jj].size() == ii + 1)
+					{
+						try { inum = mapW.at(wtable[jj][ii]); }
+						catch (out_of_range& oor) { jf.err("mapW2-SCDAwidget.processDataEvent"); }
+						pParent = pTemps[pTemps.size() - 1][inum];
+						mapW.emplace(wtable[jj][0], tempIndex[tempIndex.size() - 1]);
+						tempIndex[tempIndex.size() - 1]++;
+						const Wt::WString wsDiv(wtable[jj][1]);
+						cbDiv->addItem(wsDiv);
+						auto uniqueTemp = make_unique<Wt::WTreeNode>(wsDiv);
+						pTemp = pParent->addChildNode(move(uniqueTemp));
+					}
+				}
+			}
+			timer = jf.timerRestart();
+			jf.logTime("add region leafs", timer);
+		}
+
+		pRegion2s[treeActive[4]]->expand();
+		for (int ii = 0; ii < pTemps[0].size(); ii++)
+		{
+			pTemps[0][ii]->collapse();
+		}
+		cbDiv->setEnabled(1);
+		activeRegion = nextPrompt[3];
+		break;
+	}
+	case 6:  // Set the division filter.
+	{
+		wlist = event.get_wtree_pl();
+		pTemps.resize(wlist.size() - 2);
+		pYears = treeRoot->childNodes();
+		pDescs = pYears[treeActive[1]]->childNodes();
+		pRegion1s = pDescs[treeActive[2]]->childNodes();
+		pRegion2s = pRegion1s[treeActive[3]]->childNodes();
+		pTemps[0] = pRegion2s[treeActive[4]]->childNodes();
+
+		for (int ii = 0; ii < wlist.size() - 2; ii++)
+		{
+			for (int jj = 0; jj < pTemps[ii].size(); jj++)
+			{
+				wtemp = pTemps[ii][jj]->label()->text().value();
+				if (wtemp == wlist[ii + 2])
+				{
+					tempIndex.push_back(jj);
+					if (ii < wlist.size() - 3)
+					{
+						pTemps[ii + 1] = pTemps[ii][jj]->childNodes();
+					}
+					break;
+				}
 			}
 		}
-		timer = jf.timerRestart();
-		jf.logTime("add secondary regions", timer);
-		pDescs[treeActive[2]]->expand();
-		for (int ii = 0; ii < pRegions.size(); ii++)
+		for (int ii = 0; ii < pTemps.size(); ii++)
 		{
-			pRegions[ii]->expand();
+			for (int jj = 0; jj < pTemps[ii].size(); ii++)
+			{
+				if (jj == tempIndex[ii])
+				{
+					pTemps[ii][jj]->setHidden(0);
+					pTemps[ii][jj]->expand();
+				}
+				else
+				{
+					pTemps[ii][jj]->setHidden(1);
+				}
+			}
 		}
-		cbRegion->setEnabled(1);
-		activeDesc = nextPrompt[2];
 		break;
 	}
 	}
@@ -681,6 +978,7 @@ void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 		treeActive.resize(layer + 2);
 	}
 	Wt::WString wsTemp, wsYear, wsDesc, wsRegion;
+	wstring wtemp1, wtemp2;
 	vector<Wt::WTreeNode*> pYears, pDescs, pRegion1s, pRegion2s;
 	bool letmeout = 0;
 	for (int ii = 0; ii <= layer; ii++)
@@ -723,7 +1021,8 @@ void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 			panelRegion->setTitle(defNames[2] + " (" + wsDesc + ")");
 			break;
 		case 3:  // set Region
-			wsRegion = Wt::WString::fromUTF8(prompt[3]);
+			wtemp1 = jf.utf8to16(prompt[3]);
+			wsRegion = Wt::WString(wtemp1);
 			pRegion1s = pDescs[treeActive[2]]->childNodes();
 			for (int jj = 0; jj < pRegion1s.size(); jj++)
 			{
@@ -731,7 +1030,8 @@ void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 				for (int kk = 0; kk < pRegion2s.size(); kk++)
 				{
 					wsTemp = pRegion2s[kk]->label()->text();
-					if (wsTemp == wsRegion)
+					wtemp2 = wsTemp.value();
+					if (wtemp1 == wtemp2)
 					{
 						pRegion1s[jj]->setHidden(0);
 						pRegion1s[jj]->expand();
@@ -746,6 +1046,9 @@ void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 			}
 			panelDiv->setTitle(defNames[3] + " (" + wsRegion + ")");
 			letmeout = 0;
+			break;
+		case 4:  // set Division
+			// RESUME HERE. 
 			break;
 		}
 	}

@@ -18,7 +18,7 @@ using namespace std;
 
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
-	string activeDesc, activeRegion, activeYear;
+	string activeDesc, activeDiv, activeRegion, activeYear;
 	vector<int> cbActive;
 	string db_path = sroot + "\\SCDA.db";
 	vector<Wt::WString> defNames;

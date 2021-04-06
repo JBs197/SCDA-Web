@@ -51,7 +51,9 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	// prompt form [sessionID, syear, sdesc, sregion, sdiv, ...] as applicable.
 	jf.timerStart();
 	string tname, sname, gid;
-	vector<string> search, conditions, yearList, descList, regionList;
+	wstring wtemp;
+	vector<string> search, conditions, yearList, descList, regionList, divRow;
+	vector<wstring> ancestry;
 	vector<vector<wstring>> results;
 	int maxCol;
 
@@ -75,9 +77,10 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 		conditions = { "Description = '" + prompt[2] + "'" };
 		sf.select(search, tname, sname, conditions);
 		tname = "TG_Region$" + sname;
-		search = { "GID", "[Region Name]", "param2", "param3" };
+		search = { "GID", "[Region Name]", "param2" };
 		conditions = { "param3 IS NULL" };
 		sf.select(search, tname, results, conditions);
+		jf.removeBlanks(results);
 		postDataEvent(DataEvent(DataEvent::DescLayer, prompt[0], results), prompt[0]);
 		break;
 	}
@@ -102,8 +105,35 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 			search.push_back("param" + to_string(ii));
 		}
 		sf.select(search, tname, results, conditions);
-
+		jf.removeBlanks(results);
 		postDataEvent(DataEvent(DataEvent::RegionLayer, prompt[0], results), prompt[0]);
+		break;
+	}
+	case 4:  // set Division   NOTE: this layer returns the remainder of TGRegion.
+	{
+		search = { "Name" };
+		tname = "TCatalogueIndex";
+		conditions = { "Description = '" + prompt[2] + "'" };
+		sf.select(search, tname, sname, conditions);
+
+		tname = "TG_Region$" + sname;
+		maxCol = sf.get_num_col(tname);
+
+		search = { "*" };
+		conditions = { "[Region Name] = '" + prompt[3] + "'" };
+		sf.select(search, tname, divRow, conditions);
+
+		search = { "[Region Name]" };
+		jf.removeBlanks(divRow);
+		for (int ii = 2; ii < divRow.size(); ii++)
+		{
+			conditions = { "GID = " + divRow[ii] };
+			sf.select(search, tname, wtemp, conditions);
+			ancestry.push_back(wtemp);
+		}
+		ancestry.push_back(jf.utf8to16(prompt[3]));
+
+		postDataEvent(DataEvent(DataEvent::DivLayer, prompt[0], ancestry), prompt[0]);
 		break;
 	}
 	}
