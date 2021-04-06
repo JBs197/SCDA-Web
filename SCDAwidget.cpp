@@ -3,13 +3,13 @@
 /*
 void SCDAwidget::askRegion(SCDAserver& sRef, vector<string> ancestry)
 {
-	// This function is called whenever cbDesc is specified, or when a 
+	// This function is called whenever cbDesc is specified, or when a
 	// catalogue subtree is expanded. Form [sessionID, syear, sname, geo1, geo2, ...].
 	sRef.pullRegion(ancestry);
 }
 void SCDAwidget::askRegionNX(vector<string> ancestry)
 {
-	// This function is called whenever cbDesc is specified, or when a 
+	// This function is called whenever cbDesc is specified, or when a
 	// catalogue subtree is expanded. Form [sessionID, syear, sname, geo1, geo2, ...].
 	sRef.pullRegion(ancestry);
 }
@@ -34,7 +34,7 @@ void SCDAwidget::cbDescClicked()
 	vector<Wt::WTreeNode*> pDescs = pYears[yearIndex]->childNodes();
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt = { app->sessionId() };
-	
+
 	if (wsDesc == wsAll)
 	{
 		activeDesc = "All";
@@ -244,6 +244,7 @@ void SCDAwidget::cbDivClicked()
 void SCDAwidget::cbRegionClicked()
 {
 	bool letmeout = 0;
+	string temp;
 	wstring wtemp;
 	Wt::WString wsTemp;
 	Wt::WString wsRegion = cbRegion->currentText();
@@ -376,6 +377,7 @@ void SCDAwidget::cbRegionClicked()
 		prompt.resize(4);
 		prompt[1] = activeYear;
 		prompt[2] = activeDesc;
+		temp = wsRegion.toUTF8();
 		wtemp = wsRegion.value();
 		prompt[3] = jf.utf16to8(wtemp);
 		setLayer(Region, prompt);
@@ -641,9 +643,9 @@ void SCDAwidget::pbTestClicked()
 	prompt[0] = app->sessionId();
 	Wt::WString wsTable = lineEdit->text();
 	prompt[1] = wsTable.toUTF8();
-	if (prompt[1].size() < 1) 
-	{ 
-		prompt[1] = "TG_Region$97-570-X1986002"; 
+	if (prompt[1].size() < 1)
+	{
+		prompt[1] = "TG_Region$97-570-X1986002";
 	}
 	setTable(prompt);
 }

@@ -23,7 +23,9 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string db_path = sroot + "\\SCDA.db";
 	vector<Wt::WString> defNames;
 	JFUNC jf;
+	JTREE jt;
 	enum Layer { Root, Year, Description, Region, Division };
+	unordered_map<wstring, vector<int>> mapTree;
 	const int num_filters = 3;
 	string selectedCataName;
 	string sessionID;

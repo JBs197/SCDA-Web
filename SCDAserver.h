@@ -1,8 +1,8 @@
 #pragma once
 #include <Wt/WServer.h>
 #include <functional>
-#include "jfunc.h"
 #include "sqlfunc.h"
+#include "jtree.h"
 
 using namespace std;
 extern const string sroot;

@@ -4,7 +4,7 @@
 
 using namespace std;
 mutex m_err, m_server;
-const string sroot = "F:";
+const string sroot = "D:";
 
 class SCDAapp : public Wt::WApplication
 {
