@@ -1,20 +1,5 @@
 #include "SCDAwidget.h"
 
-/*
-void SCDAwidget::askRegion(SCDAserver& sRef, vector<string> ancestry)
-{
-	// This function is called whenever cbDesc is specified, or when a
-	// catalogue subtree is expanded. Form [sessionID, syear, sname, geo1, geo2, ...].
-	sRef.pullRegion(ancestry);
-}
-void SCDAwidget::askRegionNX(vector<string> ancestry)
-{
-	// This function is called whenever cbDesc is specified, or when a
-	// catalogue subtree is expanded. Form [sessionID, syear, sname, geo1, geo2, ...].
-	sRef.pullRegion(ancestry);
-}
-*/
-
 void SCDAwidget::cbDescClicked()
 {
 	Wt::WString wsTemp;
@@ -509,6 +494,27 @@ void SCDAwidget::init()
 	//cbActive.assign(num_filters, 0);
 	//askTree();
 }
+void SCDAwidget::init2()
+{
+	int numTables;
+	sRef.init(numTables);
+	connect();
+	makeUItok();
+	string sfile = jf.load("D:\\500commonwords.txt");
+	string word;
+	size_t pos1, pos2;
+	pos1 = 0;
+	pos2 = sfile.find(' ');
+	numTables = 0;
+	do
+	{
+		word = sfile.substr(pos1, pos2 - pos1);
+		mapTok.emplace(word, 500 - numTables);
+		numTables++;
+		pos1 = pos2 + 1;
+		pos2 = sfile.find(' ', pos1);
+	} while (pos2 < sfile.size());
+}
 void SCDAwidget::initUI(int numTables)
 {
 	Wt::WString wstemp;
@@ -594,8 +600,6 @@ void SCDAwidget::makeUI()
 	boxButton = uniqueBoxButton.get();
 	auto uniquePbTest = make_unique<Wt::WPushButton>("TEST BUTTON");
 	pbTest = uniquePbTest.get();
-	//auto uniqueSbList = make_unique<Wt::WSelectionBox>();
-	//sbList = uniqueSbList.get();
 
 	auto lenAuto = Wt::WLength();
 	auto len5 = Wt::WLength("500px");
@@ -633,6 +637,48 @@ void SCDAwidget::makeUI()
 	vLayout->addLayout(move(hLayoutFilterTree));
 	vLayout->addLayout(move(hLayoutTextButton));
 	vLayout->addWidget(move(uniqueBoxTable));
+
+	this->setLayout(move(vLayout));
+}
+void SCDAwidget::makeUItok()
+{
+	this->clear();
+	auto vLayout = make_unique<Wt::WVBoxLayout>();
+	auto hLayoutTextButton = make_unique<Wt::WHBoxLayout>();
+
+	auto uniqueBoxLeft = make_unique<Wt::WContainerWidget>();
+	boxControl = uniqueBoxLeft.get();
+	auto uniquePanel = make_unique<Wt::WPanel>();
+	panelYear = uniquePanel.get();
+	auto uniqueLineEdit = make_unique<Wt::WLineEdit>();
+	lineEdit = uniqueLineEdit.get();
+	auto uniqueBoxRight = make_unique<Wt::WContainerWidget>();
+	boxButton = uniqueBoxRight.get();
+	auto uniquePbTest = make_unique<Wt::WPushButton>("BUTTON");
+	pbTest = uniquePbTest.get();
+	auto uniqueText = make_unique<Wt::WText>();
+	textTest = uniqueText.get();
+
+	auto lenAuto = Wt::WLength();
+	auto len5 = Wt::WLength("500px");
+	auto len4 = Wt::WLength("400px");
+	auto len3 = Wt::WLength("300px");
+	auto len1 = Wt::WLength("100px");
+	boxControl->resize(len4, lenAuto);
+	boxButton->resize(len1, lenAuto);
+
+	pbTest->clicked().connect(this, &SCDAwidget::tokClicked);
+
+	uniquePanel->setCentralWidget(move(uniqueLineEdit));
+	uniquePanel->setTitle("Write a sentence");
+	uniqueBoxLeft->addWidget(move(uniquePanel));
+
+	uniqueBoxRight->addWidget(move(uniquePbTest));
+	hLayoutTextButton->addWidget(move(uniqueBoxLeft));
+	hLayoutTextButton->addWidget(move(uniqueBoxRight));
+
+	vLayout->addLayout(move(hLayoutTextButton));
+	vLayout->addWidget(move(uniqueText));
 
 	this->setLayout(move(vLayout));
 }
@@ -1060,4 +1106,27 @@ void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 void SCDAwidget::setTable(vector<string> prompt)
 {
 	sRef.pullTable(prompt);
+}
+void SCDAwidget::tokClicked()
+{
+	Wt::WString userInput = lineEdit->text();
+	string input = userInput.toUTF8();
+	string temp;
+	int points = 0;
+	int inum;
+	size_t pos1, pos2;
+	pos1 = -1;
+	pos2 = 0;
+	while (pos1 < input.size() && pos2 < input.size())
+	{
+		pos1++;
+		pos2 = input.find(' ', pos1);
+		temp = input.substr(pos1, pos2 - pos1);
+		try { inum = mapTok.at(temp); }
+		catch (out_of_range& oor) { inum = 0; }
+		points += inum;
+		pos1 = input.find(' ', pos2 + 1);
+	}
+	temp = to_string(points);
+	textTest->setText(temp);
 }

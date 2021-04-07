@@ -25,6 +25,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	JFUNC jf;
 	JTREE jt;
 	enum Layer { Root, Year, Description, Region, Division };
+	unordered_map<string, int> mapTok;
 	unordered_map<wstring, vector<int>> mapTree;
 	const int num_filters = 3;
 	string selectedCataName;
@@ -51,15 +52,18 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbYearClicked();
 	void connect();
 	void init();
+	void init2();
 	void initUI(int);
 	void makeUI();
+	void makeUItok();
 	void pbTestClicked();
 	void processDataEvent(const DataEvent& event);
 	void setLayer(Layer layer, vector<string> prompt);
 	void setTable(vector<string> prompt);
+	void tokClicked();
 
 public:
-	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) { init(); }
+	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) { init2(); }
 
 	Wt::WLength len5p = Wt::WLength("5px");
 

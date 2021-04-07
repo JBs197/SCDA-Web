@@ -25,7 +25,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	const string mrb = docRoot() + "\\SCDA-Wt";
 	this->messageResourceBundle().use(mrb);
 
-	root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
+	//root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
 
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
 	// Style input ... ?

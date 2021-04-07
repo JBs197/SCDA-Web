@@ -19,15 +19,10 @@ class JTREE
 	vector<string> treePL;  // Names by index.
 
 public:
-	JTREE(string rt) { 
-		treePL.push_back(rt); 
-		treeSTanc.push_back({ -1 });
-		treeSTdes.push_back({ -1 });
-		mapI.emplace(-1, 0);
-		mapS.emplace(rt, 0);
-		count = 1;
-	}
+	JTREE() {}
 	~JTREE() {}
+
+	void init(string root);
 
 	// TEMPLATES 
 
