@@ -6,11 +6,14 @@
 #include <Wt/WPanel.h>
 #include <Wt/WLink.h>
 #include <Wt/WText.h>
+#include <Wt/WPainter.h>
+#include <Wt/WPaintedWidget.h>
+#include <Wt/WPaintDevice.h>
 #include "jfunc.h"
 
 using namespace std;
 
-class WTFUNC
+class WTFUNC : public Wt::WPaintedWidget
 {
 	JFUNC jf;
 

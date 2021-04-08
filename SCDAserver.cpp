@@ -140,6 +140,29 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	long long timer = jf.timerStop();
 	jf.logTime("pullLayer(" + to_string(layer) + ")", timer);
 }
+void SCDAserver::pullRegion(vector<string> prompt)
+{
+	// prompt has form [sessionID, cata desc, region name].
+	vector<string> search = { "Name" };
+	string tname = "TCatalogueIndex";
+	string cataName;
+	vector<string> conditions = { "Description = '" + prompt[1] + "'" };
+	sf.select(search, tname, cataName, conditions);
+
+	string gid;
+	search = { "GID" };
+	tname = "TG_Region$" + cataName;
+	sf.makeANSI(prompt[2]);
+	conditions = { "[Region Name] = '" + prompt[2] + "'" };
+	sf.select(search, tname, gid, conditions);
+
+	tname = cataName + "$" + gid;
+	vector<vector<wstring>> theTable(1, vector<wstring>());
+	sf.get_col_titles(tname, theTable[0]);
+	search = { "*" };
+	sf.select(search, tname, theTable);
+	postDataEvent(DataEvent(DataEvent::Table, prompt[0], theTable), prompt[0]);
+}
 void SCDAserver::pullTable(vector<string> prompt)
 {
 	// prompt has form [sessionID, table name].

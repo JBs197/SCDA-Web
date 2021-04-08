@@ -28,21 +28,21 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	unordered_map<string, int> mapTok;
 	unordered_map<wstring, vector<int>> mapTree;
 	const int num_filters = 3;
-	string selectedCataName;
+	Wt::WString selectedRegion;
 	string sessionID;
 	vector<int> treeActive;
 	enum treeType { Tree, Subtree };
 	const Wt::WString wsAll = Wt::WString("All");
 
-	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButton, *boxLineEdit;
+	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButtonTest, *boxButtonTable, *boxLineEdit;
 	Wt::WComboBox *cbYear, *cbDesc, *cbRegion, *cbDiv;
 	Wt::WLineEdit* lineEdit;
 	Wt::WPanel *panelYear, *panelDesc, *panelRegion, *panelDiv;
-	Wt::WPushButton* pbTest;
+	Wt::WPushButton *pbTest, *pbTable;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
 	Wt::WTable* wtTable;
-	Wt::WText* textTest;
+	Wt::WText* textTest, *tableTitle;
 	Wt::WTree* treeCata;
 	Wt::WTreeNode* treeRoot;
 
@@ -57,13 +57,15 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void makeUI();
 	void makeUItok();
 	void pbTestClicked();
+	void pbTableClicked();
 	void processDataEvent(const DataEvent& event);
 	void setLayer(Layer layer, vector<string> prompt);
 	void setTable(vector<string> prompt);
+	void tableClicked(Wt::WString wsTable);
 	void tokClicked();
 
 public:
-	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) { init2(); }
+	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) { init(); }
 
 	Wt::WLength len5p = Wt::WLength("5px");
 

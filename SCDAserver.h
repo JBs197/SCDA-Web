@@ -74,6 +74,7 @@ public:
 	long long getTimer();
 	vector<string> getYearList();
 	void pullLayer(int layer, vector<string> prompt);
+	void pullRegion(vector<string> prompt);
 	void pullTable(vector<string> prompt);
 	void setDesc(vector<string>);
 	void setYear(vector<string>);

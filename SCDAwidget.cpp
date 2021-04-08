@@ -479,6 +479,7 @@ void SCDAwidget::init()
 	int numTables;
 	sRef.init(numTables);
 	connect();
+	jt.init("Census Tables");
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt = { app->sessionId() };
 
@@ -536,12 +537,15 @@ void SCDAwidget::initUI(int numTables)
 	cbRegion->setEnabled(0);
 
 	// Initial values for panelDivision.
+	/*
 	panelDiv->setTitle(defNames[3]);
 	cbDiv->changed().connect(this, &SCDAwidget::cbDivClicked);
 	cbDiv->addItem(wsAll);
 	cbDiv->setEnabled(0);
+	*/
 
 	// Initial values for the tree widget.
+	treeCata->setSelectionMode(Wt::SelectionMode::Single);
 	auto tRoot = make_unique<Wt::WTreeNode>("Census Tables");
 	treeRoot = tRoot.get();
 	treeCata->setTreeRoot(move(tRoot));
@@ -551,8 +555,9 @@ void SCDAwidget::initUI(int numTables)
 	wstemp = Wt::WString(temp);
 	textTest->setText(wstemp);
 
-	// Initial values for the test button.
+	// Initial values for the buttons.
 	pbTest->clicked().connect(this, &SCDAwidget::pbTestClicked);
+	pbTable->clicked().connect(this, &SCDAwidget::pbTableClicked);
 
 }
 void SCDAwidget::makeUI()
@@ -586,6 +591,8 @@ void SCDAwidget::makeUI()
 	treeCata = uniqueTree.get();
 	auto uniqueBoxTable = make_unique<Wt::WContainerWidget>();
 	boxTable = uniqueBoxTable.get();
+	auto uniqueTableTitle = make_unique<Wt::WText>();
+	tableTitle = uniqueTableTitle.get();
 	auto uniqueTable = make_unique<Wt::WTable>();
 	wtTable = uniqueTable.get();
 	auto uniqueBoxText = make_unique<Wt::WContainerWidget>();
@@ -597,21 +604,27 @@ void SCDAwidget::makeUI()
 	auto uniqueLineEdit = make_unique<Wt::WLineEdit>();
 	lineEdit = uniqueLineEdit.get();
 	auto uniqueBoxButton = make_unique<Wt::WContainerWidget>();
-	boxButton = uniqueBoxButton.get();
+	boxButtonTest = uniqueBoxButton.get();
 	auto uniquePbTest = make_unique<Wt::WPushButton>("TEST BUTTON");
 	pbTest = uniquePbTest.get();
+	auto uniqueBoxButtonTable = make_unique<Wt::WContainerWidget>();
+	boxButtonTable = uniqueBoxButtonTable.get();
+	auto uniquePbTable = make_unique<Wt::WPushButton>("LOAD REGION TABLE");
+	pbTable = uniquePbTable.get();
 
 	auto lenAuto = Wt::WLength();
 	auto len5 = Wt::WLength("500px");
 	auto len4 = Wt::WLength("400px");
 	auto len3 = Wt::WLength("300px");
+	auto len2 = Wt::WLength("200px");
 	auto len1 = Wt::WLength("100px");
 	boxControl->resize(len4, lenAuto);
 	boxTreelist->resize(len4, len5);
 	boxTreelist->setOverflow(Wt::Overflow::Auto);
 	boxText->resize(len3, lenAuto);
 	boxLineEdit->resize(len4, lenAuto);
-	boxButton->resize(len1, lenAuto);
+	boxButtonTest->resize(len1, lenAuto);
+	boxButtonTable->resize(len2, lenAuto);
 
 	uniquePanelYear->setCentralWidget(move(uniqueCbYear));
 	uniquePanelDesc->setCentralWidget(move(uniqueCbDesc));
@@ -620,12 +633,14 @@ void SCDAwidget::makeUI()
 	uniqueBoxControl->addWidget(move(uniquePanelYear));
 	uniqueBoxControl->addWidget(move(uniquePanelDesc));
 	uniqueBoxControl->addWidget(move(uniquePanelRegion));
-	uniqueBoxControl->addWidget(move(uniquePanelDivision));
+	//uniqueBoxControl->addWidget(move(uniquePanelDivision));
 	uniqueBoxTreelist->addWidget(move(uniqueTree));
+	uniqueBoxTable->addWidget(move(uniqueTableTitle));
 	uniqueBoxTable->addWidget(move(uniqueTable));
 	uniqueBoxText->addWidget(move(uniqueTextTest));
 	uniqueBoxLineEdit->addWidget(move(uniqueLineEdit));
 	uniqueBoxButton->addWidget(move(uniquePbTest));
+	uniqueBoxButtonTable->addWidget(move(uniquePbTable));
 
 	hLayoutFilterTree->addWidget(move(uniqueBoxControl));
 	hLayoutFilterTree->addWidget(move(uniqueBoxTreelist));
@@ -633,6 +648,7 @@ void SCDAwidget::makeUI()
 	hLayoutTextButton->addWidget(move(uniqueBoxText));
 	hLayoutTextButton->addWidget(move(uniqueBoxLineEdit));
 	hLayoutTextButton->addWidget(move(uniqueBoxButton));
+	hLayoutTextButton->addWidget(move(uniqueBoxButtonTable));
 
 	vLayout->addLayout(move(hLayoutFilterTree));
 	vLayout->addLayout(move(hLayoutTextButton));
@@ -653,19 +669,23 @@ void SCDAwidget::makeUItok()
 	auto uniqueLineEdit = make_unique<Wt::WLineEdit>();
 	lineEdit = uniqueLineEdit.get();
 	auto uniqueBoxRight = make_unique<Wt::WContainerWidget>();
-	boxButton = uniqueBoxRight.get();
-	auto uniquePbTest = make_unique<Wt::WPushButton>("BUTTON");
+	boxButtonTest = uniqueBoxRight.get();
+	auto uniquePbTest = make_unique<Wt::WPushButton>("PRESS \n THIS \n BUTTON");
 	pbTest = uniquePbTest.get();
 	auto uniqueText = make_unique<Wt::WText>();
 	textTest = uniqueText.get();
+	auto uniqueBoxScore = make_unique<Wt::WContainerWidget>();
+	boxTreelist = uniqueBoxScore.get();
 
 	auto lenAuto = Wt::WLength();
 	auto len5 = Wt::WLength("500px");
 	auto len4 = Wt::WLength("400px");
 	auto len3 = Wt::WLength("300px");
+	auto len2 = Wt::WLength("200px");
 	auto len1 = Wt::WLength("100px");
-	boxControl->resize(len4, lenAuto);
-	boxButton->resize(len1, lenAuto);
+	boxControl->resize(len5, lenAuto);
+	boxButtonTest->resize(len2, lenAuto);
+	boxTreelist->resize(len3, lenAuto);
 
 	pbTest->clicked().connect(this, &SCDAwidget::tokClicked);
 
@@ -673,14 +693,26 @@ void SCDAwidget::makeUItok()
 	uniquePanel->setTitle("Write a sentence");
 	uniqueBoxLeft->addWidget(move(uniquePanel));
 
-	uniqueBoxRight->addWidget(move(uniquePbTest));
-	hLayoutTextButton->addWidget(move(uniqueBoxLeft));
-	hLayoutTextButton->addWidget(move(uniqueBoxRight));
+	hLayoutTextButton->addWidget(move(uniquePbTest));
+	hLayoutTextButton->addWidget(move(uniqueText));
+	uniqueBoxScore->setLayout(move(hLayoutTextButton));
 
-	vLayout->addLayout(move(hLayoutTextButton));
-	vLayout->addWidget(move(uniqueText));
+	vLayout->addWidget(move(uniqueBoxLeft));
+	vLayout->addWidget(move(uniqueBoxScore));
 
 	this->setLayout(move(vLayout));
+}
+void SCDAwidget::pbTableClicked()
+{
+	vector<string> prompt(3);
+	Wt::WApplication* app = Wt::WApplication::instance();
+	prompt[0] = app->sessionId();
+	prompt[1] = activeDesc;
+	prompt[2] = selectedRegion.toUTF8();
+	sRef.pullRegion(prompt);
+	wtTable->clear();
+	string title = "<font size=\"10\"><b> Census Region Data for " + prompt[2] + " </b></font>";
+	tableTitle->setText(title);
 }
 void SCDAwidget::pbTestClicked()
 {
@@ -831,6 +863,9 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 				const Wt::WString wsRegion(wtable[ii][1]);
 				cbRegion->addItem(wsRegion);
 				auto uniqueTemp = make_unique<Wt::WTreeNode>(wsRegion);
+				uniqueTemp->setSelectable(1);
+				function<void()> fn = bind(&SCDAwidget::tableClicked, this, wsRegion);
+				uniqueTemp->selected().connect(fn);
 				pTemp = pDescs[treeActive[2]]->addChildNode(move(uniqueTemp));
 			}
 		}
@@ -849,6 +884,9 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 				nextPrompt[3] = jf.utf16to8(wtable[ii][1]);
 				function<void()> fn = bind(&SCDAwidget::setLayer, this, Region, nextPrompt);
 				uniqueTemp->expanded().connect(fn);
+				uniqueTemp->setSelectable(1);
+				function<void()> fn2 = bind(&SCDAwidget::tableClicked, this, wsRegion);
+				uniqueTemp->selected().connect(fn2);
 				pTemp = pRegion1s[inum]->addChildNode(move(uniqueTemp));
 				pTemp->addChildNode(make_unique<Wt::WTreeNode>("Loading..."));
 			}
@@ -891,8 +929,8 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		nextPrompt[3] = jf.utf16to8(wtemp);
 		timer = jf.timerRestart();
 		jf.logTime("misc before widgets", timer);
-		cbDiv->clear();
-		cbDiv->addItem(wsAll);
+		//cbDiv->clear();
+		//cbDiv->addItem(wsAll);
 		inum = 0;
 
 		// Incorporate the first new layer, that uses prompt as root.
@@ -906,8 +944,10 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 				mapW.emplace(wtable[ii][0], tempIndex[0]);
 				tempIndex[0]++;
 				const Wt::WString wsDiv(wtable[ii][1]);
-				cbDiv->addItem(wsDiv);
+				//cbDiv->addItem(wsDiv);
 				auto uniqueTemp = make_unique<Wt::WTreeNode>(wsDiv);
+				function<void()> fn = bind(&SCDAwidget::tableClicked, this, wsDiv);
+				uniqueTemp->selected().connect(fn);
 				pTemp = pParent->addChildNode(move(uniqueTemp));
 			}
 			pTemps.push_back(pRegion2s[treeActive[4]]->childNodes());
@@ -923,8 +963,10 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 					mapW.emplace(wtable[ii][0], tempIndex[0]);
 					tempIndex[0]++;
 					const Wt::WString wsDiv(wtable[ii][1]);
-					cbDiv->addItem(wsDiv);
+					//cbDiv->addItem(wsDiv);
 					auto uniqueTemp = make_unique<Wt::WTreeNode>(wsDiv);
+					function<void()> fn = bind(&SCDAwidget::tableClicked, this, wsDiv);
+					uniqueTemp->selected().connect(fn);
 					pTemp = pParent->addChildNode(move(uniqueTemp));
 				}
 			}
@@ -946,8 +988,10 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 						mapW.emplace(wtable[jj][0], tempIndex[tempIndex.size() - 1]);
 						tempIndex[tempIndex.size() - 1]++;
 						const Wt::WString wsDiv(wtable[jj][1]);
-						cbDiv->addItem(wsDiv);
+						//cbDiv->addItem(wsDiv);
 						auto uniqueTemp = make_unique<Wt::WTreeNode>(wsDiv);
+						function<void()> fn = bind(&SCDAwidget::tableClicked, this, wsDiv);
+						uniqueTemp->selected().connect(fn);
 						pTemp = pParent->addChildNode(move(uniqueTemp));
 					}
 				}
@@ -961,7 +1005,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		{
 			pTemps[0][ii]->collapse();
 		}
-		cbDiv->setEnabled(1);
+		//cbDiv->setEnabled(1);
 		activeRegion = nextPrompt[3];
 		break;
 	}
@@ -1092,11 +1136,10 @@ void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 				}
 				if (letmeout) { break; }
 			}
-			panelDiv->setTitle(defNames[3] + " (" + wsRegion + ")");
+			//panelDiv->setTitle(defNames[3] + " (" + wsRegion + ")");
 			letmeout = 0;
 			break;
 		case 4:  // set Division
-			// RESUME HERE. 
 			break;
 		}
 	}
@@ -1107,6 +1150,10 @@ void SCDAwidget::setTable(vector<string> prompt)
 {
 	sRef.pullTable(prompt);
 }
+void SCDAwidget::tableClicked(Wt::WString wsTable)
+{
+	selectedRegion = wsTable;
+}
 void SCDAwidget::tokClicked()
 {
 	Wt::WString userInput = lineEdit->text();
@@ -1115,18 +1162,29 @@ void SCDAwidget::tokClicked()
 	int points = 0;
 	int inum;
 	size_t pos1, pos2;
-	pos1 = -1;
+	pos1 = 0;
 	pos2 = 0;
 	while (pos1 < input.size() && pos2 < input.size())
 	{
-		pos1++;
+		if (pos2 != 0) { pos1++; }
 		pos2 = input.find(' ', pos1);
 		temp = input.substr(pos1, pos2 - pos1);
 		try { inum = mapTok.at(temp); }
 		catch (out_of_range& oor) { inum = 0; }
 		points += inum;
-		pos1 = input.find(' ', pos2 + 1);
+		pos1 = pos2;
 	}
-	temp = to_string(points);
+	pos2 = input.rfind('.');
+	if (pos2 < input.size())
+	{
+		pos1 = input.rfind(' ', pos2) + 1;
+		temp = input.substr(pos1, pos2 - pos1);
+		try { inum = mapTok.at(temp); }
+		catch (out_of_range& oor) { inum = 0; }
+		points += inum;
+	}
+
+	temp = "<font size=\"20\"><b> " + to_string(points) + " </b></font>";
 	textTest->setText(temp);
 }
+
