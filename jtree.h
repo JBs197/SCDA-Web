@@ -53,6 +53,7 @@ public:
 		int parentIndex;
 		try { parentIndex = mapI.at(iparent); }
 		catch (out_of_range& oor) { jf.err("mapI-jtree.addChild"); }
+		if (treeSTdes[parentIndex][0] < 0) { treeSTdes[parentIndex].clear(); }
 		treeSTdes[parentIndex].push_back(count);
 		mapS.emplace(sname, count);
 		mapI.emplace(iname, count);
@@ -68,6 +69,22 @@ public:
 			treeSTanc.push_back({ 0 });
 		}
 		count++;
+	}
+
+	template<typename ... Args> void addChildren(vector<string>& snames, vector<int>& inames, Args& ... args) {}
+	template<> void addChildren<string>(vector<string>& snames, vector<int>& inames, string& sparent)
+	{
+		for (int ii = 0; ii < snames.size(); ii++)
+		{
+			addChild(snames[ii], inames[ii], sparent);
+		}
+	}
+	template<> void addChildren<int>(vector<string>& snames, vector<int>& inames, int& iparent)
+	{
+		for (int ii = 0; ii < snames.size(); ii++)
+		{
+			addChild(snames[ii], inames[ii], iparent);
+		}
 	}
 
     template<typename ... Args> void listChildren(Args& ... args) {}
