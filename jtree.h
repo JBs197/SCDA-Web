@@ -70,5 +70,48 @@ public:
 		count++;
 	}
 
-};
+    template<typename ... Args> void listChildren(Args& ... args) {}
+    template<> void listChildren<int, vector<int>>(int& iparent, vector<int>& ikids)
+    {
+        int pIndex;
+        try { pIndex = mapI.at(iparent); }
+        catch (out_of_range &oor) { jf.err("mapI-jtree.listChildren"); }
 
+        ikids = treeSTdes[pIndex];
+    }
+    template<> void listChildren<int, vector<string>>(int& iparent, vector<string>& skids)
+    {
+        int pIndex;
+        try { pIndex = mapI.at(iparent); }
+        catch (out_of_range &oor) { jf.err("mapI-jtree.listChildren"); }
+
+        vector<int> ikids = treeSTdes[pIndex];
+        skids.resize(ikids.size());
+        for (int ii = 0; ii < skids.size(); ii++)
+        {
+            skids[ii] = treePL[ikids[ii]];
+        }
+    }
+    template<> void listChildren<string, vector<int>>(string& sparent, vector<int>& ikids)
+    {
+        int pIndex;
+        try { pIndex = mapS.at(sparent); }
+        catch (out_of_range &oor) { jf.err("mapS-jtree.listChildren"); }
+
+        ikids = treeSTdes[pIndex];
+    }
+    template<> void listChildren<string, vector<string>>(string& sparent, vector<string>& skids)
+    {
+        int pIndex;
+        try { pIndex = mapS.at(sparent); }
+        catch (out_of_range &oor) { jf.err("mapS-jtree.listChildren"); }
+
+        vector<int> ikids = treeSTdes[pIndex];
+        skids.resize(ikids.size());
+        for (int ii = 0; ii < skids.size(); ii++)
+        {
+            skids[ii] = treePL[ikids[ii]];
+        }
+    }
+
+};
