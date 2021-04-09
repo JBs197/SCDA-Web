@@ -36,12 +36,32 @@ unique_ptr<Wt::WApplication> makeApp(const Wt::WEnvironment& env, SCDAserver& my
 	return make_unique<SCDAapp>(env, myServer);
 }
 
+vector<string> make_wrun_args(string exec_dir)
+{
+	// Temporary bootloader function. Will be made more flexible later.
+
+	size_t pos1 = exec_dir.rfind('\\');  // Debug or release.
+	pos1 = exec_dir.rfind('\\', pos1 - 1);  // Project folder.
+	string proj_dir = exec_dir.substr(0, pos1);
+
+	string default_deploy_path = "/";
+	string default_http_addr = "0.0.0.0";
+	string default_http_port = "8080";
+	vector<string> args(5);
+	args[0] = "--http-address=" + default_http_addr;
+	args[1] = "--http-port=" + default_http_port;
+	args[2] = "--deploy-path=" + default_deploy_path;
+	args[3] = "--approot=" + proj_dir;
+	args[4] = "--docroot=" + proj_dir + "\\html";
+
+	return args;
+}
+
 int main()
 {
 	WINFUNC wf;
 	const string exec_dir = wf.get_exec_dir();
-	WTFUNC wtf;
-	const vector<string> args = wtf.make_wrun_args(exec_dir);
+	const vector<string> args = make_wrun_args(exec_dir);
 
 	
 	Wt::WServer wtServer(exec_dir, args);

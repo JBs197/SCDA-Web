@@ -16,7 +16,8 @@ class JTREE
 	unordered_map<int, int> mapI;  // Index from int.
 	vector<vector<int>> treeSTanc;  // Form [index][anc1, anc2, ...]
 	vector<vector<int>> treeSTdes;  // Form [index][des1, des2, ...]
-	vector<string> treePL;  // Names by index.
+	vector<string> treePL;  // snames by index.
+	vector<int> treePLi;  // inames by index.
 
 public:
 	JTREE() {}
@@ -36,6 +37,7 @@ public:
 		mapS.emplace(sname, count);
 		mapI.emplace(iname, count);
 		treePL.push_back(sname);
+		treePLi.push_back(iname);
 		treeSTdes.push_back(vector<int>());
 		if (treeSTanc[parentIndex][0] >= 0)  // If parent is not root...
 		{
@@ -58,6 +60,7 @@ public:
 		mapS.emplace(sname, count);
 		mapI.emplace(iname, count);
 		treePL.push_back(sname);
+		treePLi.push_back(iname);
 		treeSTdes.push_back(vector<int>());
 		if (treeSTanc[parentIndex][0] >= 0)  // If parent is not root...
 		{
@@ -115,7 +118,12 @@ public:
         try { pIndex = mapS.at(sparent); }
         catch (out_of_range &oor) { jf.err("mapS-jtree.listChildren"); }
 
-        ikids = treeSTdes[pIndex];
+        vector<int> vtemp = treeSTdes[pIndex];
+		ikids.resize(vtemp.size());
+		for (int ii = 0; ii < ikids.size(); ii++)
+		{
+			ikids[ii] = treePLi[vtemp[ii]];  // 16?? 17???
+		}
     }
     template<> void listChildren<string, vector<string>>(string& sparent, vector<string>& skids)
     {

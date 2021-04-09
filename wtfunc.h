@@ -17,9 +17,6 @@ class WTFUNC : public Wt::WPaintedWidget
 {
 	JFUNC jf;
 
-	string default_deploy_path = "/";
-	string default_http_addr = "0.0.0.0";
-	string default_http_port = "8080";
 	string proj_dir;
 
 public:
@@ -28,7 +25,7 @@ public:
 
 	void err(string);
 	void init_proj_dir(string);
-	vector<string> make_wrun_args(string);
+	//vector<string> make_wrun_args(string);
 
 };
 

@@ -723,7 +723,7 @@ void SCDAwidget::pbTestClicked()
 	prompt[1] = wsTable.toUTF8();
 	if (prompt[1].size() < 1)
 	{
-		prompt[1] = "TG_Region$97-570-X1986002";
+		prompt[1] = "TCatalogueIndex";
 	}
 	setTable(prompt);
 }

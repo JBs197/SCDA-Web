@@ -30,7 +30,7 @@ extern const string sroot;
 class SCDAwindow : public Wt::WApplication
 {
 	SQLFUNC sf;
-	WTFUNC wtf;
+	//WTFUNC wtf;
 
 	Wt::WHBoxLayout* layout_app;
 	Wt::WContainerWidget *box_main, *box_app, *box_control, *box_treelist, *box_table;
