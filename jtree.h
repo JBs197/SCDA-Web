@@ -10,6 +10,7 @@ using namespace std;
 class JTREE
 {
 	int count;
+	void deleteChildrenHelper(int nodeIndex);
 	string errorPath = sroot + "\\SCDA Error Log.txt";
 	JFUNC jf;
 	unordered_map<string, int> mapS;  // Index from string.
@@ -88,6 +89,46 @@ public:
 		{
 			addChild(snames[ii], inames[ii], iparent);
 		}
+	}
+
+	template<typename ... Args> void deleteChildren(Args ... args) {}
+	template<> void deleteChildren<string>(string sParent)
+	{
+		jf.timerStart();
+		int parentIndex;
+		try { parentIndex = mapS.at(sParent); }
+		catch (out_of_range& oor) { jf.err("mapS-jt.deleteChildren"); }
+		vector<int> vKids = treeSTdes[parentIndex];
+		if (vKids.size() < 1) { return; }
+		else
+		{
+			for (int ii = 0; ii < vKids.size(); ii++)
+			{
+				deleteChildrenHelper(vKids[ii]);
+			}
+			treeSTdes[parentIndex].clear();
+		}
+		long long timer = jf.timerStop();
+		jf.log("Deleted children for " + sParent + " in " + to_string(timer) + "ms");
+	}
+	template<> void deleteChildren<int>(int iParent)
+	{
+		jf.timerStart();
+		int parentIndex;
+		try { parentIndex = mapI.at(iParent); }
+		catch (out_of_range& oor) { jf.err("mapS-jt.deleteChildren"); }
+		vector<int> vKids = treeSTdes[parentIndex];
+		if (vKids.size() < 1) { return; }
+		else
+		{
+			for (int ii = 0; ii < vKids.size(); ii++)
+			{
+				deleteChildrenHelper(vKids[ii]);
+			}
+			treeSTdes[parentIndex].clear();
+		}
+		long long timer = jf.timerStop();
+		jf.log("Deleted children for " + to_string(iParent) + " in " + to_string(timer) + "ms");
 	}
 
     template<typename ... Args> void listChildren(Args& ... args) {}

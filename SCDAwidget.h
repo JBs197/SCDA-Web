@@ -1,4 +1,5 @@
 #pragma once
+#define TOK 1
 #include <Wt/WBootstrapTheme.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WHBoxLayout.h>
@@ -52,7 +53,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbYearClicked();
 	void connect();
 	void init();
-	void init2();
+	void initTOK();
 	void initUI(int);
 	void makeUI();
 	void makeUItok();
@@ -65,7 +66,11 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void tokClicked();
 
 public:
-	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) { init(); }
+	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) 
+	{ 
+		if (TOK) { initTOK(); }
+		else { init(); }
+	}
 
 	Wt::WLength len5p = Wt::WLength("5px");
 

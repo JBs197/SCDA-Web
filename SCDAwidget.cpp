@@ -488,6 +488,7 @@ void SCDAwidget::init()
 	defNames[1] = Wt::WString::tr("cbDesc");
 	defNames[2] = Wt::WString::tr("cbRegion");
 	defNames[3] = Wt::WString::tr("cbDivision");
+	
 	makeUI();
 	initUI(numTables);
 	setLayer(Root, prompt);
@@ -495,7 +496,7 @@ void SCDAwidget::init()
 	//cbActive.assign(num_filters, 0);
 	//askTree();
 }
-void SCDAwidget::init2()
+void SCDAwidget::initTOK()
 {
 	int numTables;
 	sRef.init(numTables);
@@ -688,6 +689,7 @@ void SCDAwidget::makeUItok()
 	boxTreelist->resize(len3, lenAuto);
 
 	pbTest->clicked().connect(this, &SCDAwidget::tokClicked);
+	lineEdit->enterPressed().connect(this, &SCDAwidget::tokClicked);
 
 	uniquePanel->setCentralWidget(move(uniqueLineEdit));
 	uniquePanel->setTitle("Write a sentence");
