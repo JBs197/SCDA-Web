@@ -1,40 +1,90 @@
 #include "jtree.h"
 
-void JTREE::deleteChildrenHelper(int nodeIndex)
+void JTREE::deleteNodeHelper(int index)
 {
-	vector<int> vKids = treeSTdes[nodeIndex];
-	if (vKids.size() < 1)
+	vector<int> vKids = treeSTdes[index];
+	if (vKids.size() == 0)
 	{
-		string sNode = treePL[nodeIndex];
-		int iNode = treePLi[nodeIndex];
-		mapS.erase(sNode);
-		mapI.erase(iNode);
-		treeSTanc[nodeIndex] = { -2 };
-		treePL[nodeIndex].clear();
-		treePLi[nodeIndex] = -2;
+		mapS.erase(treePL[index]);
+		mapI.erase(treePLi[index]);
+		treePL[index].clear();
+		treePLi[index] = -2;
+		treeSTanc[index] = { -2 };
 	}
 	else
 	{
-		for (int ii = 0; ii < vKids.size(); ii++)
+		for (int ii = vKids.size() - 1; ii >= 0; ii--)
 		{
-			deleteChildrenHelper(vKids[ii]);
+			deleteNodeHelper(vKids[ii]);
+			treeSTdes[index].erase(treeSTdes[index].begin() + ii);
 		}
-		deleteChildrenHelper(nodeIndex);
 	}
 }
-void JTREE::init(string root)
+void JTREE::init(string rt)
 {
+	root = rt;
 	treePL.clear();
-	treePLi.clear();
 	treeSTanc.clear();
 	treeSTdes.clear();
 	mapI.clear();
 	mapS.clear();
-	treePL.push_back(root);
+	treePL.push_back(rt);
 	treePLi.push_back(-1);
 	treeSTanc.push_back({ -1 });
 	treeSTdes.push_back({ -1 });
 	mapI.emplace(-1, 0);
-	mapS.emplace(root, 0);
+	mapS.emplace(rt, 0);
 	count = 1;
+}
+void JTREE::inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl, vector<int>& tree_ipl)
+{
+	// NOTE: This function will not insert the STPL tree's first entry, as it is presumed
+	// to be the tree root which the JTREE builds itself during initialization.
+	if (tree_st[0][0] != 0) { jf.err("Bad root-jt.inputTreeSTPL"); }
+	int iRoot = -1;
+	int indexGen, indexTree, pivot, indexParent;
+	vector<int> kids;
+	vector<vector<int>> genLayers;
+	genLayers.push_back(tree_st[0]);
+	genLayers[0].erase(genLayers[0].begin());
+	int numKids = genLayers[0].size();
+	for (int ii = 0; ii < numKids; ii++)
+	{
+		addChild(tree_pl[genLayers[0][ii]], tree_ipl[genLayers[0][ii]], iRoot);  // Root always has index -1.
+	}
+	while (numKids > 0)
+	{
+		indexGen = genLayers.size();
+		genLayers.push_back(vector<int>());
+		numKids = 0;
+		for (int ii = 0; ii < genLayers[indexGen - 1].size(); ii++)  // For every parent...
+		{
+			indexTree = genLayers[indexGen - 1][ii];
+			for (int jj = 0; jj < tree_st[indexTree].size(); jj++)
+			{
+				if (tree_st[indexTree][jj] < 0)
+				{
+					pivot = jj;
+					break;
+				}
+				else if (jj == tree_st[indexTree].size() - 1)
+				{
+					jf.err("No pivot found-jt.inputTreeSTPL");
+				}
+			}
+			if (pivot >= tree_st[indexTree].size() - 1) { continue; }
+			kids.clear();
+			kids.insert(kids.begin(), tree_st[indexTree].begin() + pivot + 1, tree_st[indexTree].end());
+			for (int jj = 0; jj < kids.size(); jj++)  // For every child...
+			{
+				genLayers[indexGen].push_back(kids[jj]);
+				numKids++;
+				addChild(tree_pl[kids[jj]], tree_ipl[kids[jj]], tree_pl[indexTree]);
+			}
+		}
+	}
+}
+string JTREE::getRootName()
+{
+	return treePL[0];
 }

@@ -10,11 +10,11 @@ using namespace std;
 class JTREE
 {
 	int count;
-	void deleteChildrenHelper(int nodeIndex);
 	string errorPath = sroot + "\\SCDA Error Log.txt";
 	JFUNC jf;
 	unordered_map<string, int> mapS;  // Index from string.
 	unordered_map<int, int> mapI;  // Index from int.
+	string root;
 	vector<vector<int>> treeSTanc;  // Form [index][anc1, anc2, ...]
 	vector<vector<int>> treeSTdes;  // Form [index][des1, des2, ...]
 	vector<string> treePL;  // snames by index.
@@ -24,7 +24,10 @@ public:
 	JTREE() {}
 	~JTREE() {}
 
+	void deleteNodeHelper(int index);
 	void init(string root);
+	void inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl, vector<int>& tree_ipl);
+	string getRootName();
 
 	// TEMPLATES 
 
@@ -91,44 +94,18 @@ public:
 		}
 	}
 
-	template<typename ... Args> void deleteChildren(Args ... args) {}
-	template<> void deleteChildren<string>(string sParent)
+	template<typename ... Args> void deleteChildren(Args& ... args) {}
+	template<> void deleteChildren<string>(string& sParent)
 	{
-		jf.timerStart();
-		int parentIndex;
-		try { parentIndex = mapS.at(sParent); }
-		catch (out_of_range& oor) { jf.err("mapS-jt.deleteChildren"); }
-		vector<int> vKids = treeSTdes[parentIndex];
-		if (vKids.size() < 1) { return; }
-		else
+		int indexNode;
+		try { indexNode = mapS.at(sParent); }
+		catch (out_of_range& oor) { return; }
+		vector<int> vKids = treeSTdes[indexNode];
+		for (int ii = vKids.size() - 1; ii >= 0; ii--)
 		{
-			for (int ii = 0; ii < vKids.size(); ii++)
-			{
-				deleteChildrenHelper(vKids[ii]);
-			}
-			treeSTdes[parentIndex].clear();
+			deleteNodeHelper(vKids[ii]);
+			treeSTdes[indexNode].erase(treeSTdes[indexNode].begin() + ii);
 		}
-		long long timer = jf.timerStop();
-		jf.log("Deleted children for " + sParent + " in " + to_string(timer) + "ms");
-	}
-	template<> void deleteChildren<int>(int iParent)
-	{
-		jf.timerStart();
-		int parentIndex;
-		try { parentIndex = mapI.at(iParent); }
-		catch (out_of_range& oor) { jf.err("mapS-jt.deleteChildren"); }
-		vector<int> vKids = treeSTdes[parentIndex];
-		if (vKids.size() < 1) { return; }
-		else
-		{
-			for (int ii = 0; ii < vKids.size(); ii++)
-			{
-				deleteChildrenHelper(vKids[ii]);
-			}
-			treeSTdes[parentIndex].clear();
-		}
-		long long timer = jf.timerStop();
-		jf.log("Deleted children for " + to_string(iParent) + " in " + to_string(timer) + "ms");
 	}
 
     template<typename ... Args> void listChildren(Args& ... args) {}
