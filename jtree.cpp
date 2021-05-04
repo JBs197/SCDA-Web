@@ -20,9 +20,10 @@ void JTREE::deleteNodeHelper(int index)
 		}
 	}
 }
-void JTREE::init(string rt)
+void JTREE::init(string rt, string pathR)
 {
 	root = rt;
+	pathRoot = pathR;
 	treePL.clear();
 	treeSTanc.clear();
 	treeSTdes.clear();
@@ -31,7 +32,7 @@ void JTREE::init(string rt)
 	treePL.push_back(rt);
 	treePLi.push_back(-1);
 	treeSTanc.push_back({ -1 });
-	treeSTdes.push_back({ -1 });
+	treeSTdes.push_back(vector<int>());
 	mapI.emplace(-1, 0);
 	mapS.emplace(rt, 0);
 	count = 1;

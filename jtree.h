@@ -14,7 +14,8 @@ class JTREE
 	JFUNC jf;
 	unordered_map<string, int> mapS;  // Index from string.
 	unordered_map<int, int> mapI;  // Index from int.
-	string root;
+	string pathRoot;  // Path to root folder. 
+	string root;  // Name given to the root tree item.
 	vector<vector<int>> treeSTanc;  // Form [index][anc1, anc2, ...]
 	vector<vector<int>> treeSTdes;  // Form [index][des1, des2, ...]
 	vector<string> treePL;  // snames by index.
@@ -25,7 +26,7 @@ public:
 	~JTREE() {}
 
 	void deleteNodeHelper(int index);
-	void init(string root);
+	void init(string root, string pathRoot);
 	void inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl, vector<int>& tree_ipl);
 	string getRootName();
 
@@ -59,7 +60,6 @@ public:
 		int parentIndex;
 		try { parentIndex = mapI.at(iparent); }
 		catch (out_of_range& oor) { jf.err("mapI-jtree.addChild"); }
-		if (treeSTdes[parentIndex][0] < 0) { treeSTdes[parentIndex].clear(); }
 		treeSTdes[parentIndex].push_back(count);
 		mapS.emplace(sname, count);
 		mapI.emplace(iname, count);
