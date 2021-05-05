@@ -36,6 +36,8 @@ void JTREE::init(string rt, string pathR)
 	mapI.emplace(-1, 0);
 	mapS.emplace(rt, 0);
 	count = 1;
+
+	extHierarchy = { ".pdf", ".png", ".bin" };
 }
 void JTREE::inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl, vector<int>& tree_ipl)
 {

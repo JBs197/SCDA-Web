@@ -11,6 +11,7 @@ class JTREE
 {
 	int count;
 	string errorPath = sroot + "\\SCDA Error Log.txt";
+	vector<string> extHierarchy;
 	JFUNC jf;
 	unordered_map<string, int> mapS;  // Index from string.
 	unordered_map<int, int> mapI;  // Index from int.
@@ -32,12 +33,16 @@ public:
 
 	// TEMPLATES 
 
-	template<typename ... Args> void addChild(string& sname, int& iname, Args& ... args) {}
+	template<typename ... Args> void addChild(string& sname, int& iname, Args& ... args) 
+	{
+		jf.err("addChild template-jt");
+	}
 	template<> void addChild<string>(string& sname, int& iname, string& sparent)
 	{
 		int parentIndex;
 		try { parentIndex = mapS.at(sparent); }
 		catch (out_of_range& oor) { jf.err("mapS-jtree.addChild"); }
+		if (alreadyExist(sname, iname, parentIndex, extHierarchy)) { return; }
 		treeSTdes[parentIndex].push_back(count);
 		mapS.emplace(sname, count);
 		mapI.emplace(iname, count);
@@ -60,6 +65,7 @@ public:
 		int parentIndex;
 		try { parentIndex = mapI.at(iparent); }
 		catch (out_of_range& oor) { jf.err("mapI-jtree.addChild"); }
+		if (alreadyExist(sname, iname, parentIndex, extHierarchy)) { return; }
 		treeSTdes[parentIndex].push_back(count);
 		mapS.emplace(sname, count);
 		mapI.emplace(iname, count);
@@ -92,6 +98,102 @@ public:
 		{
 			addChild(snames[ii], inames[ii], iparent);
 		}
+	}
+
+	template<typename ... Args> bool alreadyExist(string sname, int iname, int parentIndex, Args& ... args)
+	{
+		jf.err("alradyExist template-jt");
+	}
+	template<> bool alreadyExist< >(string sname, int iname, int parentIndex)
+	{
+		int myIndex1, myIndex2;
+		try
+		{
+			myIndex1 = mapS.at(sname);
+			myIndex2 = mapI.at(iname);
+		}
+		catch (out_of_range& oor) { return 0; }
+		for (int ii = 0; ii < treeSTdes[parentIndex].size(); ii++)
+		{
+			if (treeSTdes[parentIndex][ii] == myIndex1 && myIndex1 == myIndex2)
+			{
+				return 1;
+			}
+		}
+		return 0;
+	}
+	template<> bool alreadyExist<vector<string>>(string sname, int iname, int parentIndex, vector<string>& extHierarchy)
+	{
+		int myIndex1, myIndex2, myRank, existingRank;
+		string snameCut, snamePaste;
+		size_t pos1;
+		for (int ii = 0; ii < extHierarchy.size(); ii++)
+		{
+			pos1 = sname.rfind(extHierarchy[ii]);
+			if (pos1 < sname.size())
+			{
+				myRank = ii;
+				break;
+			}
+			else if (ii == extHierarchy.size() - 1)
+			{
+				myRank = -1;
+			}
+		}
+
+		if (myRank < 0)
+		{
+			try
+			{
+				myIndex1 = mapS.at(sname);
+				myIndex2 = mapI.at(iname);
+			}
+			catch (out_of_range& oor) { return 0; }
+			for (int ii = 0; ii < treeSTdes[parentIndex].size(); ii++)
+			{
+				if (treeSTdes[parentIndex][ii] == myIndex1 && myIndex1 == myIndex2)
+				{
+					return 1;
+				}
+			}
+			return 0;
+		}
+		else
+		{
+			pos1 = sname.rfind('.');
+			snameCut = sname.substr(0, pos1);
+			existingRank = -1;
+			for (int ii = 2; ii >= 0; ii--)
+			{
+				snamePaste = snameCut + extHierarchy[ii];
+				try
+				{
+					myIndex1 = mapS.at(snamePaste);
+				}
+				catch (out_of_range& oor) { continue; }
+				for (int jj = 0; jj < treeSTdes[parentIndex].size(); jj++)
+				{
+					if (treeSTdes[parentIndex][jj] == myIndex1)
+					{
+						existingRank = ii;
+						break;
+					}
+				}
+				if (existingRank >= 0) { break; }
+			}
+		}
+
+		if (myRank <= existingRank) { return 1; }
+		else if (existingRank < 0) { return 0; }
+		else
+		{
+			treePL[myIndex1] = sname;
+			mapS.erase(snamePaste);
+			mapS.emplace(sname, myIndex1);
+			return 1;
+		}
+		
+		return 0;
 	}
 
 	template<typename ... Args> void deleteChildren(Args& ... args) {}
