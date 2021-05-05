@@ -61,18 +61,7 @@ void JTREE::inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl,
 		for (int ii = 0; ii < genLayers[indexGen - 1].size(); ii++)  // For every parent...
 		{
 			indexTree = genLayers[indexGen - 1][ii];
-			for (int jj = 0; jj < tree_st[indexTree].size(); jj++)
-			{
-				if (tree_st[indexTree][jj] < 0)
-				{
-					pivot = jj;
-					break;
-				}
-				else if (jj == tree_st[indexTree].size() - 1)
-				{
-					jf.err("No pivot found-jt.inputTreeSTPL");
-				}
-			}
+			pivot = jf.getPivot(tree_st[indexTree]);
 			if (pivot >= tree_st[indexTree].size() - 1) { continue; }
 			kids.clear();
 			kids.insert(kids.begin(), tree_st[indexTree].begin() + pivot + 1, tree_st[indexTree].end());
