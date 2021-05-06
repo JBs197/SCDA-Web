@@ -76,6 +76,17 @@ void JTREE::inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl,
 		}
 	}
 }
+int JTREE::getHierarchy(string& ext)
+{
+	for (int ii = 0; ii < extHierarchy.size(); ii++)
+	{
+		if (ext == extHierarchy[ii])
+		{
+			return ii;
+		}
+	}
+	return -1;
+}
 string JTREE::getRootName()
 {
 	return treePL[0];

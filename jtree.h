@@ -29,6 +29,7 @@ public:
 	void deleteNodeHelper(int index);
 	void init(string root, string pathRoot);
 	void inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl, vector<int>& tree_ipl);
+	int getHierarchy(string& ext);
 	string getRootName();
 
 	// TEMPLATES 
@@ -146,12 +147,11 @@ public:
 			try
 			{
 				myIndex1 = mapS.at(sname);
-				myIndex2 = mapI.at(iname);
 			}
 			catch (out_of_range& oor) { return 0; }
 			for (int ii = 0; ii < treeSTdes[parentIndex].size(); ii++)
 			{
-				if (treeSTdes[parentIndex][ii] == myIndex1 && myIndex1 == myIndex2)
+				if (treeSTdes[parentIndex][ii] == myIndex1)
 				{
 					return 1;
 				}
