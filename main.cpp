@@ -1,11 +1,11 @@
-#define TOK 1
+#define TOK 0
 #include "SCDAwindow.h"
 #include "SCDAserver.h"
 #include "SCDAwidget.h"
 
 using namespace std;
 mutex m_err, m_server;
-const string sroot = "D:";
+const string sroot = "F:";
 
 class SCDAapp : public Wt::WApplication
 {

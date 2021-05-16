@@ -73,6 +73,7 @@ public:
 	void init(int&);
 	long long getTimer();
 	vector<string> getYearList();
+	void loadMap(vector<string> prompt);
 	void pullLayer(int layer, vector<string> prompt);
 	void pullRegion(vector<string> prompt);
 	void pullTable(vector<string> prompt);

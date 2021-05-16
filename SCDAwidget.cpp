@@ -474,12 +474,27 @@ void SCDAwidget::connect()
 		sessionID = Wt::WApplication::instance()->sessionId();
 	}
 }
+void SCDAwidget::folderClicked(Wt::WString wsFolder)
+{
+	selectedFolder = wsFolder;
+	if (selectedRow >= 0)
+	{
+		int numCol = wtTable->columnCount();
+		for (int ii = 0; ii < numCol; ii++)
+		{
+			wtTable->elementAt(selectedRow, ii)->decorationStyle().setBackgroundColor(colourWhite);
+		}
+		selectedRow = -1;
+	}
+	pbTable->setEnabled(0);
+	pbMap->setEnabled(0);
+}
 void SCDAwidget::init()
 {
 	int numTables;
 	sRef.init(numTables);
 	connect();
-	jt.init("Census Tables");
+	jt.init("Census Tables", sroot);
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt = { app->sessionId() };
 
@@ -492,9 +507,6 @@ void SCDAwidget::init()
 	makeUI();
 	initUI(numTables);
 	setLayer(Root, prompt);
-
-	//cbActive.assign(num_filters, 0);
-	//askTree();
 }
 void SCDAwidget::initTOK()
 {
@@ -520,6 +532,11 @@ void SCDAwidget::initTOK()
 void SCDAwidget::initUI(int numTables)
 {
 	Wt::WString wstemp;
+	string temp;
+
+	// Colourful things.
+	colourSelected.setRgb(200, 200, 255, 50);
+	colourWhite.setRgb(255, 255, 255, 255);
 
 	// Initial values for panelYear.
 	panelYear->setTitle(defNames[0]);
@@ -546,20 +563,26 @@ void SCDAwidget::initUI(int numTables)
 	*/
 
 	// Initial values for the tree widget.
+	wstemp = Wt::WString("Census Tables");
 	treeCata->setSelectionMode(Wt::SelectionMode::Single);
-	auto tRoot = make_unique<Wt::WTreeNode>("Census Tables");
+	auto tRoot = make_unique<Wt::WTreeNode>(wstemp);
+	function<void()> fn = bind(&SCDAwidget::folderClicked, this, wstemp);
+	tRoot->selected().connect(fn);
 	treeRoot = tRoot.get();
 	treeCata->setTreeRoot(move(tRoot));
 
 	// Initial values for the text widget.
-	string temp = "Database has " + to_string(numTables) + " table results.";
+	temp = "Database has " + to_string(numTables) + " table results.";
 	wstemp = Wt::WString(temp);
 	textTest->setText(wstemp);
 
 	// Initial values for the buttons.
 	pbTest->clicked().connect(this, &SCDAwidget::pbTestClicked);
 	pbTable->clicked().connect(this, &SCDAwidget::pbTableClicked);
-
+	pbTable->setEnabled(0);
+	pbMap->clicked().connect(this, &SCDAwidget::pbMapClicked);
+	pbMap->setEnabled(0);
+	
 }
 void SCDAwidget::makeUI()
 {
@@ -606,14 +629,30 @@ void SCDAwidget::makeUI()
 	lineEdit = uniqueLineEdit.get();
 	auto uniqueBoxButton = make_unique<Wt::WContainerWidget>();
 	boxButtonTest = uniqueBoxButton.get();
-	auto uniquePbTest = make_unique<Wt::WPushButton>("TEST BUTTON");
+	auto uniquePbTest = make_unique<Wt::WPushButton>("TEST \n BUTTON");
 	pbTest = uniquePbTest.get();
 	auto uniqueBoxButtonTable = make_unique<Wt::WContainerWidget>();
 	boxButtonTable = uniqueBoxButtonTable.get();
-	auto uniquePbTable = make_unique<Wt::WPushButton>("LOAD REGION TABLE");
+	auto uniquePbTable = make_unique<Wt::WPushButton>("LOAD \n REGION \n TABLE");
 	pbTable = uniquePbTable.get();
+	auto uniqueBoxButtonMap = make_unique<Wt::WContainerWidget>();
+	boxButtonMap = uniqueBoxButtonMap.get();
+	auto uniquePbMap = make_unique<Wt::WPushButton>("LOAD \n REGION \n MAP");
+	pbMap = uniquePbMap.get();
+	auto uniqueBoxMap = make_unique<Wt::WContainerWidget>();
+	boxMap = uniqueBoxMap.get();
+	auto uniqueMapTitle = make_unique<Wt::WText>();
+	mapTitle = uniqueMapTitle.get();
+	auto uniqueTreeTab = make_unique<Wt::WTabWidget>();
+	treeTab = uniqueTreeTab.get();
+	auto uniqueTreeData = make_unique<Wt::WTree>();
+	treeData = uniqueTreeData.get();
+	auto uniqueImgMap = make_unique<Wt::WImage>();
+	imgMap = uniqueImgMap.get();
+
 
 	auto lenAuto = Wt::WLength();
+	auto len6 = Wt::WLength("600px");
 	auto len5 = Wt::WLength("500px");
 	auto len4 = Wt::WLength("400px");
 	auto len3 = Wt::WLength("300px");
@@ -622,10 +661,14 @@ void SCDAwidget::makeUI()
 	boxControl->resize(len4, lenAuto);
 	boxTreelist->resize(len4, len5);
 	boxTreelist->setOverflow(Wt::Overflow::Auto);
-	boxText->resize(len3, lenAuto);
-	boxLineEdit->resize(len4, lenAuto);
-	boxButtonTest->resize(len1, lenAuto);
-	boxButtonTable->resize(len2, lenAuto);
+	boxText->resize(lenAuto, lenAuto);
+	boxLineEdit->resize(len5, lenAuto);
+	boxButtonTest->resize(lenAuto, lenAuto);
+	boxButtonTable->resize(lenAuto, lenAuto);
+	boxButtonMap->resize(lenAuto, lenAuto);
+
+	uniqueTreeTab->addTab(move(uniqueTree), "Regions");
+	uniqueTreeTab->addTab(move(uniqueTreeData), "Data");
 
 	uniquePanelYear->setCentralWidget(move(uniqueCbYear));
 	uniquePanelDesc->setCentralWidget(move(uniqueCbDesc));
@@ -635,13 +678,16 @@ void SCDAwidget::makeUI()
 	uniqueBoxControl->addWidget(move(uniquePanelDesc));
 	uniqueBoxControl->addWidget(move(uniquePanelRegion));
 	//uniqueBoxControl->addWidget(move(uniquePanelDivision));
-	uniqueBoxTreelist->addWidget(move(uniqueTree));
+	uniqueBoxMap->addWidget(move(uniqueMapTitle));
+	uniqueBoxMap->addWidget(move(uniqueImgMap));
+	uniqueBoxTreelist->addWidget(move(uniqueTreeTab));
 	uniqueBoxTable->addWidget(move(uniqueTableTitle));
 	uniqueBoxTable->addWidget(move(uniqueTable));
 	uniqueBoxText->addWidget(move(uniqueTextTest));
 	uniqueBoxLineEdit->addWidget(move(uniqueLineEdit));
 	uniqueBoxButton->addWidget(move(uniquePbTest));
 	uniqueBoxButtonTable->addWidget(move(uniquePbTable));
+	uniqueBoxButtonMap->addWidget(move(uniquePbMap));
 
 	hLayoutFilterTree->addWidget(move(uniqueBoxControl));
 	hLayoutFilterTree->addWidget(move(uniqueBoxTreelist));
@@ -650,9 +696,12 @@ void SCDAwidget::makeUI()
 	hLayoutTextButton->addWidget(move(uniqueBoxLineEdit));
 	hLayoutTextButton->addWidget(move(uniqueBoxButton));
 	hLayoutTextButton->addWidget(move(uniqueBoxButtonTable));
+	hLayoutTextButton->addWidget(move(uniqueBoxButtonMap));
+	hLayoutTextButton->addStretch(1);
 
 	vLayout->addLayout(move(hLayoutFilterTree));
 	vLayout->addLayout(move(hLayoutTextButton));
+	vLayout->addWidget(move(uniqueBoxMap));
 	vLayout->addWidget(move(uniqueBoxTable));
 
 	this->setLayout(move(vLayout));
@@ -703,6 +752,15 @@ void SCDAwidget::makeUItok()
 	vLayout->addWidget(move(uniqueBoxScore));
 
 	this->setLayout(move(vLayout));
+}
+void SCDAwidget::pbMapClicked()
+{
+	vector<string> prompt(3);
+	Wt::WApplication* app = Wt::WApplication::instance();
+	prompt[0] = app->sessionId();
+	prompt[1] = activeDesc;
+	prompt[2] = "CANADA";  // TEMPORARY.
+
 }
 void SCDAwidget::pbTableClicked()
 {
@@ -766,9 +824,13 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 				const Wt::WString wsCell(wtable[ii][jj]);
 				auto cellText = make_unique<Wt::WText>(wsCell);
 				cellText->setMargin(len5p);
+				function<void()> fn = bind(&SCDAwidget::selectTableRow, this, ii);
+				cellText->clicked().connect(fn);		
 				wtTable->elementAt(ii, jj)->addWidget(move(cellText));
 			}
 		}
+		selectedRow = -1;
+		pbMap->setEnabled(0);
 		break;
 	}
 	case 2:  // Set the root layer.
@@ -792,6 +854,8 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 			nextPrompt[1] = slist[ii];
 			function<void()> fn = bind(&SCDAwidget::setLayer, this, Year, nextPrompt);
 			uniqueTemp->expanded().connect(fn);
+			function<void()> fn2 = bind(&SCDAwidget::folderClicked, this, wsYear);
+			uniqueTemp->selected().connect(fn2);
 			pTemp = treeRoot->addChildNode(move(uniqueTemp));
 			pTemp->addChildNode(make_unique<Wt::WTreeNode>("Loading..."));
 		}
@@ -824,6 +888,8 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 			nextPrompt[2] = slist[ii];
 			function<void()> fn = bind(&SCDAwidget::setLayer, this, Description, nextPrompt);
 			uniqueTemp->expanded().connect(fn);
+			function<void()> fn2 = bind(&SCDAwidget::folderClicked, this, wsDesc);
+			uniqueTemp->selected().connect(fn2);
 			pTemp = pYears[treeActive[1]]->addChildNode(move(uniqueTemp));
 			pTemp->addChildNode(make_unique<Wt::WTreeNode>("Loading..."));
 		}
@@ -1058,6 +1124,27 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	timer = jf.timerStop();
 	jf.logTime("processDataEvent#" + to_string(etype), timer);
 }
+void SCDAwidget::selectTableRow(int iRow)
+{
+	int numCol = wtTable->columnCount();
+	if (selectedRow >= 0)
+	{
+		for (int ii = 0; ii < numCol; ii++)
+		{
+			wtTable->elementAt(selectedRow, ii)->decorationStyle().setBackgroundColor(colourWhite);
+			wtTable->elementAt(iRow, ii)->decorationStyle().setBackgroundColor(colourSelected);
+		}
+	}
+	else
+	{
+		for (int ii = 0; ii < numCol; ii++)
+		{
+			wtTable->elementAt(iRow, ii)->decorationStyle().setBackgroundColor(colourSelected);
+		}
+	}
+	selectedRow = iRow;
+	if (pbTable->isEnabled()) { pbMap->setEnabled(1); }
+}
 void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 {
 	jf.timerStart();
@@ -1155,6 +1242,8 @@ void SCDAwidget::setTable(vector<string> prompt)
 void SCDAwidget::tableClicked(Wt::WString wsTable)
 {
 	selectedRegion = wsTable;
+	pbTable->setEnabled(1);
+	if (selectedRow >= 0) { pbMap->setEnabled(1); }
 }
 void SCDAwidget::tokClicked()
 {

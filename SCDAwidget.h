@@ -1,5 +1,5 @@
 #pragma once
-#define TOK 1
+#define TOK 0
 #include <Wt/WBootstrapTheme.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WHBoxLayout.h>
@@ -13,9 +13,12 @@
 #include <Wt/WPushButton.h>
 #include <Wt/WLineEdit.h>
 #include <Wt/WLength.h>
+#include <Wt/WTabWidget.h>
+#include <Wt/WImage.h>
 #include "SCDAserver.h"
 
 using namespace std;
+extern const string sroot;
 
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
@@ -29,22 +32,27 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	unordered_map<string, int> mapTok;
 	unordered_map<wstring, vector<int>> mapTree;
 	const int num_filters = 3;
-	Wt::WString selectedRegion;
+	Wt::WString selectedRegion, selectedFolder;
+	int selectedRow = -1;
 	string sessionID;
 	vector<int> treeActive;
 	enum treeType { Tree, Subtree };
 	const Wt::WString wsAll = Wt::WString("All");
 
-	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButtonTest, *boxButtonTable, *boxLineEdit;
+	Wt::WColor colourSelected, colourWhite;
+	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButtonTest, *boxButtonTable, *boxLineEdit, *boxButtonMap, *boxMap;
 	Wt::WComboBox *cbYear, *cbDesc, *cbRegion, *cbDiv;
+	Wt::WImage* imgMap;
 	Wt::WLineEdit* lineEdit;
+	Wt::WPaintedWidget* wtMap;
 	Wt::WPanel *panelYear, *panelDesc, *panelRegion, *panelDiv;
-	Wt::WPushButton *pbTest, *pbTable;
+	Wt::WPushButton *pbTest, *pbTable, *pbMap;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
 	Wt::WTable* wtTable;
-	Wt::WText* textTest, *tableTitle;
-	Wt::WTree* treeCata;
+	Wt::WTabWidget* treeTab;
+	Wt::WText* textTest, *tableTitle, *mapTitle;
+	Wt::WTree *treeCata, *treeData;
 	Wt::WTreeNode* treeRoot;
 
 	void cbDescClicked();
@@ -52,14 +60,17 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbRegionClicked();
 	void cbYearClicked();
 	void connect();
+	void folderClicked(Wt::WString wsTable);
 	void init();
 	void initTOK();
 	void initUI(int);
 	void makeUI();
 	void makeUItok();
+	void pbMapClicked();
 	void pbTestClicked();
 	void pbTableClicked();
 	void processDataEvent(const DataEvent& event);
+	void selectTableRow(int iRow);
 	void setLayer(Layer layer, vector<string> prompt);
 	void setTable(vector<string> prompt);
 	void tableClicked(Wt::WString wsTable);

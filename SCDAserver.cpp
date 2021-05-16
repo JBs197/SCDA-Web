@@ -32,6 +32,12 @@ vector<string> SCDAserver::getYearList()
 {
 	return sf.select_years();
 }
+void SCDAserver::loadMap(vector<string> prompt)
+{
+	// prompt has form [sessionID].
+
+	//postDataEvent(DataEvent(DataEvent::Table, prompt[0], theTable), prompt[0]);
+}
 void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 {
 	lock_guard<mutex> lock(m_server);
