@@ -16,7 +16,7 @@ class JTREE
 	unordered_map<string, int> mapS;  // Index from string.
 	unordered_map<int, int> mapI;  // Index from int.
 	string pathRoot;  // Path to root folder. 
-	string root;  // Name given to the root tree item.
+	string nameRoot;  // Name given to the root tree item.
 	vector<vector<int>> treeSTanc;  // Form [index][anc1, anc2, ...]
 	vector<vector<int>> treeSTdes;  // Form [index][des1, des2, ...]
 	vector<string> treePL;  // snames by index.
@@ -27,7 +27,7 @@ public:
 	~JTREE() {}
 
 	void deleteNodeHelper(int index);
-	void init(string root, string pathRoot);
+	void init(string nameRoot, string pathRoot);
 	void inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl, vector<int>& tree_ipl);
 	int getHierarchy(string& ext);
 	string getRootName();
@@ -210,6 +210,29 @@ public:
 		}
 	}
 
+	template<typename ... Args> void deleteLeaves(Args& ... args) {}
+	template<> void deleteLeaves<string>(string& sParent)
+	{
+		int indexNode, numGrandKids;
+		try { indexNode = mapS.at(sParent); }
+		catch (out_of_range& oor) { return; }
+		vector<int> vKids = treeSTdes[indexNode], vGKids;
+		for (int ii = vKids.size() - 1; ii >= 0; ii--)
+		{
+			vGKids = treeSTdes[vKids[ii]];
+			numGrandKids = vGKids.size();
+			if (numGrandKids == 0)
+			{
+				mapS.erase(treePL[vKids[ii]]);
+				mapI.erase(treePLi[vKids[ii]]);
+				treePL[vKids[ii]].clear();
+				treePLi[vKids[ii]] = -2;
+				treeSTanc[vKids[ii]] = { -2 };
+				treeSTdes[indexNode].erase(treeSTdes[indexNode].begin() + ii);
+			}
+		}
+	}
+
     template<typename ... Args> void listChildren(Args& ... args) {}
     template<> void listChildren<int, vector<int>>(int& iparent, vector<int>& ikids)
     {
@@ -258,5 +281,36 @@ public:
             skids[ii] = treePL[ikids[ii]];
         }
     }
+
+	template< typename ... Args> void listChildrenNoPath(vector<string>& sKids, vector<int>& iKids, Args& ... args)
+	{
+		jf.err("listChildrenNoPath template-jt");
+	}
+	template<> void listChildrenNoPath<string>(vector<string>& sKids, vector<int>& iKids, string& sParent)
+	{
+		int pIndex;
+		try { pIndex = mapS.at(sParent); }
+		catch (out_of_range& oor) { jf.err("mapS-jt.listChildrenNoPath"); }
+
+		string sPath;
+		size_t pos1;
+		vector<int> indexKids = treeSTdes[pIndex];
+		iKids.resize(indexKids.size());
+		sKids.resize(indexKids.size());
+		for (int ii = 0; ii < indexKids.size(); ii++)
+		{
+			iKids[ii] = treePLi[indexKids[ii]];
+			sPath = treePL[indexKids[ii]];
+			pos1 = sPath.rfind('\\');
+			if (pos1 > sPath.size())
+			{
+				sKids[ii] = sPath;
+			}
+			else
+			{
+				sKids[ii] = sPath.substr(pos1 + 1);
+			}
+		}
+	}
 
 };

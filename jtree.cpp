@@ -20,11 +20,12 @@ void JTREE::deleteNodeHelper(int index)
 		}
 	}
 }
-void JTREE::init(string nameRoot, string pathRoot)
+void JTREE::init(string nR, string pR)
 {
-	root = nameRoot;
-	pathRoot = pathRoot;
+	nameRoot = nR;
+	pathRoot = pR;
 	treePL.clear();
+	treePLi.clear();
 	treeSTanc.clear();
 	treeSTdes.clear();
 	mapI.clear();
@@ -89,5 +90,5 @@ int JTREE::getHierarchy(string& ext)
 }
 string JTREE::getRootName()
 {
-	return treePL[0];
+	return nameRoot;
 }
