@@ -1,4 +1,3 @@
-#define TOK 0
 #include "SCDAwindow.h"
 #include "SCDAserver.h"
 #include "SCDAwidget.h"
@@ -26,8 +25,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	const string mrb = docRoot() + "\\SCDA-Wt";
 	this->messageResourceBundle().use(mrb);
 	
-	if (TOK) { root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("TOK"))); }
-	else { root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction"))); }
+	root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
 
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
 	// Style input ... ?

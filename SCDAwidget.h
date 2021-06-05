@@ -1,5 +1,4 @@
 #pragma once
-#define TOK 0
 #include <Wt/WBootstrapTheme.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WHBoxLayout.h>
@@ -38,6 +37,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	vector<int> treeActive;
 	enum treeType { Tree, Subtree };
 	const Wt::WString wsAll = Wt::WString("All");
+	WTFUNC wtf;
 
 	Wt::WColor colourSelected, colourWhite;
 	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButtonTest, *boxButtonTable, *boxLineEdit, *boxButtonMap, *boxMap;
@@ -62,10 +62,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void connect();
 	void folderClicked(Wt::WString wsTable);
 	void init();
-	void initTOK();
 	void initUI(int);
 	void makeUI();
-	void makeUItok();
 	void pbMapClicked();
 	void pbTestClicked();
 	void pbTableClicked();
@@ -74,13 +72,11 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void setLayer(Layer layer, vector<string> prompt);
 	void setTable(vector<string> prompt);
 	void tableClicked(Wt::WString wsTable);
-	void tokClicked();
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) 
 	{ 
-		if (TOK) { initTOK(); }
-		else { init(); }
+		init();
 	}
 
 	Wt::WLength len5p = Wt::WLength("5px");

@@ -16,16 +16,34 @@ using namespace std;
 class WTFUNC : public Wt::WPaintedWidget
 {
 	JFUNC jf;
-
+	
+	const string defaultLength = "200.0";
 	string proj_dir;
+	const string sWidth, sHeight;
+	Wt::WLength wlWidth, wlHeight;
+	Wt::WPainterPath wpPath;
 
 public:
-	explicit WTFUNC() {}
+	explicit WTFUNC(string width, string height) : Wt::WPaintedWidget(), sWidth(width), sHeight(height)
+	{
+		wlWidth = Wt::WLength(sWidth);
+		wlHeight = Wt::WLength(sHeight);
+		resize(wlWidth, wlHeight);
+	}
+	explicit WTFUNC() : Wt::WPaintedWidget()
+	{
+		wlWidth = Wt::WLength(defaultLength);
+		wlHeight = Wt::WLength(defaultLength);
+		resize(wlWidth, wlHeight);
+	}
 	~WTFUNC() {}
-
 	void err(string);
 	void init_proj_dir(string);
-	//vector<string> make_wrun_args(string);
+	void initSize(double w, double h);
+	void drawMap(Wt::WPainterPath& wpp);
+	void makeWPPath(vector<vector<int>>& frameTLBR, vector<vector<int>>& border, vector<double>& windowDim, Wt::WPainterPath& wpPath);
 
+protected:
+	void paintEvent(Wt::WPaintDevice* paintDevice);
 };
 

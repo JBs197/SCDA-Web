@@ -3,6 +3,7 @@
 #include <functional>
 #include "sqlfunc.h"
 #include "jtree.h"
+#include "wtfunc.h"
 
 using namespace std;
 extern const string sroot;
@@ -19,8 +20,9 @@ public:
 	const vector<vector<wstring>> wtable;
 	const vector<string> ancestry;
 	const string stext;
+	const vector<Wt::WPainterPath> wpPaths;
 
-	enum eType { Connect, Table, RootLayer, YearLayer, DescLayer, RegionLayer, DivLayer };
+	enum eType { Connect, Table, Map, RootLayer, YearLayer, DescLayer, RegionLayer, DivLayer };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<string> get_list() const { return list; }
@@ -31,6 +33,7 @@ public:
 	vector<vector<int>> get_tree_st() const { return tree_st; }
 	vector<wstring> get_wtree_pl() const { return wtree_pl; }
 	int type() const { return etype; }
+	vector<Wt::WPainterPath> get_wpPaths() const { return wpPaths; }
 	
 private:
 	eType etype;
@@ -55,6 +58,10 @@ private:
 	DataEvent(eType et, const string& sID, const string& txt)
 		: etype(et), sessionID(sID), stext(txt) {}
 
+	// Constructor for eType Map.
+	DataEvent(eType et, const string& sID, const vector<Wt::WPainterPath>& wpp)
+		: etype(et), sessionID(sID), wpPaths(wpp) {}
+
 	friend class SCDAserver;
 };
 
@@ -69,11 +76,17 @@ public:
 
 	class User {};
 
+	vector<vector<int>> binMapBorder(string& tname0);
+	vector<vector<vector<int>>> binMapFrames(string& tname0);
+	string binMapParent(string& tname0);
+	vector<double> binMapPosition(string& tname0);
+	double binMapScale(string& tname0);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init(int&);
 	long long getTimer();
 	vector<string> getYearList();
-	void loadMap(vector<string> prompt);
+	void pullMap(vector<string> prompt);
+	Wt::WPainterPath pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo);
 	void pullLayer(int layer, vector<string> prompt);
 	void pullRegion(vector<string> prompt);
 	void pullTable(vector<string> prompt);
@@ -83,6 +96,7 @@ public:
 private:
 	JFUNC jf;
 	SQLFUNC sf;
+	WTFUNC wtf;
 	struct UserInfo
 	{
 		string sessionID;

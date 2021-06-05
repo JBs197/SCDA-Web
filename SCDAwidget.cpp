@@ -495,6 +495,7 @@ void SCDAwidget::init()
 	sRef.init(numTables);
 	connect();
 	jt.init("Census Tables", sroot);
+	wtf.initSize(400.0, 200.0);
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt = { app->sessionId() };
 
@@ -507,27 +508,6 @@ void SCDAwidget::init()
 	makeUI();
 	initUI(numTables);
 	setLayer(Root, prompt);
-}
-void SCDAwidget::initTOK()
-{
-	int numTables;
-	sRef.init(numTables);
-	connect();
-	makeUItok();
-	string sfile = jf.load("D:\\500commonwords.txt");
-	string word;
-	size_t pos1, pos2;
-	pos1 = 0;
-	pos2 = sfile.find(' ');
-	numTables = 0;
-	do
-	{
-		word = sfile.substr(pos1, pos2 - pos1);
-		mapTok.emplace(word, 500 - numTables);
-		numTables++;
-		pos1 = pos2 + 1;
-		pos2 = sfile.find(' ', pos1);
-	} while (pos2 < sfile.size());
 }
 void SCDAwidget::initUI(int numTables)
 {
@@ -572,9 +552,9 @@ void SCDAwidget::initUI(int numTables)
 	treeCata->setTreeRoot(move(tRoot));
 
 	// Initial values for the text widget.
-	temp = "Database has " + to_string(numTables) + " table results.";
-	wstemp = Wt::WString(temp);
-	textTest->setText(wstemp);
+	//temp = "Database has " + to_string(numTables) + " table results.";
+	//wstemp = Wt::WString(temp);
+	//textTest->setText(wstemp);
 
 	// Initial values for the buttons.
 	pbTest->clicked().connect(this, &SCDAwidget::pbTestClicked);
@@ -639,16 +619,18 @@ void SCDAwidget::makeUI()
 	boxButtonMap = uniqueBoxButtonMap.get();
 	auto uniquePbMap = make_unique<Wt::WPushButton>("LOAD \n REGION \n MAP");
 	pbMap = uniquePbMap.get();
-	auto uniqueBoxMap = make_unique<Wt::WContainerWidget>();
-	boxMap = uniqueBoxMap.get();
-	auto uniqueMapTitle = make_unique<Wt::WText>();
-	mapTitle = uniqueMapTitle.get();
 	auto uniqueTreeTab = make_unique<Wt::WTabWidget>();
 	treeTab = uniqueTreeTab.get();
 	auto uniqueTreeData = make_unique<Wt::WTree>();
 	treeData = uniqueTreeData.get();
-	auto uniqueImgMap = make_unique<Wt::WImage>();
-	imgMap = uniqueImgMap.get();
+	auto uniqueBoxMap = make_unique<Wt::WContainerWidget>();
+	boxMap = uniqueBoxMap.get();
+	auto uniqueMapTitle = make_unique<Wt::WText>();
+	mapTitle = uniqueMapTitle.get();
+	auto uniqueWtMap = make_unique<WTFUNC>();
+	wtMap = uniqueWtMap.get();
+	//auto uniqueImgMap = make_unique<Wt::WImage>();
+	//imgMap = uniqueImgMap.get();
 
 
 	auto lenAuto = Wt::WLength();
@@ -679,7 +661,7 @@ void SCDAwidget::makeUI()
 	uniqueBoxControl->addWidget(move(uniquePanelRegion));
 	//uniqueBoxControl->addWidget(move(uniquePanelDivision));
 	uniqueBoxMap->addWidget(move(uniqueMapTitle));
-	uniqueBoxMap->addWidget(move(uniqueImgMap));
+	uniqueBoxMap->addWidget(move(uniqueWtMap));
 	uniqueBoxTreelist->addWidget(move(uniqueTreeTab));
 	uniqueBoxTable->addWidget(move(uniqueTableTitle));
 	uniqueBoxTable->addWidget(move(uniqueTable));
@@ -706,61 +688,19 @@ void SCDAwidget::makeUI()
 
 	this->setLayout(move(vLayout));
 }
-void SCDAwidget::makeUItok()
-{
-	this->clear();
-	auto vLayout = make_unique<Wt::WVBoxLayout>();
-	auto hLayoutTextButton = make_unique<Wt::WHBoxLayout>();
-
-	auto uniqueBoxLeft = make_unique<Wt::WContainerWidget>();
-	boxControl = uniqueBoxLeft.get();
-	auto uniquePanel = make_unique<Wt::WPanel>();
-	panelYear = uniquePanel.get();
-	auto uniqueLineEdit = make_unique<Wt::WLineEdit>();
-	lineEdit = uniqueLineEdit.get();
-	auto uniqueBoxRight = make_unique<Wt::WContainerWidget>();
-	boxButtonTest = uniqueBoxRight.get();
-	auto uniquePbTest = make_unique<Wt::WPushButton>("PRESS \n THIS \n BUTTON");
-	pbTest = uniquePbTest.get();
-	auto uniqueText = make_unique<Wt::WText>();
-	textTest = uniqueText.get();
-	auto uniqueBoxScore = make_unique<Wt::WContainerWidget>();
-	boxTreelist = uniqueBoxScore.get();
-
-	auto lenAuto = Wt::WLength();
-	auto len5 = Wt::WLength("500px");
-	auto len4 = Wt::WLength("400px");
-	auto len3 = Wt::WLength("300px");
-	auto len2 = Wt::WLength("200px");
-	auto len1 = Wt::WLength("100px");
-	boxControl->resize(len5, lenAuto);
-	boxButtonTest->resize(len2, lenAuto);
-	boxTreelist->resize(len3, lenAuto);
-
-	pbTest->clicked().connect(this, &SCDAwidget::tokClicked);
-	lineEdit->enterPressed().connect(this, &SCDAwidget::tokClicked);
-
-	uniquePanel->setCentralWidget(move(uniqueLineEdit));
-	uniquePanel->setTitle("Write a sentence");
-	uniqueBoxLeft->addWidget(move(uniquePanel));
-
-	hLayoutTextButton->addWidget(move(uniquePbTest));
-	hLayoutTextButton->addWidget(move(uniqueText));
-	uniqueBoxScore->setLayout(move(hLayoutTextButton));
-
-	vLayout->addWidget(move(uniqueBoxLeft));
-	vLayout->addWidget(move(uniqueBoxScore));
-
-	this->setLayout(move(vLayout));
-}
 void SCDAwidget::pbMapClicked()
 {
-	vector<string> prompt(3);
+	Wt::WLength len = wtMap->width();
+	double width = len.value();
+	len = wtMap->height();
+	double height = len.value();
+	vector<string> prompt(4);
 	Wt::WApplication* app = Wt::WApplication::instance();
 	prompt[0] = app->sessionId();
 	prompt[1] = activeDesc;
-	prompt[2] = "CANADA";  // TEMPORARY.
-
+	prompt[2] = "Canada";  // TEMPORARY.
+	prompt[3] = to_string(width) + "," + to_string(height);
+	sRef.pullMap(prompt);
 }
 void SCDAwidget::pbTableClicked()
 {
@@ -794,6 +734,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	app->triggerUpdate();
 	vector<Wt::WTreeNode*> pYears, pDescs, pRegion1s, pRegion2s, pDivs;
 	vector<vector<Wt::WTreeNode*>> pTemps;
+	vector<Wt::WPainterPath> wpPaths;
 	Wt::WTreeNode* pParent = nullptr;
 	Wt::WTreeNode* pTemp = nullptr;
 	Wt::WString wsYear, wsDesc, wsRegion;
@@ -833,7 +774,13 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		pbMap->setEnabled(0);
 		break;
 	}
-	case 2:  // Set the root layer.
+	case 2:  // Display the map on the painter widget.
+	{
+		wpPaths = event.get_wpPaths();
+		wtf.drawMap(wpPaths[0]);
+		break;
+	}
+	case 3:  // Set the root layer.
 	{
 		slist = event.get_list();
 		pYears = treeRoot->childNodes();
@@ -862,7 +809,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		treeRoot->expand();
 		break;
 	}
-	case 3:  // Set the year layer.
+	case 4:  // Set the year layer.
 	{
 		slist = event.get_list();
 		pYears = treeRoot->childNodes();
@@ -898,7 +845,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		activeYear = nextPrompt[1];
 		break;
 	}
-	case 4:  // Set the description layer.
+	case 5:  // Set the description layer.
 	{
 		wtable = event.get_wtable();
 		timer = jf.timerRestart();
@@ -970,7 +917,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		activeDesc = nextPrompt[2];
 		break;
 	}
-	case 5:  // Set the region layer.
+	case 6:  // Set the region layer.
 	{
 		// wtable columns:  GID, Region Name, param4, param5, ...
 		wtable = event.get_wtable();
@@ -1077,7 +1024,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		activeRegion = nextPrompt[3];
 		break;
 	}
-	case 6:  // Set the division filter.
+	case 7:  // Set the division filter.
 	{
 		wlist = event.get_wtree_pl();
 		pTemps.resize(wlist.size() - 2);
@@ -1244,38 +1191,5 @@ void SCDAwidget::tableClicked(Wt::WString wsTable)
 	selectedRegion = wsTable;
 	pbTable->setEnabled(1);
 	if (selectedRow >= 0) { pbMap->setEnabled(1); }
-}
-void SCDAwidget::tokClicked()
-{
-	Wt::WString userInput = lineEdit->text();
-	string input = userInput.toUTF8();
-	string temp;
-	int points = 0;
-	int inum;
-	size_t pos1, pos2;
-	pos1 = 0;
-	pos2 = 0;
-	while (pos1 < input.size() && pos2 < input.size())
-	{
-		if (pos2 != 0) { pos1++; }
-		pos2 = input.find(' ', pos1);
-		temp = input.substr(pos1, pos2 - pos1);
-		try { inum = mapTok.at(temp); }
-		catch (out_of_range& oor) { inum = 0; }
-		points += inum;
-		pos1 = pos2;
-	}
-	pos2 = input.rfind('.');
-	if (pos2 < input.size())
-	{
-		pos1 = input.rfind(' ', pos2) + 1;
-		temp = input.substr(pos1, pos2 - pos1);
-		try { inum = mapTok.at(temp); }
-		catch (out_of_range& oor) { inum = 0; }
-		points += inum;
-	}
-
-	temp = "<font size=\"20\"><b> " + to_string(points) + " </b></font>";
-	textTest->setText(temp);
 }
 

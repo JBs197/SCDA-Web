@@ -22,7 +22,6 @@
 #include "jfunc.h"
 #include "winfunc.h"
 #include "sqlfunc.h"
-#include "wtfunc.h"
 
 using namespace std;
 extern const string sroot;
@@ -30,7 +29,6 @@ extern const string sroot;
 class SCDAwindow : public Wt::WApplication
 {
 	SQLFUNC sf;
-	//WTFUNC wtf;
 
 	Wt::WHBoxLayout* layout_app;
 	Wt::WContainerWidget *box_main, *box_app, *box_control, *box_treelist, *box_table;
