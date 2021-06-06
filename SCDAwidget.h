@@ -4,6 +4,7 @@
 #include <Wt/WHBoxLayout.h>
 #include <Wt/WVBoxLayout.h>
 #include <Wt/WSelectionBox.h>
+#include <Wt/WSpinBox.h>
 #include <Wt/WTree.h>
 #include <Wt/WTreeNode.h>
 #include <Wt/WTable.h>
@@ -37,21 +38,22 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	vector<int> treeActive;
 	enum treeType { Tree, Subtree };
 	const Wt::WString wsAll = Wt::WString("All");
-	WTFUNC wtf;
 
+	WTFUNC *wtMap;
 	Wt::WColor colourSelected, colourWhite;
-	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButtonTest, *boxButtonTable, *boxLineEdit, *boxButtonMap, *boxMap;
+	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButtonTest, *boxButtonTable, *boxLineEdit, *boxButtonMap, *boxMap, *boxMapControl;
 	Wt::WComboBox *cbYear, *cbDesc, *cbRegion, *cbDiv;
 	Wt::WImage* imgMap;
 	Wt::WLineEdit* lineEdit;
-	Wt::WPaintedWidget* wtMap;
+	//Wt::WPaintedWidget* wtMap;
 	Wt::WPanel *panelYear, *panelDesc, *panelRegion, *panelDiv;
 	Wt::WPushButton *pbTest, *pbTable, *pbMap;
 	Wt::WSelectionBox* sbList;
+	Wt::WSpinBox* spinBoxMapX, *spinBoxMapY, *spinBoxMapRot;
 	SCDAserver& sRef;
 	Wt::WTable* wtTable;
 	Wt::WTabWidget* treeTab;
-	Wt::WText* textTest, *tableTitle, *mapTitle;
+	Wt::WText* textTest, *tableTitle, *mapTitle, *textSelRegion, *textSBX, *textSBY, *textSBRot;
 	Wt::WTree *treeCata, *treeData;
 	Wt::WTreeNode* treeRoot;
 

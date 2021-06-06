@@ -21,10 +21,12 @@ public:
 	const vector<string> ancestry;
 	const string stext;
 	const vector<Wt::WPainterPath> wpPaths;
+	const vector<vector<Wt::WPointF>> areas;
 
 	enum eType { Connect, Table, Map, RootLayer, YearLayer, DescLayer, RegionLayer, DivLayer };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
+	vector<vector<Wt::WPointF>> get_areas() const { return areas; }
 	vector<string> get_list() const { return list; }
 	vector<wstring> get_wlist() const { return wlist; }
 	vector<vector<wstring>> get_wtable() const { return wtable; }
@@ -59,8 +61,8 @@ private:
 		: etype(et), sessionID(sID), stext(txt) {}
 
 	// Constructor for eType Map.
-	DataEvent(eType et, const string& sID, const vector<Wt::WPainterPath>& wpp)
-		: etype(et), sessionID(sID), wpPaths(wpp) {}
+	DataEvent(eType et, const vector<string>& sIDregion, const vector<vector<Wt::WPointF>>& area)
+		: etype(et), sessionID(sIDregion[0]), list(sIDregion), areas(area) {}
 
 	friend class SCDAserver;
 };
@@ -83,10 +85,12 @@ public:
 	double binMapScale(string& tname0);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init(int&);
+	vector<vector<string>> getSmallGeo(vector<vector<string>>& cataGeo, string sParent);
 	long long getTimer();
 	vector<string> getYearList();
 	void pullMap(vector<string> prompt);
-	Wt::WPainterPath pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo);
+	vector<Wt::WPointF> pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling);
+	vector<Wt::WPointF> pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo, vector<double>& mapScaling);
 	void pullLayer(int layer, vector<string> prompt);
 	void pullRegion(vector<string> prompt);
 	void pullTable(vector<string> prompt);

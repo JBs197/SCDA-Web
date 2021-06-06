@@ -495,7 +495,6 @@ void SCDAwidget::init()
 	sRef.init(numTables);
 	connect();
 	jt.init("Census Tables", sroot);
-	wtf.initSize(400.0, 200.0);
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt = { app->sessionId() };
 
@@ -562,6 +561,9 @@ void SCDAwidget::initUI(int numTables)
 	pbTable->setEnabled(0);
 	pbMap->clicked().connect(this, &SCDAwidget::pbMapClicked);
 	pbMap->setEnabled(0);
+
+	// Initial values for the map widget.
+	wtMap->initSize(800.0, 570.0);
 	
 }
 void SCDAwidget::makeUI()
@@ -570,6 +572,8 @@ void SCDAwidget::makeUI()
 	auto vLayout = make_unique<Wt::WVBoxLayout>();
 	auto hLayoutFilterTree = make_unique<Wt::WHBoxLayout>();
 	auto hLayoutTextButton = make_unique<Wt::WHBoxLayout>();
+	auto vMapLayout = make_unique<Wt::WVBoxLayout>();
+	auto hMapLayout = make_unique<Wt::WHBoxLayout>();
 
 	auto uniqueBoxControl = make_unique<Wt::WContainerWidget>();
 	boxControl = uniqueBoxControl.get();
@@ -629,9 +633,22 @@ void SCDAwidget::makeUI()
 	mapTitle = uniqueMapTitle.get();
 	auto uniqueWtMap = make_unique<WTFUNC>();
 	wtMap = uniqueWtMap.get();
-	//auto uniqueImgMap = make_unique<Wt::WImage>();
-	//imgMap = uniqueImgMap.get();
-
+	auto uniqueBoxMapControl = make_unique<Wt::WContainerWidget>();
+	boxMapControl = uniqueBoxMapControl.get();
+	auto uniqueTextSelRegion = make_unique<Wt::WText>("Selected region:\nNone");
+	textSelRegion = uniqueTextSelRegion.get();
+	auto uniqueSpinBoxMapX = make_unique<Wt::WSpinBox>();
+	spinBoxMapX = uniqueSpinBoxMapX.get();
+	auto uniqueSpinBoxMapY = make_unique<Wt::WSpinBox>();
+	spinBoxMapY = uniqueSpinBoxMapY.get();
+	auto uniqueSpinBoxMapRot = make_unique<Wt::WSpinBox>();
+	spinBoxMapRot = uniqueSpinBoxMapRot.get();
+	auto uniqueTextSBX = make_unique<Wt::WText>("\nMove the selected region horizontally");
+	textSBX = uniqueTextSBX.get();
+	auto uniqueTextSBY = make_unique<Wt::WText>("\nMove the selected region vertically");
+	textSBY = uniqueTextSBY.get();
+	auto uniqueTextSBRot = make_unique<Wt::WText>("\nRotate the selected region");
+	textSBRot = uniqueTextSBRot.get();
 
 	auto lenAuto = Wt::WLength();
 	auto len6 = Wt::WLength("600px");
@@ -671,6 +688,18 @@ void SCDAwidget::makeUI()
 	uniqueBoxButtonTable->addWidget(move(uniquePbTable));
 	uniqueBoxButtonMap->addWidget(move(uniquePbMap));
 
+	vMapLayout->addWidget(move(uniqueTextSelRegion));
+	vMapLayout->addWidget(move(uniqueTextSBRot));
+	vMapLayout->addWidget(move(uniqueSpinBoxMapRot));
+	vMapLayout->addWidget(move(uniqueTextSBX));
+	vMapLayout->addWidget(move(uniqueSpinBoxMapX));
+	vMapLayout->addWidget(move(uniqueTextSBY));
+	vMapLayout->addWidget(move(uniqueSpinBoxMapY));
+	uniqueBoxMapControl->setLayout(move(vMapLayout));
+
+	hMapLayout->addWidget(move(uniqueBoxMap));
+	hMapLayout->addWidget(move(uniqueBoxMapControl));
+
 	hLayoutFilterTree->addWidget(move(uniqueBoxControl));
 	hLayoutFilterTree->addWidget(move(uniqueBoxTreelist));
 
@@ -683,7 +712,7 @@ void SCDAwidget::makeUI()
 
 	vLayout->addLayout(move(hLayoutFilterTree));
 	vLayout->addLayout(move(hLayoutTextButton));
-	vLayout->addWidget(move(uniqueBoxMap));
+	vLayout->addLayout(move(hMapLayout));
 	vLayout->addWidget(move(uniqueBoxTable));
 
 	this->setLayout(move(vLayout));
@@ -734,7 +763,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	app->triggerUpdate();
 	vector<Wt::WTreeNode*> pYears, pDescs, pRegion1s, pRegion2s, pDivs;
 	vector<vector<Wt::WTreeNode*>> pTemps;
-	vector<Wt::WPainterPath> wpPaths;
+	vector<vector<Wt::WPointF>> areas;
 	Wt::WTreeNode* pParent = nullptr;
 	Wt::WTreeNode* pTemp = nullptr;
 	Wt::WString wsYear, wsDesc, wsRegion;
@@ -776,8 +805,8 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	}
 	case 2:  // Display the map on the painter widget.
 	{
-		wpPaths = event.get_wpPaths();
-		wtf.drawMap(wpPaths[0]);
+		areas = event.get_areas();
+		wtMap->drawMap(areas);
 		break;
 	}
 	case 3:  // Set the root layer.

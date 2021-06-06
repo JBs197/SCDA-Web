@@ -49,7 +49,8 @@ vector<double> SCDAserver::binMapPosition(string& tname0)
 	vector<string> sPosition;
 	vector<string> search = { "WH Fraction" };
 	sf.select(search, tname, sPosition);
-	vector<double> output(2);
+	vector<double> output = { -1.0, -1.0 };
+	if (sPosition.size() == 1) { return output; }
 	try
 	{
 		output[0] = stod(sPosition[0]);
@@ -97,7 +98,43 @@ void SCDAserver::err(string func)
 void SCDAserver::init(int& numTables)
 {
 	sf.init(db_path);
-	//sf.all_tables(numTables);
+}
+vector<vector<string>> SCDAserver::getSmallGeo(vector<vector<string>>& cataGeo, string sParent)
+{
+	// Returns the geo data for the parent and its immediate children.
+	string layerParent, layerChild;
+	int indexParent = -1, index = 0, smallSize;
+	vector<int> indexChildren;
+	for (int ii = 0; ii < cataGeo.size(); ii++)
+	{
+		if (cataGeo[ii][1] == sParent)
+		{
+			layerParent = cataGeo[ii][2];
+			indexParent = ii;
+			if (ii < cataGeo.size() - 1) { layerChild = cataGeo[ii + 1][2]; }
+		}
+		else if (indexParent >= 0)
+		{
+			if (cataGeo[ii][2] == layerChild)
+			{
+				indexChildren.push_back(ii);
+			}
+			else if (cataGeo[ii][2] == layerParent) { break; }
+		}
+	}
+	smallSize = indexChildren.size() + 1;
+	vector<vector<string>> smallGeo(smallSize, vector<string>(3));
+	smallGeo[0][0] = cataGeo[indexParent][0];
+	smallGeo[0][1] = cataGeo[indexParent][1];
+	smallGeo[0][2] = cataGeo[indexParent][2];
+	for (int ii = 1; ii < smallSize; ii++)
+	{
+		smallGeo[ii][0] = cataGeo[indexChildren[index]][0];
+		smallGeo[ii][1] = cataGeo[indexChildren[index]][1];
+		smallGeo[ii][2] = cataGeo[indexChildren[index]][2];
+		index++;
+	}
+	return smallGeo;
 }
 long long SCDAserver::getTimer()
 {
@@ -105,21 +142,60 @@ long long SCDAserver::getTimer()
 }
 vector<string> SCDAserver::getYearList()
 {
-	return sf.select_years();
+	return sf.selectYears();
 }
 void SCDAserver::pullMap(vector<string> prompt)
 {
 	// prompt has form [sessionID, cata desc, parent region name].
 	string cataName = prompt[1];  // cataDesc->cataName
 	vector<string> geoLayers = { prompt[2], prompt[3] };  // regionName->geoLayers, window dimensions.
-	vector<vector<string>> cataGeo;
-	vector<Wt::WPainterPath> wpPaths(1);
-	wpPaths[0] = pullMapParent(cataName, geoLayers, cataGeo);
-
-
-	postDataEvent(DataEvent(DataEvent::Map, prompt[0], wpPaths), prompt[0]);
+	vector<vector<string>> cataGeo, smallGeo;
+	vector<vector<Wt::WPointF>> areas(1);
+	vector<double> mapScaling;  // Form [parentRatio, parentScale, parentWindowWidth, parentWindowHeight].
+	areas[0] = pullMapParent(cataName, geoLayers, cataGeo, mapScaling);
+	smallGeo = getSmallGeo(cataGeo, prompt[2]);
+	areas.resize(smallGeo.size());
+	vector<string> sIDregion(areas.size() + 1);  
+	sIDregion[0] = prompt[0];
+	for (int ii = 1; ii < areas.size(); ii++)
+	{
+		areas[ii] = pullMapChild(geoLayers, smallGeo, ii, mapScaling);
+	}
+	postDataEvent(DataEvent(DataEvent::Map, prompt[0], areas), prompt[0]);
 }
-Wt::WPainterPath SCDAserver::pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo)
+vector<Wt::WPointF> SCDAserver::pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling)
+{
+	// Build the tMap template.
+	int indexLayer;
+	for (int ii = 0; ii < geoLayers.size(); ii++)
+	{
+		if (geoLayers[ii] == smallGeo[myIndex][2])
+		{
+			indexLayer = ii;
+			break;
+		}
+	}
+	string tname0 = "TMap$";
+	for (int ii = 1; ii <= indexLayer; ii++)
+	{
+		tname0 += geoLayers[ii] + "$";
+	}
+	tname0 += smallGeo[myIndex][1] + "$";
+
+	// Load the bin data.
+	vector<vector<vector<int>>> frames = binMapFrames(tname0);
+	vector<double> position = binMapPosition(tname0);
+	vector<vector<int>> border = binMapBorder(tname0);
+	double myScale = binMapScale(tname0);
+	position.push_back(mapScaling[0] * mapScaling[1] / myScale);
+	position[0] *= mapScaling[2];
+	position[1] *= mapScaling[3];
+
+	// Create a WPainterPath to fit the painter widget.
+	vector<Wt::WPointF> area = wtf.makeWPPath(frames[0], border, position);
+	return area;
+}
+vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo, vector<double>& mapScaling)
 {
 	// Get the catalogue name.
 	vector<string> search = { "Name" };
@@ -162,15 +238,20 @@ Wt::WPainterPath SCDAserver::pullMapParent(string& cataDesc, vector<string>& geo
 
 	// Load the parent's bin data.
 	vector<vector<vector<int>>> frames = binMapFrames(tname0);
-	double scale = binMapScale(tname0);
-	vector<double> position = binMapPosition(tname0);
 	vector<vector<int>> border = binMapBorder(tname0);
+	mapScaling.resize(4);  // Form [ratio, PPKM, parentWidth, parentHeight].
+	mapScaling[1] = binMapScale(tname0);
+	mapScaling[2] = (double)(frames[0][1][0] - frames[0][0][0]);
+	mapScaling[3] = (double)(frames[0][1][1] - frames[0][0][1]);
 
 	// Create a WPainterPath to fit the painter widget.
 	vector<double> windowDim = jf.destringifyCoordD(windowWH);  // Unit is pixels.
-	Wt::WPainterPath wpPath;
-	wtf.makeWPPath(frames[0], border, windowDim, wpPath);
-	return wpPath;
+	vector<Wt::WPointF> area = wtf.makeWPPath(frames[0], border, windowDim);	
+	if (windowDim.size() != 1) { jf.err("windowDim-SCDAserver.pullMapParent"); }
+	mapScaling[0] = windowDim[0];
+	mapScaling[2] *= mapScaling[0];
+	mapScaling[3] *= mapScaling[0];
+	return area;
 }
 void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 {
@@ -196,11 +277,13 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	vector<wstring> ancestry;
 	vector<vector<wstring>> results;
 	int maxCol;
+	long long timer;
 
 	switch (layer)
 	{
 	case 0:  // set Root
-		yearList = sf.select_years();
+		//yearList = sf.selectYears();
+		yearList = sf.selectYears();
 		postDataEvent(DataEvent(DataEvent::RootLayer, prompt[0], yearList), prompt[0]);
 		break;
 	case 1:  // set Year
@@ -219,7 +302,7 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 		sf.select(search, tname, sname, conditions);
 		if (sname.size() < 1) { jf.err("select-SCDAserver.pullLayer"); }
 		tname = "TG_Region$" + sname;
-		search = { "GID", "[Region Name]", "param2" };
+		search = { "GID", "Region Name", "param2" };
 		conditions = { "param3 IS NULL" };
 		sf.select(search, tname, results, conditions);
 		jf.removeBlanks(results);
@@ -240,7 +323,7 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 		conditions = { "[Region Name] = '" + prompt[3] + "'" };
 		sf.select(search, tname, gid, conditions);
 
-		search = { "GID", "[Region Name]" };
+		search = { "GID", "Region Name" };
 		conditions = { "param3 = " + gid };
 		for (int ii = 4; ii < maxCol; ii++)
 		{
@@ -265,7 +348,7 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 		conditions = { "[Region Name] = '" + prompt[3] + "'" };
 		sf.select(search, tname, divRow, conditions);
 
-		search = { "[Region Name]" };
+		search = { "Region Name" };
 		jf.removeBlanks(divRow);
 		for (int ii = 2; ii < divRow.size(); ii++)
 		{
@@ -279,7 +362,7 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 		break;
 	}
 	}
-	long long timer = jf.timerStop();
+	timer = jf.timerStop();
 	jf.logTime("pullLayer(" + to_string(layer) + ")", timer);
 }
 void SCDAserver::pullRegion(vector<string> prompt)
@@ -309,48 +392,9 @@ void SCDAserver::pullTable(vector<string> prompt)
 	// prompt has form [sessionID, table name].
 	vector<vector<wstring>> theTable(1, vector<wstring>());
 	sf.get_col_titles(prompt[1], theTable[0]);
-	vector<string> search = { "GID", "[Region Name]", "param2", "param3" };
+	vector<string> search = { "GID", "Region Name", "param2", "param3" };
 	vector<string> conditions = { "param3 IS NULL" };
 	sf.select(search, prompt[1], theTable, conditions);
 	postDataEvent(DataEvent(DataEvent::Table, prompt[0], theTable), prompt[0]);
 }
 
-/*
-void SCDAserver::setDesc(vector<string> ancestry)
-{
-	// ancestry has form [sessionID, syear, sdesc].
-	jf.timerStart();
-	
-	// Get the catalogue name.
-	string sname;
-	vector<string> search = { "Name" };
-	string tname = "TCatalogueIndex";
-	vector<string> conditions = { "Description = " + ancestry[2] };
-	sf.select(search, tname, sname, conditions);
-	
-	// Get the first two layers from that catalogue's region tree.
-	tname = "TG_Region$" + sname;
-	search = { "[Region Name]" };
-	conditions = { "param3 = NULL" };
-	wstring wtemp = jf.utf8to16(ancestry[2]);
-	vector<wstring> regions = { wtemp };
-	sf.select(search, tname, regions, conditions);
-
-	postDataEvent(DataEvent(DataEvent::RegionList, ancestry[0], regions), ancestry[0]);
-	long long timer = jf.timerStop();  // RESUME HERE. Should this be a list or subtree?
-	cout << "server setDesc: " << timer << "ms" << endl;
-}
-void SCDAserver::setYear(vector<string> ancestry)
-{
-	jf.timerStart();
-	// ancestry has form [sessionID, syear].
-	vector<string> results = { ancestry[1] };
-	vector<string> search = { "Description" };
-	string tname = "TCatalogueIndex";
-	vector<string> conditions = { "Year = " + ancestry[1] };
-	sf.select(search, tname, results, conditions);
-	postDataEvent(DataEvent(DataEvent::DescList, ancestry[0], results), ancestry[0]);
-	long long timer = jf.timerStop();
-	cout << "server setYear: " << timer << "ms" << endl;
-}
-*/

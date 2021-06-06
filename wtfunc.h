@@ -9,6 +9,7 @@
 #include <Wt/WPainter.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPaintDevice.h>
+#include <Wt/WPolygonArea.h>
 #include "jfunc.h"
 
 using namespace std;
@@ -18,32 +19,28 @@ class WTFUNC : public Wt::WPaintedWidget
 	JFUNC jf;
 	
 	const string defaultLength = "200.0";
+	int indexAreaSel = -1;
 	string proj_dir;
 	const string sWidth, sHeight;
 	Wt::WLength wlWidth, wlHeight;
-	Wt::WPainterPath wpPath;
+	vector<vector<Wt::WPointF>> areas;
 
 public:
-	explicit WTFUNC(string width, string height) : Wt::WPaintedWidget(), sWidth(width), sHeight(height)
-	{
-		wlWidth = Wt::WLength(sWidth);
-		wlHeight = Wt::WLength(sHeight);
-		resize(wlWidth, wlHeight);
-	}
-	explicit WTFUNC() : Wt::WPaintedWidget()
+	WTFUNC() : Wt::WPaintedWidget()
 	{
 		wlWidth = Wt::WLength(defaultLength);
 		wlHeight = Wt::WLength(defaultLength);
 		resize(wlWidth, wlHeight);
 	}
 	~WTFUNC() {}
+	void areaClicked(int index);
 	void err(string);
 	void init_proj_dir(string);
 	void initSize(double w, double h);
-	void drawMap(Wt::WPainterPath& wpp);
-	void makeWPPath(vector<vector<int>>& frameTLBR, vector<vector<int>>& border, vector<double>& windowDim, Wt::WPainterPath& wpPath);
+	void drawMap(vector<vector<Wt::WPointF>>& areas);
+	vector<Wt::WPointF> makeWPPath(vector<vector<int>>& frameTLBR, vector<vector<int>>& border, vector<double>& windowDimPosition);
 
 protected:
-	void paintEvent(Wt::WPaintDevice* paintDevice);
+	virtual void paintEvent(Wt::WPaintDevice* paintDevice) override;
 };
 

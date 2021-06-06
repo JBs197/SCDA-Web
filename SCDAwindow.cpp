@@ -24,7 +24,7 @@ SCDAwindow::SCDAwindow(const Wt::WEnvironment& env) : Wt::WApplication(env)
 	wtable = box_table->addWidget(make_unique<Wt::WTable>());
 	//auto dpb_input = unique_ptr<Wt::WPushButton>();
 	
-	vector<string> year_list = sf.select_years();
+	vector<string> year_list = sf.selectYears();
 	cb_year->changed().connect(this, &SCDAwindow::on_cb_year_changed);
 	Wt::WString wstemp = Wt::WString("All");
 	cb_year->addItem(wstemp);
