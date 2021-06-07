@@ -75,7 +75,6 @@ public:
 	SCDAserver(Wt::WServer&);
 	SCDAserver(const SCDAserver&) = delete;
 	SCDAserver& operator=(const SCDAserver&) = delete;
-
 	class User {};
 
 	vector<vector<int>> binMapBorder(string& tname0);

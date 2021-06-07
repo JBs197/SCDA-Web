@@ -146,41 +146,77 @@ vector<string> SCDAserver::getYearList()
 }
 void SCDAserver::pullMap(vector<string> prompt)
 {
-	// prompt has form [sessionID, cata desc, parent region name].
-	string cataName = prompt[1];  // cataDesc->cataName
+	// prompt has form [sessionID, cata desc, parent region name, sWindowDim].
+	string temp, cataName = prompt[1];  // cataDesc->cataName
 	vector<string> geoLayers = { prompt[2], prompt[3] };  // regionName->geoLayers, window dimensions.
-	vector<vector<string>> cataGeo, smallGeo;
+	vector<string> vsTemp;
+	size_t pos1, pos2;
+	vector<vector<string>> cataGeo, smallGeo, TMI;
 	vector<vector<Wt::WPointF>> areas(1);
 	vector<double> mapScaling;  // Form [parentRatio, parentScale, parentWindowWidth, parentWindowHeight].
 	areas[0] = pullMapParent(cataName, geoLayers, cataGeo, mapScaling);
-	smallGeo = getSmallGeo(cataGeo, prompt[2]);
+	if (prompt[2] != "Canada")
+	{
+		smallGeo = getSmallGeo(cataGeo, prompt[2]);
+	}
+	else
+	{
+		smallGeo.push_back({ "TMap$Canada" });  
+		TMI = sf.getTMapIndex();
+		for (int ii = 0; ii < TMI.size(); ii++)
+		{
+			pos1 = TMI[ii][0].rfind("(Canada)");
+			if (pos1 < TMI[ii][0].size())
+			{
+				vsTemp = { "TMap$" + TMI[ii][0] };
+				smallGeo.push_back(vsTemp);
+			}
+		}
+	}
 	areas.resize(smallGeo.size());
 	vector<string> sIDregion(areas.size() + 1);  
 	sIDregion[0] = prompt[0];
+	sIDregion[1] = prompt[2];  // Parent name.
 	for (int ii = 1; ii < areas.size(); ii++)
 	{
+		if (smallGeo[ii].size() == 3) { sIDregion[ii + 1] = smallGeo[ii][1]; }
+		else if (smallGeo[ii].size() == 1)
+		{
+			pos1 = smallGeo[ii][0].rfind('$') + 1;
+			sIDregion[ii + 1] = smallGeo[ii][0].substr(pos1);
+		}
+		else { jf.err("smallGeo-SCDAserver.pullMap"); }
 		areas[ii] = pullMapChild(geoLayers, smallGeo, ii, mapScaling);
 	}
-	postDataEvent(DataEvent(DataEvent::Map, prompt[0], areas), prompt[0]);
+	postDataEvent(DataEvent(DataEvent::Map, sIDregion, areas), prompt[0]);
 }
 vector<Wt::WPointF> SCDAserver::pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling)
 {
 	// Build the tMap template.
 	int indexLayer;
-	for (int ii = 0; ii < geoLayers.size(); ii++)
+	string tname0;
+	if (smallGeo[myIndex].size() == 3)
 	{
-		if (geoLayers[ii] == smallGeo[myIndex][2])
+		for (int ii = 0; ii < geoLayers.size(); ii++)
 		{
-			indexLayer = ii;
-			break;
+			if (geoLayers[ii] == smallGeo[myIndex][2])
+			{
+				indexLayer = ii;
+				break;
+			}
 		}
+		tname0 = "TMap$";
+		for (int ii = 1; ii <= indexLayer; ii++)
+		{
+			tname0 += geoLayers[ii] + "$";
+		}
+		tname0 += smallGeo[myIndex][1] + "$";
 	}
-	string tname0 = "TMap$";
-	for (int ii = 1; ii <= indexLayer; ii++)
+	else if (smallGeo[myIndex].size() == 1)
 	{
-		tname0 += geoLayers[ii] + "$";
+		tname0 = smallGeo[myIndex][0] + "$";
 	}
-	tname0 += smallGeo[myIndex][1] + "$";
+	else { jf.err("smallGeo-SCDAserver.pullMapChild"); }
 
 	// Load the bin data.
 	vector<vector<vector<int>>> frames = binMapFrames(tname0);
@@ -188,8 +224,16 @@ vector<Wt::WPointF> SCDAserver::pullMapChild(vector<string>& geoLayers, vector<v
 	vector<vector<int>> border = binMapBorder(tname0);
 	double myScale = binMapScale(tname0);
 	position.push_back(mapScaling[0] * mapScaling[1] / myScale);
-	position[0] *= mapScaling[2];
-	position[1] *= mapScaling[3];
+	if (position[0] >= 0.0)
+	{
+		position[0] *= mapScaling[2];
+		position[1] *= mapScaling[3];
+	}
+	else
+	{
+		position[0] = 0.0;
+		position[1] = 0.0;
+	}
 
 	// Create a WPainterPath to fit the painter widget.
 	vector<Wt::WPointF> area = wtf.makeWPPath(frames[0], border, position);

@@ -5,9 +5,11 @@ void WTFUNC::areaClicked(int index)
 	indexAreaSel = index;
 	update();
 }
-void WTFUNC::drawMap(vector<vector<Wt::WPointF>>& Areas)
+void WTFUNC::drawMap(vector<vector<Wt::WPointF>>& Areas, vector<string>& sidAreaNames)
 {
-	areas = Areas;
+	areas = Areas;  // Form [parent, children].
+	areaNames.assign(sidAreaNames.begin() + 2, sidAreaNames.end()); 
+	areaNames.push_back(sidAreaNames[1]);  // Parent goes last.
 	update();
 }
 void WTFUNC::err(string func)
@@ -102,6 +104,7 @@ void WTFUNC::paintEvent(Wt::WPaintDevice* paintDevice)
 			painter.setPen(penSel);
 			painter.drawPath(wpPath);
 			painter.restore();
+			nameAreaSel = areaNames[ii];
 		}
 		else { painter.drawPath(wpPath); }		
 	}

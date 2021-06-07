@@ -18,8 +18,10 @@ class WTFUNC : public Wt::WPaintedWidget
 {
 	JFUNC jf;
 	
+	vector<string> areaNames;
 	const string defaultLength = "200.0";
 	int indexAreaSel = -1;
+	string nameAreaSel;
 	string proj_dir;
 	const string sWidth, sHeight;
 	Wt::WLength wlWidth, wlHeight;
@@ -37,7 +39,7 @@ public:
 	void err(string);
 	void init_proj_dir(string);
 	void initSize(double w, double h);
-	void drawMap(vector<vector<Wt::WPointF>>& areas);
+	void drawMap(vector<vector<Wt::WPointF>>& areas, vector<string>& areaNames);
 	vector<Wt::WPointF> makeWPPath(vector<vector<int>>& frameTLBR, vector<vector<int>>& border, vector<double>& windowDimPosition);
 
 protected:

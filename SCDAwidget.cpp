@@ -1,5 +1,12 @@
 #include "SCDAwidget.h"
 
+void SCDAwidget::mapClicked(Wt::WMouseEvent* e)
+{
+	//Wt::WString wsName = "Region selected:\n" + mapRegionList[index];
+	//textSelRegion->setText(wsName);
+	//auto mousePos = Wt::WMouseEvent::document();
+	cout << "TESTY TESTING" << endl;
+}
 void SCDAwidget::cbDescClicked()
 {
 	Wt::WString wsTemp;
@@ -564,7 +571,7 @@ void SCDAwidget::initUI(int numTables)
 
 	// Initial values for the map widget.
 	wtMap->initSize(800.0, 570.0);
-	
+	//wtMap->clicked().connect(this, &SCDAwidget::mapClicked);
 }
 void SCDAwidget::makeUI()
 {
@@ -768,7 +775,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	Wt::WTreeNode* pTemp = nullptr;
 	Wt::WString wsYear, wsDesc, wsRegion;
 	wstring wtemp;
-	string sessionID = app->sessionId();
+	string sessionID = app->sessionId(), nameAreaSel;
 	vector<string> slist, nextPrompt;
 	vector<wstring> wlist;
 	vector<vector<wstring>> wtable;
@@ -805,8 +812,10 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	}
 	case 2:  // Display the map on the painter widget.
 	{
+		slist = event.get_list();
 		areas = event.get_areas();
-		wtMap->drawMap(areas);
+		updateMapRegionList(slist, mapRegionList, 1);
+		wtMap->drawMap(areas, slist);
 		break;
 	}
 	case 3:  // Set the root layer.
@@ -1221,4 +1230,20 @@ void SCDAwidget::tableClicked(Wt::WString wsTable)
 	pbTable->setEnabled(1);
 	if (selectedRow >= 0) { pbMap->setEnabled(1); }
 }
+void SCDAwidget::updateMapRegionList(vector<string>& sList, vector<Wt::WString>& wsList, int mode)
+{
+	// Mode 0 = standard translation, mode 1 = ignore first sList entry.
+	wsList.clear();
+	switch (mode)
+	{
+	case 1:
+	{
+		wsList.resize(sList.size() - 1);
+		for (int ii = 0; ii < wsList.size(); ii++)
+		{
+			wsList[ii] = Wt::WString::fromUTF8(sList[ii + 1]);
+		}
+	}
+	}
 
+}

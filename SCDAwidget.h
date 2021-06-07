@@ -15,6 +15,7 @@
 #include <Wt/WLength.h>
 #include <Wt/WTabWidget.h>
 #include <Wt/WImage.h>
+#include <Wt/WEvent.h>
 #include "SCDAserver.h"
 
 using namespace std;
@@ -25,7 +26,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string activeDesc, activeDiv, activeRegion, activeYear;
 	vector<int> cbActive;
 	string db_path = sroot + "\\SCDA.db";
-	vector<Wt::WString> defNames;
+	vector<Wt::WString> defNames, mapRegionList;
 	JFUNC jf;
 	JTREE jt;
 	enum Layer { Root, Year, Description, Region, Division };
@@ -74,12 +75,15 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void setLayer(Layer layer, vector<string> prompt);
 	void setTable(vector<string> prompt);
 	void tableClicked(Wt::WString wsTable);
+	void updateMapRegionList(vector<string>& sList, vector<Wt::WString>& wsList, int mode);
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) 
 	{ 
 		init();
 	}
+
+	void mapClicked(Wt::WMouseEvent* e);
 
 	Wt::WLength len5p = Wt::WLength("5px");
 
