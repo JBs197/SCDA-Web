@@ -4,15 +4,6 @@
 
 <h2><span>Statistics Canada Data Analysis Web Tool</span></h2>
 
-<p>This will be a welcome message that will provide basic context and instructions on how to use the SCDA Web Tool. Until then, this is simply a placeholder and a test for the HTML formatting.</p>
-
-  </message>
-  <message id="TOK">
-
-<h2><span>MYSTERY BOX Web Tool</span></h2>
-
-<p>This web app is brought to you in glorious default HTML font. Hey, don't judge. How many of your classes make their own apps?</p>
-
   </message>
 
   <message id="cbYear">Select a Year</message>

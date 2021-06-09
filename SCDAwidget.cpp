@@ -1,12 +1,5 @@
 #include "SCDAwidget.h"
 
-void SCDAwidget::mapClicked(Wt::WMouseEvent* e)
-{
-	//Wt::WString wsName = "Region selected:\n" + mapRegionList[index];
-	//textSelRegion->setText(wsName);
-	//auto mousePos = Wt::WMouseEvent::document();
-	cout << "TESTY TESTING" << endl;
-}
 void SCDAwidget::cbDescClicked()
 {
 	Wt::WString wsTemp;
@@ -520,22 +513,47 @@ void SCDAwidget::initUI(int numTables)
 	Wt::WString wstemp;
 	string temp;
 
+	auto lenAuto = Wt::WLength();
+	auto len1200 = Wt::WLength("1200px");
+	auto len820 = Wt::WLength("820px");
+	auto len800 = Wt::WLength("800px");
+	auto len700 = Wt::WLength("700px");
+	auto len600 = Wt::WLength("600px");
+	auto len500 = Wt::WLength("500px");
+	auto len400 = Wt::WLength("400px");
+	auto len300 = Wt::WLength("300px");
+	auto len275 = Wt::WLength("275px");
+	auto len200 = Wt::WLength("200px");
+	auto len100 = Wt::WLength("100px");
+	auto len70 = Wt::WLength("70px");
+	auto len50 = Wt::WLength("50px");
+
+	// Box sizes.
+	boxControl->resize(len300, len800);
+	boxData->resize(len820, len820);
+	boxTest->resize(lenAuto, len100);
+	boxLoad->resize(lenAuto, len100);
+	boxSearch->resize(lenAuto, len50);
+
 	// Colourful things.
 	colourSelected.setRgb(200, 200, 255, 50);
 	colourWhite.setRgb(255, 255, 255, 255);
 
 	// Initial values for panelYear.
 	panelYear->setTitle(defNames[0]);
+	panelYear->resize(len275, len100);
 	cbYear->changed().connect(this, &SCDAwidget::cbYearClicked);
 
 	// Initial values for panelDesc.
 	panelDesc->setTitle(defNames[1]);
+	panelDesc->resize(len275, len100);
 	cbDesc->changed().connect(this, &SCDAwidget::cbDescClicked);
 	cbDesc->addItem(wsAll);
 	cbDesc->setEnabled(0);
 
 	// Initial values for panelRegion.
 	panelRegion->setTitle(defNames[2]);
+	panelRegion->resize(len275, len300);
 	cbRegion->changed().connect(this, &SCDAwidget::cbRegionClicked);
 	cbRegion->addItem(wsAll);
 	cbRegion->setEnabled(0);
@@ -548,6 +566,10 @@ void SCDAwidget::initUI(int numTables)
 	cbDiv->setEnabled(0);
 	*/
 
+	// Initial values for the tab widget.
+	tabData->setOverflow(Wt::Overflow::Scroll);
+	tabData->resize(len800, len700);
+
 	// Initial values for the tree widget.
 	wstemp = Wt::WString("Census Tables");
 	treeCata->setSelectionMode(Wt::SelectionMode::Single);
@@ -556,11 +578,6 @@ void SCDAwidget::initUI(int numTables)
 	tRoot->selected().connect(fn);
 	treeRoot = tRoot.get();
 	treeCata->setTreeRoot(move(tRoot));
-
-	// Initial values for the text widget.
-	//temp = "Database has " + to_string(numTables) + " table results.";
-	//wstemp = Wt::WString(temp);
-	//textTest->setText(wstemp);
 
 	// Initial values for the buttons.
 	pbTest->clicked().connect(this, &SCDAwidget::pbTestClicked);
@@ -571,19 +588,18 @@ void SCDAwidget::initUI(int numTables)
 
 	// Initial values for the map widget.
 	wtMap->initSize(800.0, 570.0);
-	//wtMap->clicked().connect(this, &SCDAwidget::mapClicked);
+	wtMap->clicked().connect(this, &SCDAwidget::mouseMapClick);
 }
 void SCDAwidget::makeUI()
 {
 	this->clear();
-	auto vLayout = make_unique<Wt::WVBoxLayout>();
-	auto hLayoutFilterTree = make_unique<Wt::WHBoxLayout>();
-	auto hLayoutTextButton = make_unique<Wt::WHBoxLayout>();
-	auto vMapLayout = make_unique<Wt::WVBoxLayout>();
-	auto hMapLayout = make_unique<Wt::WHBoxLayout>();
-
+	auto hLayout = make_unique<Wt::WHBoxLayout>();
 	auto uniqueBoxControl = make_unique<Wt::WContainerWidget>();
 	boxControl = uniqueBoxControl.get();
+	auto uniqueBoxData = make_unique<Wt::WContainerWidget>();
+	boxData = uniqueBoxData.get();
+
+	auto vControlLayout = make_unique<Wt::WVBoxLayout>();
 	auto uniquePanelYear = make_unique<Wt::WPanel>();
 	panelYear = uniquePanelYear.get();
 	auto uniqueCbYear = make_unique<Wt::WComboBox>();
@@ -596,133 +612,125 @@ void SCDAwidget::makeUI()
 	panelRegion = uniquePanelRegion.get();
 	auto uniqueCbRegion = make_unique<Wt::WComboBox>();
 	cbRegion = uniqueCbRegion.get();
-	auto uniquePanelDivision = make_unique<Wt::WPanel>();
-	panelDiv = uniquePanelDivision.get();
-	auto uniqueCbDivision = make_unique<Wt::WComboBox>();
-	cbDiv = uniqueCbDivision.get();
-	auto uniqueBoxTreelist = make_unique<Wt::WContainerWidget>();
-	boxTreelist = uniqueBoxTreelist.get();
-	auto uniqueTree = make_unique<Wt::WTree>();
-	treeCata = uniqueTree.get();
+	auto uniqueBoxTest = make_unique<Wt::WContainerWidget>();
+	boxTest = uniqueBoxTest.get();
+	auto uniqueBoxLoad = make_unique<Wt::WContainerWidget>();
+	boxLoad = uniqueBoxLoad.get();
+
+	auto vDataLayout = make_unique<Wt::WVBoxLayout>();
+	auto uniqueTabData = make_unique<Wt::WTabWidget>();
+	tabData = uniqueTabData.get();
+	auto uniqueTreeRegion = make_unique<Wt::WTree>();
+	treeCata = uniqueTreeRegion.get();
 	auto uniqueBoxTable = make_unique<Wt::WContainerWidget>();
 	boxTable = uniqueBoxTable.get();
-	auto uniqueTableTitle = make_unique<Wt::WText>();
-	tableTitle = uniqueTableTitle.get();
-	auto uniqueTable = make_unique<Wt::WTable>();
-	wtTable = uniqueTable.get();
-	auto uniqueBoxText = make_unique<Wt::WContainerWidget>();
-	boxText = uniqueBoxText.get();
-	auto uniqueTextTest = make_unique<Wt::WText>();
-	textTest = uniqueTextTest.get();
-	auto uniqueBoxLineEdit = make_unique<Wt::WContainerWidget>();
-	boxLineEdit = uniqueBoxLineEdit.get();
-	auto uniqueLineEdit = make_unique<Wt::WLineEdit>();
-	lineEdit = uniqueLineEdit.get();
-	auto uniqueBoxButton = make_unique<Wt::WContainerWidget>();
-	boxButtonTest = uniqueBoxButton.get();
-	auto uniquePbTest = make_unique<Wt::WPushButton>("TEST \n BUTTON");
+	auto uniqueBoxSearch = make_unique<Wt::WContainerWidget>();
+	boxSearch = uniqueBoxSearch.get();
+	auto uniqueWtMap = make_unique<WTFUNC>(commMap);
+	wtMap = uniqueWtMap.get();
+
+	auto hTestLayout = make_unique<Wt::WHBoxLayout>();
+	auto uniqueLineEditTest = make_unique<Wt::WLineEdit>();
+	lineEditTest = uniqueLineEditTest.get();
+	auto uniquePbTest = make_unique<Wt::WPushButton>("TEST");
 	pbTest = uniquePbTest.get();
-	auto uniqueBoxButtonTable = make_unique<Wt::WContainerWidget>();
-	boxButtonTable = uniqueBoxButtonTable.get();
+
+	auto hLoadLayout = make_unique<Wt::WHBoxLayout>();
 	auto uniquePbTable = make_unique<Wt::WPushButton>("LOAD \n REGION \n TABLE");
 	pbTable = uniquePbTable.get();
-	auto uniqueBoxButtonMap = make_unique<Wt::WContainerWidget>();
-	boxButtonMap = uniqueBoxButtonMap.get();
 	auto uniquePbMap = make_unique<Wt::WPushButton>("LOAD \n REGION \n MAP");
 	pbMap = uniquePbMap.get();
-	auto uniqueTreeTab = make_unique<Wt::WTabWidget>();
-	treeTab = uniqueTreeTab.get();
-	auto uniqueTreeData = make_unique<Wt::WTree>();
-	treeData = uniqueTreeData.get();
-	auto uniqueBoxMap = make_unique<Wt::WContainerWidget>();
-	boxMap = uniqueBoxMap.get();
-	auto uniqueMapTitle = make_unique<Wt::WText>();
-	mapTitle = uniqueMapTitle.get();
-	auto uniqueWtMap = make_unique<WTFUNC>();
-	wtMap = uniqueWtMap.get();
-	auto uniqueBoxMapControl = make_unique<Wt::WContainerWidget>();
-	boxMapControl = uniqueBoxMapControl.get();
-	auto uniqueTextSelRegion = make_unique<Wt::WText>("Selected region:\nNone");
-	textSelRegion = uniqueTextSelRegion.get();
-	auto uniqueSpinBoxMapX = make_unique<Wt::WSpinBox>();
-	spinBoxMapX = uniqueSpinBoxMapX.get();
-	auto uniqueSpinBoxMapY = make_unique<Wt::WSpinBox>();
-	spinBoxMapY = uniqueSpinBoxMapY.get();
-	auto uniqueSpinBoxMapRot = make_unique<Wt::WSpinBox>();
-	spinBoxMapRot = uniqueSpinBoxMapRot.get();
-	auto uniqueTextSBX = make_unique<Wt::WText>("\nMove the selected region horizontally");
-	textSBX = uniqueTextSBX.get();
-	auto uniqueTextSBY = make_unique<Wt::WText>("\nMove the selected region vertically");
-	textSBY = uniqueTextSBY.get();
-	auto uniqueTextSBRot = make_unique<Wt::WText>("\nRotate the selected region");
-	textSBRot = uniqueTextSBRot.get();
 
-	auto lenAuto = Wt::WLength();
-	auto len6 = Wt::WLength("600px");
-	auto len5 = Wt::WLength("500px");
-	auto len4 = Wt::WLength("400px");
-	auto len3 = Wt::WLength("300px");
-	auto len2 = Wt::WLength("200px");
-	auto len1 = Wt::WLength("100px");
-	boxControl->resize(len4, lenAuto);
-	boxTreelist->resize(len4, len5);
-	boxTreelist->setOverflow(Wt::Overflow::Auto);
-	boxText->resize(lenAuto, lenAuto);
-	boxLineEdit->resize(len5, lenAuto);
-	boxButtonTest->resize(lenAuto, lenAuto);
-	boxButtonTable->resize(lenAuto, lenAuto);
-	boxButtonMap->resize(lenAuto, lenAuto);
+	auto vTableLayout = make_unique<Wt::WVBoxLayout>();
+	auto uniqueTextTable = make_unique<Wt::WText>();
+	textTable = uniqueTextTable.get();
+	auto uniqueTableRegion = make_unique<Wt::WTable>();
+	wtTable = uniqueTableRegion.get();
 
-	uniqueTreeTab->addTab(move(uniqueTree), "Regions");
-	uniqueTreeTab->addTab(move(uniqueTreeData), "Data");
+	auto hSearchLayout = make_unique<Wt::WHBoxLayout>();
+	auto uniqueTextMessage = make_unique<Wt::WText>("Selected region:\nNone");
+	textMessage = uniqueTextMessage.get();
+	auto uniqueLineEditSearch = make_unique<Wt::WLineEdit>();
+	lineEditSearch = uniqueLineEditSearch.get();
+	auto uniquePbSearch = make_unique<Wt::WPushButton>("SEARCH");
+	pbSearch = uniquePbSearch.get();
+
+	//uniquePanelDivision->setCentralWidget(move(uniqueCbDivision));
+	//uniqueBoxControl->addWidget(move(uniquePanelDivision));
 
 	uniquePanelYear->setCentralWidget(move(uniqueCbYear));
 	uniquePanelDesc->setCentralWidget(move(uniqueCbDesc));
 	uniquePanelRegion->setCentralWidget(move(uniqueCbRegion));
-	uniquePanelDivision->setCentralWidget(move(uniqueCbDivision));
-	uniqueBoxControl->addWidget(move(uniquePanelYear));
-	uniqueBoxControl->addWidget(move(uniquePanelDesc));
-	uniqueBoxControl->addWidget(move(uniquePanelRegion));
-	//uniqueBoxControl->addWidget(move(uniquePanelDivision));
-	uniqueBoxMap->addWidget(move(uniqueMapTitle));
-	uniqueBoxMap->addWidget(move(uniqueWtMap));
-	uniqueBoxTreelist->addWidget(move(uniqueTreeTab));
-	uniqueBoxTable->addWidget(move(uniqueTableTitle));
-	uniqueBoxTable->addWidget(move(uniqueTable));
-	uniqueBoxText->addWidget(move(uniqueTextTest));
-	uniqueBoxLineEdit->addWidget(move(uniqueLineEdit));
-	uniqueBoxButton->addWidget(move(uniquePbTest));
-	uniqueBoxButtonTable->addWidget(move(uniquePbTable));
-	uniqueBoxButtonMap->addWidget(move(uniquePbMap));
 
-	vMapLayout->addWidget(move(uniqueTextSelRegion));
-	vMapLayout->addWidget(move(uniqueTextSBRot));
-	vMapLayout->addWidget(move(uniqueSpinBoxMapRot));
-	vMapLayout->addWidget(move(uniqueTextSBX));
-	vMapLayout->addWidget(move(uniqueSpinBoxMapX));
-	vMapLayout->addWidget(move(uniqueTextSBY));
-	vMapLayout->addWidget(move(uniqueSpinBoxMapY));
-	uniqueBoxMapControl->setLayout(move(vMapLayout));
+	hTestLayout->addWidget(move(uniqueLineEditTest));
+	hTestLayout->addWidget(move(uniquePbTest));
+	uniqueBoxTest->setLayout(move(hTestLayout));
 
-	hMapLayout->addWidget(move(uniqueBoxMap));
-	hMapLayout->addWidget(move(uniqueBoxMapControl));
+	hLoadLayout->addWidget(move(uniquePbTable));
+	hLoadLayout->addWidget(move(uniquePbMap));
+	uniqueBoxLoad->setLayout(move(hLoadLayout));
 
-	hLayoutFilterTree->addWidget(move(uniqueBoxControl));
-	hLayoutFilterTree->addWidget(move(uniqueBoxTreelist));
+	vTableLayout->addWidget(move(uniqueTextTable));
+	vTableLayout->addWidget(move(uniqueTableRegion));
+	uniqueBoxTable->setLayout(move(vTableLayout));
 
-	hLayoutTextButton->addWidget(move(uniqueBoxText));
-	hLayoutTextButton->addWidget(move(uniqueBoxLineEdit));
-	hLayoutTextButton->addWidget(move(uniqueBoxButton));
-	hLayoutTextButton->addWidget(move(uniqueBoxButtonTable));
-	hLayoutTextButton->addWidget(move(uniqueBoxButtonMap));
-	hLayoutTextButton->addStretch(1);
+	uniqueTabData->addTab(move(uniqueTreeRegion), "Regions");
+	uniqueTabData->addTab(move(uniqueBoxTable), "Data");
+	uniqueTabData->addTab(move(uniqueWtMap), "Map");
 
-	vLayout->addLayout(move(hLayoutFilterTree));
-	vLayout->addLayout(move(hLayoutTextButton));
-	vLayout->addLayout(move(hMapLayout));
-	vLayout->addWidget(move(uniqueBoxTable));
+	hSearchLayout->addWidget(move(uniqueTextMessage));
+	hSearchLayout->addWidget(move(uniqueLineEditSearch));
+	hSearchLayout->addWidget(move(uniquePbSearch));
+	uniqueBoxSearch->setLayout(move(hSearchLayout));
 
-	this->setLayout(move(vLayout));
+	vControlLayout->addWidget(move(uniquePanelYear));
+	vControlLayout->addWidget(move(uniquePanelDesc));
+	vControlLayout->addWidget(move(uniquePanelRegion));
+	vControlLayout->addWidget(move(uniqueBoxTest));
+	vControlLayout->addWidget(move(uniqueBoxLoad));
+	uniqueBoxControl->setLayout(move(vControlLayout));
+
+	vDataLayout->addWidget(move(uniqueTabData));
+	vDataLayout->addWidget(move(uniqueBoxSearch));
+	uniqueBoxData->setLayout(move(vDataLayout));
+
+	hLayout->addWidget(move(uniqueBoxControl));
+	hLayout->addWidget(move(uniqueBoxData));
+	this->setLayout(move(hLayout));
+}
+void SCDAwidget::mouseMapClick(const Wt::WMouseEvent& e)
+{
+	auto coord = e.widget();
+	cout << "(" << to_string(coord.x) << "," << to_string(coord.y) << ")" << endl;
+	Wt::WLength wlTemp = Wt::WLength(wtMap->width());
+	double widthD = wlTemp.value();
+	cout << "Widget width: " << to_string(widthD) << endl;
+	int patience = 5;
+	while (patience > 0)
+	{
+		this_thread::sleep_for(20ms);
+		m_map.lock();
+		if (commMap.size() > 0)
+		{
+			mapRegion = commMap[0];
+			commMap.clear();
+			patience = -1;
+		}
+		m_map.unlock();
+		patience--;
+	}
+	if (patience < 0)
+	{
+		size_t posCan = mapRegion.rfind("(Canada)");
+		string sTemp;
+		if (posCan < mapRegion.size())
+		{
+			sTemp = mapRegion.substr(0, posCan);
+		}
+		else { sTemp = mapRegion; }
+		Wt::WString wsTemp = "Selected region:\n" + Wt::WString::fromUTF8(sTemp);
+		textMessage->setText(wsTemp);
+	}
 }
 void SCDAwidget::pbMapClicked()
 {
@@ -730,13 +738,22 @@ void SCDAwidget::pbMapClicked()
 	double width = len.value();
 	len = wtMap->height();
 	double height = len.value();
-	vector<string> prompt(4);
+	Wt::WText *wtTemp = dynamic_cast<Wt::WText*>(wtTable->elementAt(0, selectedCell[1])->widget(0));
+	Wt::WString wsColTitle = wtTemp->text();
+	string colTitle = wsColTitle.toUTF8();
+	wtTemp = dynamic_cast<Wt::WText*>(wtTable->elementAt(selectedCell[0], 0)->widget(0));
+	Wt::WString wsRowTitle = wtTemp->text();
+	string rowTitle = wsRowTitle.toUTF8();
+	vector<string> prompt(6);
 	Wt::WApplication* app = Wt::WApplication::instance();
 	prompt[0] = app->sessionId();
 	prompt[1] = activeDesc;
 	prompt[2] = "Canada";  // TEMPORARY.
 	prompt[3] = to_string(width) + "," + to_string(height);
+	prompt[4] = wsRowTitle.toUTF8();
+	prompt[5] = wsColTitle.toUTF8();
 	sRef.pullMap(prompt);
+	tabData->setCurrentIndex(2);
 }
 void SCDAwidget::pbTableClicked()
 {
@@ -747,15 +764,17 @@ void SCDAwidget::pbTableClicked()
 	prompt[2] = selectedRegion.toUTF8();
 	sRef.pullRegion(prompt);
 	wtTable->clear();
-	string title = "<font size=\"10\"><b> Census Region Data for " + prompt[2] + " </b></font>";
-	tableTitle->setText(title);
+	string title = "Census Region Data for " + prompt[2];
+	Wt::WString wsTable = Wt::WString::fromUTF8(title);
+	textTable->setText(title);
+	tabData->setCurrentIndex(1);
 }
 void SCDAwidget::pbTestClicked()
 {
 	vector<string> prompt(2);
 	Wt::WApplication* app = Wt::WApplication::instance();
 	prompt[0] = app->sessionId();
-	Wt::WString wsTable = lineEdit->text();
+	Wt::WString wsTable = lineEditTest->text();
 	prompt[1] = wsTable.toUTF8();
 	if (prompt[1].size() < 1)
 	{
@@ -801,7 +820,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 				const Wt::WString wsCell(wtable[ii][jj]);
 				auto cellText = make_unique<Wt::WText>(wsCell);
 				cellText->setMargin(len5p);
-				function<void()> fn = bind(&SCDAwidget::selectTableRow, this, ii);
+				function<void()> fn = bind(&SCDAwidget::selectTableCell, this, ii, jj);
 				cellText->clicked().connect(fn);		
 				wtTable->elementAt(ii, jj)->addWidget(move(cellText));
 			}
@@ -1108,6 +1127,19 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	}
 	timer = jf.timerStop();
 	jf.logTime("processDataEvent#" + to_string(etype), timer);
+}
+void SCDAwidget::selectTableCell(int iRow, int iCol)
+{
+	if (iRow < 1 || iCol < 1) { return; }
+	int numCol = wtTable->columnCount();
+	if (selectedCell[0] >= 0 && selectedCell[1] >= 0)
+	{
+		wtTable->elementAt(selectedCell[0], selectedCell[1])->decorationStyle().setBackgroundColor(colourWhite);
+	}
+	wtTable->elementAt(iRow, iCol)->decorationStyle().setBackgroundColor(colourSelected);
+	selectedCell[0] = iRow;
+	selectedCell[1] = iCol;
+	if (pbTable->isEnabled()) { pbMap->setEnabled(1); }
 }
 void SCDAwidget::selectTableRow(int iRow)
 {

@@ -25,6 +25,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
 	string activeDesc, activeDiv, activeRegion, activeYear;
 	vector<int> cbActive;
+	vector<string> commMap;
 	string db_path = sroot + "\\SCDA.db";
 	vector<Wt::WString> defNames, mapRegionList;
 	JFUNC jf;
@@ -34,28 +35,28 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	unordered_map<wstring, vector<int>> mapTree;
 	const int num_filters = 3;
 	Wt::WString selectedRegion, selectedFolder;
+	vector<int> selectedCell = { -1,-1 };
 	int selectedRow = -1;
-	string sessionID;
+	string sessionID, mapRegion;
 	vector<int> treeActive;
 	enum treeType { Tree, Subtree };
 	const Wt::WString wsAll = Wt::WString("All");
 
 	WTFUNC *wtMap;
 	Wt::WColor colourSelected, colourWhite;
-	Wt::WContainerWidget *boxControl, *boxTreelist, *boxTable, *boxText, *boxButtonTest, *boxButtonTable, *boxLineEdit, *boxButtonMap, *boxMap, *boxMapControl;
+	Wt::WContainerWidget *boxControl, *boxData, *boxTest, *boxLoad, *boxSearch, *boxTable;
 	Wt::WComboBox *cbYear, *cbDesc, *cbRegion, *cbDiv;
 	Wt::WImage* imgMap;
-	Wt::WLineEdit* lineEdit;
-	//Wt::WPaintedWidget* wtMap;
+	Wt::WLineEdit* lineEditTest, *lineEditSearch;
 	Wt::WPanel *panelYear, *panelDesc, *panelRegion, *panelDiv;
-	Wt::WPushButton *pbTest, *pbTable, *pbMap;
+	Wt::WPushButton *pbTest, *pbTable, *pbMap, *pbSearch;
 	Wt::WSelectionBox* sbList;
 	Wt::WSpinBox* spinBoxMapX, *spinBoxMapY, *spinBoxMapRot;
 	SCDAserver& sRef;
 	Wt::WTable* wtTable;
-	Wt::WTabWidget* treeTab;
-	Wt::WText* textTest, *tableTitle, *mapTitle, *textSelRegion, *textSBX, *textSBY, *textSBRot;
-	Wt::WTree *treeCata, *treeData;
+	Wt::WTabWidget* tabData;
+	Wt::WText* textMessage, *tableTitle, *textTable;
+	Wt::WTree *treeCata;
 	Wt::WTreeNode* treeRoot;
 
 	void cbDescClicked();
@@ -67,10 +68,12 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void init();
 	void initUI(int);
 	void makeUI();
+	void mouseMapClick(const Wt::WMouseEvent& e);
 	void pbMapClicked();
 	void pbTestClicked();
 	void pbTableClicked();
 	void processDataEvent(const DataEvent& event);
+	void selectTableCell(int iRow, int iCol);
 	void selectTableRow(int iRow);
 	void setLayer(Layer layer, vector<string> prompt);
 	void setTable(vector<string> prompt);
@@ -82,8 +85,6 @@ public:
 	{ 
 		init();
 	}
-
-	void mapClicked(Wt::WMouseEvent* e);
 
 	Wt::WLength len5p = Wt::WLength("5px");
 

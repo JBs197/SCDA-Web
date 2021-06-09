@@ -98,6 +98,44 @@ void SCDAserver::err(string func)
 void SCDAserver::init(int& numTables)
 {
 	sf.init(db_path);
+	auto uniqueWtf = make_unique<WTFUNC>(vsTemp);
+	wtf = uniqueWtf.get();
+}
+string SCDAserver::getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle)
+{
+	size_t pos1 = rowTitle.find_first_not_of('+');
+	string rowStub = rowTitle.substr(pos1), temp = "'", LCT, param;
+	vector<string> vsTemp, search = {"*"}, params;
+	jf.clean(rowStub, vsTemp, temp);
+	string tname = "TG_Row$" + sCata;
+	vector<string> conditions = { "\"Row Title\" LIKE '" + rowStub + "'" };
+	sf.select(search, tname, vsTemp, conditions);
+	while (vsTemp.back() == "") { vsTemp.pop_back(); }
+	search = { "Row Title" };
+	for (int ii = 2; ii < vsTemp.size(); ii++)
+	{
+		param.clear();
+		conditions = { "\"Row Index\" LIKE '" + vsTemp[ii] + "'" };
+		sf.select(search, tname, param, conditions);
+		temp.clear();
+		for (int jj = 0; jj < params.size(); jj++)
+		{
+			temp += "+";
+		}
+		params.push_back(temp + param);
+	}
+	temp.clear();
+	for (int jj = 0; jj < params.size(); jj++)
+	{
+		temp += "+";
+	}
+	params.push_back(temp + rowStub);
+	for (int ii = 0; ii < params.size(); ii++)
+	{
+		LCT += params[ii] + "@";
+	}
+	LCT += colTitle;
+	return LCT;
 }
 vector<vector<string>> SCDAserver::getSmallGeo(vector<vector<string>>& cataGeo, string sParent)
 {
@@ -146,35 +184,28 @@ vector<string> SCDAserver::getYearList()
 }
 void SCDAserver::pullMap(vector<string> prompt)
 {
-	// prompt has form [sessionID, cata desc, parent region name, sWindowDim].
+	// prompt has form [sessionID, cata desc, parent region name, sWindowDim, rowTitle, columnTitle].
 	string temp, cataName = prompt[1];  // cataDesc->cataName
 	vector<string> geoLayers = { prompt[2], prompt[3] };  // regionName->geoLayers, window dimensions.
 	vector<string> vsTemp;
 	size_t pos1, pos2;
+	int inum;
 	vector<vector<string>> cataGeo, smallGeo, TMI;
+
+	// Load the border coordinates for the parent and children.
 	vector<vector<Wt::WPointF>> areas(1);
-	vector<double> mapScaling;  // Form [parentRatio, parentScale, parentWindowWidth, parentWindowHeight].
+	vector<double> regionData, mapScaling;  // Form [parentRatio, parentScale, parentWindowWidth, parentWindowHeight].
 	areas[0] = pullMapParent(cataName, geoLayers, cataGeo, mapScaling);
-	if (prompt[2] != "Canada")
+	smallGeo = getSmallGeo(cataGeo, prompt[2]);
+	if (prompt[2] == "Canada")
 	{
-		smallGeo = getSmallGeo(cataGeo, prompt[2]);
-	}
-	else
-	{
-		smallGeo.push_back({ "TMap$Canada" });  
-		TMI = sf.getTMapIndex();
-		for (int ii = 0; ii < TMI.size(); ii++)
+		for (int ii = 1; ii < smallGeo.size(); ii++)
 		{
-			pos1 = TMI[ii][0].rfind("(Canada)");
-			if (pos1 < TMI[ii][0].size())
-			{
-				vsTemp = { "TMap$" + TMI[ii][0] };
-				smallGeo.push_back(vsTemp);
-			}
+			smallGeo[ii][1] += "(Canada)";
 		}
 	}
 	areas.resize(smallGeo.size());
-	vector<string> sIDregion(areas.size() + 1);  
+	vector<string> sIDregion(areas.size() + 1), conditions;  
 	sIDregion[0] = prompt[0];
 	sIDregion[1] = prompt[2];  // Parent name.
 	for (int ii = 1; ii < areas.size(); ii++)
@@ -188,7 +219,29 @@ void SCDAserver::pullMap(vector<string> prompt)
 		else { jf.err("smallGeo-SCDAserver.pullMap"); }
 		areas[ii] = pullMapChild(geoLayers, smallGeo, ii, mapScaling);
 	}
-	postDataEvent(DataEvent(DataEvent::Map, sIDregion, areas), prompt[0]);
+
+	// Load the requested table value for the parent and children.
+	vector<string> search = { getLinearizedColTitle(cataName, prompt[4], prompt[5]) };
+	regionData.resize(smallGeo.size());
+	for (int ii = 0; ii < smallGeo.size(); ii++)
+	{
+		temp.clear();
+		conditions = { "GID LIKE " + smallGeo[ii][0] };
+		sf.select(search, cataName, temp, conditions);
+		pos1 = temp.find('.');
+		if (pos1 < temp.size())
+		{
+			try { regionData[ii] = stod(temp); }
+			catch (invalid_argument) { jf.err("stod-SCDAserver.pullMap"); }
+		}
+		else
+		{
+			try { inum = stoi(temp); }
+			catch (invalid_argument) { jf.err("stoi-SCDAserver.pullMap"); }
+			regionData[ii] = (double)inum;
+		}
+	}
+	postDataEvent(DataEvent(DataEvent::Map, sIDregion, areas, regionData), prompt[0]);
 }
 vector<Wt::WPointF> SCDAserver::pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling)
 {
@@ -236,7 +289,7 @@ vector<Wt::WPointF> SCDAserver::pullMapChild(vector<string>& geoLayers, vector<v
 	}
 
 	// Create a WPainterPath to fit the painter widget.
-	vector<Wt::WPointF> area = wtf.makeWPPath(frames[0], border, position);
+	vector<Wt::WPointF> area = wtf->makeWPPath(frames[0], border, position);
 	return area;
 }
 vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo, vector<double>& mapScaling)
@@ -290,7 +343,7 @@ vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& 
 
 	// Create a WPainterPath to fit the painter widget.
 	vector<double> windowDim = jf.destringifyCoordD(windowWH);  // Unit is pixels.
-	vector<Wt::WPointF> area = wtf.makeWPPath(frames[0], border, windowDim);	
+	vector<Wt::WPointF> area = wtf->makeWPPath(frames[0], border, windowDim);	
 	if (windowDim.size() != 1) { jf.err("windowDim-SCDAserver.pullMapParent"); }
 	mapScaling[0] = windowDim[0];
 	mapScaling[2] *= mapScaling[0];

@@ -50,6 +50,7 @@ public:
 
 	void init_proj_dir(string);
 	void list_update(vector<string>&);
+
 	void table_update(string);
 
 	void on_cb_year_changed();

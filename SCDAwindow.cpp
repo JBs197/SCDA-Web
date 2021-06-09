@@ -34,9 +34,9 @@ SCDAwindow::SCDAwindow(const Wt::WEnvironment& env) : Wt::WApplication(env)
 		cb_year->addItem(wstemp);
 	}
 	
-	sf.all_tables(tnum);  // Populate tnum with the whole number of tables in the db.
+	//sf.all_tables(tnum);  // Populate tnum with the whole number of tables in the db.
 	vector<string> vtemp;  
-	list_update(vtemp);  // NULL.
+	//list_update(vtemp);  // NULL.
 
 	string temp = "";  
 	table_update(temp);  // NULL.
@@ -89,6 +89,7 @@ void SCDAwindow::on_cb_year_changed()
 {
 	cout << "BLAH BLAH BLAH" << endl;
 }
+
 void SCDAwindow::table_update(string tname)
 {
 	wtable = new Wt::WTable();

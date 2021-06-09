@@ -3,7 +3,7 @@
 #include "SCDAwidget.h"
 
 using namespace std;
-mutex m_err, m_server;
+mutex m_err, m_server, m_map;
 const string sroot = "F:";
 
 class SCDAapp : public Wt::WApplication
@@ -33,9 +33,10 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 
 unique_ptr<Wt::WApplication> makeApp(const Wt::WEnvironment& env, SCDAserver& myServer)
 {
-	return make_unique<SCDAapp>(env, myServer);
+	auto theApp = make_unique<SCDAapp>(env, myServer);
+	//theApp->root()->clicked().connect(&mouseClick);
+	return theApp;
 }
-
 vector<string> make_wrun_args(string exec_dir)
 {
 	// Temporary bootloader function. Will be made more flexible later.

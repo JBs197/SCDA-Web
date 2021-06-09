@@ -22,6 +22,7 @@ public:
 	const string stext;
 	const vector<Wt::WPainterPath> wpPaths;
 	const vector<vector<Wt::WPointF>> areas;
+	const vector<double> regionData;
 
 	enum eType { Connect, Table, Map, RootLayer, YearLayer, DescLayer, RegionLayer, DivLayer };
 	string getSessionID() { return sessionID; }
@@ -36,6 +37,7 @@ public:
 	vector<wstring> get_wtree_pl() const { return wtree_pl; }
 	int type() const { return etype; }
 	vector<Wt::WPainterPath> get_wpPaths() const { return wpPaths; }
+	vector<double> get_regionData() const { return regionData; }
 	
 private:
 	eType etype;
@@ -61,8 +63,8 @@ private:
 		: etype(et), sessionID(sID), stext(txt) {}
 
 	// Constructor for eType Map.
-	DataEvent(eType et, const vector<string>& sIDregion, const vector<vector<Wt::WPointF>>& area)
-		: etype(et), sessionID(sIDregion[0]), list(sIDregion), areas(area) {}
+	DataEvent(eType et, const vector<string>& sIDregion, const vector<vector<Wt::WPointF>>& area, const vector<double>& rData)
+		: etype(et), sessionID(sIDregion[0]), list(sIDregion), areas(area), regionData(rData) {}
 
 	friend class SCDAserver;
 };
@@ -84,6 +86,7 @@ public:
 	double binMapScale(string& tname0);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init(int&);
+	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
 	vector<vector<string>> getSmallGeo(vector<vector<string>>& cataGeo, string sParent);
 	long long getTimer();
 	vector<string> getYearList();
@@ -97,9 +100,10 @@ public:
 	void setYear(vector<string>);
 
 private:
+	vector<string> vsTemp;
 	JFUNC jf;
 	SQLFUNC sf;
-	WTFUNC wtf;
+	WTFUNC *wtf;
 	struct UserInfo
 	{
 		string sessionID;
