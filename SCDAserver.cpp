@@ -222,6 +222,7 @@ void SCDAserver::pullMap(vector<string> prompt)
 
 	// Load the requested table value for the parent and children.
 	vector<string> search = { getLinearizedColTitle(cataName, prompt[4], prompt[5]) };
+	sIDregion.push_back(search[0]);  // For the legend box.
 	regionData.resize(smallGeo.size());
 	for (int ii = 0; ii < smallGeo.size(); ii++)
 	{

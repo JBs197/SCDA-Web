@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 <messages>
   <message id="introduction">
+  <style>
+	h2 {text-align: center;}
+  </style>
 
-<h2><span>Statistics Canada Data Analysis Web Tool</span></h2>
+	<h2><span><p style="font-family:geneva, helvetica;">
+	Statistics Canada Data Analysis Web Tool
+	</p></span></h2>
 
   </message>
 

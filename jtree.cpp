@@ -1,5 +1,112 @@
 #include "jtree.h"
 
+void JTREE::addChild(string& sname, int& iname, string& sparent)
+{
+	int indexParent;
+	try { indexParent = mapS.at(sparent); }
+	catch (out_of_range) { jf.err("mapS-jtree.addChild"); }
+	addChildWorker(sname, iname, indexParent);
+}
+void JTREE::addChild(string& sname, int& iname, int& iparent)
+{
+	int indexParent;
+	try { indexParent = mapI.at(iparent); }
+	catch (out_of_range) { jf.err("mapI-jtree.addChild"); }
+	addChildWorker(sname, iname, indexParent);
+}
+void JTREE::addChildWorker(string& sname, int& iname, int indexParent)
+{
+	if (alreadyExist(sname, iname, indexParent)) { return; }
+	treeSTdes[indexParent].push_back(count);
+	mapS.emplace(sname, count);
+	mapI.emplace(iname, count);
+	treePL.push_back(sname);
+	treePLi.push_back(iname);
+	treeSTdes.push_back(vector<int>());
+	if (treeSTanc[indexParent][0] >= 0)  // If parent is not root...
+	{
+		treeSTanc.push_back(treeSTanc[indexParent]);
+		treeSTanc[count].push_back(indexParent);
+	}
+	else
+	{
+		treeSTanc.push_back({ 0 });
+	}
+	count++;
+}
+void JTREE::addChildren(vector<string>& snames, vector<int>& inames, string& sparent)
+{
+	if (snames.size() != inames.size()) { jf.err("Size mismatch-jt.addChildren"); }
+	int indexParent;
+	try { indexParent = mapS.at(sparent); }
+	catch (out_of_range) { jf.err("mapS-jtree.addChildren"); }
+	for (int ii = 0; ii < snames.size(); ii++)
+	{
+		addChildWorker(snames[ii], inames[ii], indexParent);
+	}
+}
+void JTREE::addChildren(vector<string>& snames, vector<int>& inames, int& iparent)
+{
+	if (snames.size() != inames.size()) { jf.err("Size mismatch-jt.addChildren"); }
+	int indexParent;
+	try { indexParent = mapI.at(iparent); }
+	catch (out_of_range) { jf.err("mapI-jtree.addChildren"); }
+	for (int ii = 0; ii < snames.size(); ii++)
+	{
+		addChildWorker(snames[ii], inames[ii], indexParent);
+	}
+}
+bool JTREE::alreadyExist(string sname, int iname, int parentIndex)
+{
+	int myIndex1, myIndex2;
+	try
+	{
+		myIndex1 = mapS.at(sname);
+		myIndex2 = mapI.at(iname);
+	}
+	catch (out_of_range& oor) { return 0; }
+	for (int ii = 0; ii < treeSTdes[parentIndex].size(); ii++)
+	{
+		if (treeSTdes[parentIndex][ii] == myIndex1 && myIndex1 == myIndex2)
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+void JTREE::deleteChildren(string& sParent)
+{
+	int indexNode;
+	try { indexNode = mapS.at(sParent); }
+	catch (out_of_range& oor) { return; }
+	vector<int> vKids = treeSTdes[indexNode];
+	for (int ii = vKids.size() - 1; ii >= 0; ii--)
+	{
+		deleteNodeHelper(vKids[ii]);
+		treeSTdes[indexNode].erase(treeSTdes[indexNode].begin() + ii);
+	}
+}
+void JTREE::deleteLeaves(string& sParent)
+{
+	int indexNode, numGrandKids;
+	try { indexNode = mapS.at(sParent); }
+	catch (out_of_range& oor) { return; }
+	vector<int> vKids = treeSTdes[indexNode], vGKids;
+	for (int ii = vKids.size() - 1; ii >= 0; ii--)
+	{
+		vGKids = treeSTdes[vKids[ii]];
+		numGrandKids = vGKids.size();
+		if (numGrandKids == 0)
+		{
+			mapS.erase(treePL[vKids[ii]]);
+			mapI.erase(treePLi[vKids[ii]]);
+			treePL[vKids[ii]].clear();
+			treePLi[vKids[ii]] = -2;
+			treeSTanc[vKids[ii]] = { -2 };
+			treeSTdes[indexNode].erase(treeSTdes[indexNode].begin() + ii);
+		}
+	}
+}
 void JTREE::deleteNodeHelper(int index)
 {
 	vector<int> vKids = treeSTdes[index];

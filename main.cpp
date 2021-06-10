@@ -1,5 +1,3 @@
-#include "SCDAwindow.h"
-#include "SCDAserver.h"
 #include "SCDAwidget.h"
 
 using namespace std;

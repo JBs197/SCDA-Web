@@ -507,6 +507,10 @@ void SCDAwidget::init()
 	makeUI();
 	initUI(numTables);
 	setLayer(Root, prompt);
+
+	Wt::WLength padding = boxControl->padding(Wt::Side::Left);
+	double paddding = padding.value();
+	cout << "Container padding: " << to_string(paddding) << endl;
 }
 void SCDAwidget::initUI(int numTables)
 {
@@ -515,7 +519,7 @@ void SCDAwidget::initUI(int numTables)
 
 	auto lenAuto = Wt::WLength();
 	auto len1200 = Wt::WLength("1200px");
-	auto len820 = Wt::WLength("820px");
+	auto len825 = Wt::WLength("825px");
 	auto len800 = Wt::WLength("800px");
 	auto len700 = Wt::WLength("700px");
 	auto len600 = Wt::WLength("600px");
@@ -525,14 +529,15 @@ void SCDAwidget::initUI(int numTables)
 	auto len275 = Wt::WLength("275px");
 	auto len200 = Wt::WLength("200px");
 	auto len100 = Wt::WLength("100px");
-	auto len70 = Wt::WLength("70px");
+	auto len75 = Wt::WLength("75px");
 	auto len50 = Wt::WLength("50px");
+	auto len35 = Wt::WLength("35px");
 
 	// Box sizes.
 	boxControl->resize(len300, len800);
-	boxData->resize(len820, len820);
-	boxTest->resize(lenAuto, len100);
-	boxLoad->resize(lenAuto, len100);
+	boxData->resize(len825, len800);
+	boxTest->resize(lenAuto, len50);
+	boxLoad->resize(lenAuto, len50);
 	boxSearch->resize(lenAuto, len50);
 
 	// Colourful things.
@@ -567,7 +572,6 @@ void SCDAwidget::initUI(int numTables)
 	*/
 
 	// Initial values for the tab widget.
-	tabData->setOverflow(Wt::Overflow::Scroll);
 	tabData->resize(len800, len700);
 
 	// Initial values for the tree widget.
@@ -585,6 +589,8 @@ void SCDAwidget::initUI(int numTables)
 	pbTable->setEnabled(0);
 	pbMap->clicked().connect(this, &SCDAwidget::pbMapClicked);
 	pbMap->setEnabled(0);
+	pbSearch->setMinimumSize(len100, len50);
+	pbTest->resize(len75, len35);
 
 	// Initial values for the map widget.
 	wtMap->initSize(800.0, 570.0);
@@ -636,9 +642,9 @@ void SCDAwidget::makeUI()
 	pbTest = uniquePbTest.get();
 
 	auto hLoadLayout = make_unique<Wt::WHBoxLayout>();
-	auto uniquePbTable = make_unique<Wt::WPushButton>("LOAD \n REGION \n TABLE");
+	auto uniquePbTable = make_unique<Wt::WPushButton>("LOAD \n TABLE");
 	pbTable = uniquePbTable.get();
-	auto uniquePbMap = make_unique<Wt::WPushButton>("LOAD \n REGION \n MAP");
+	auto uniquePbMap = make_unique<Wt::WPushButton>("LOAD \n MAP");
 	pbMap = uniquePbMap.get();
 
 	auto vTableLayout = make_unique<Wt::WVBoxLayout>();
@@ -801,6 +807,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	unordered_map<wstring, int> mapW;
 	long long timer;
 	vector<int> tempIndex;
+	vector<double> regionData;
 	int inum, maxCol;
 
 	int etype = event.type();
@@ -833,8 +840,10 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	{
 		slist = event.get_list();
 		areas = event.get_areas();
+		regionData = event.get_regionData();		
+		wtMap->drawMap(areas, slist, regionData);
+		slist.pop_back();
 		updateMapRegionList(slist, mapRegionList, 1);
-		wtMap->drawMap(areas, slist);
 		break;
 	}
 	case 3:  // Set the root layer.
