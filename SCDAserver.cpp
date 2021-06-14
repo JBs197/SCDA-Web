@@ -380,7 +380,6 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	switch (layer)
 	{
 	case 0:  // set Root
-		//yearList = sf.selectYears();
 		yearList = sf.selectYears();
 		postDataEvent(DataEvent(DataEvent::RootLayer, prompt[0], yearList), prompt[0]);
 		break;
@@ -480,7 +479,13 @@ void SCDAserver::pullRegion(vector<string> prompt)
 
 	tname = cataName + "$" + gid;
 	vector<vector<wstring>> theTable(1, vector<wstring>());
-	sf.get_col_titles(tname, theTable[0]);
+	vector<string> colTitles;
+	sf.get_col_titles(tname, colTitles);
+	theTable[0].resize(colTitles.size());
+	for (int ii = 0; ii < colTitles.size(); ii++)
+	{
+		theTable[0][ii] = jf.utf8to16(colTitles[ii]);
+	}
 	search = { "*" };
 	sf.select(search, tname, theTable);
 	postDataEvent(DataEvent(DataEvent::Table, prompt[0], theTable), prompt[0]);
@@ -488,8 +493,9 @@ void SCDAserver::pullRegion(vector<string> prompt)
 void SCDAserver::pullTable(vector<string> prompt)
 {
 	// prompt has form [sessionID, table name].
-	vector<vector<wstring>> theTable(1, vector<wstring>());
-	sf.get_col_titles(prompt[1], theTable[0]);
+	vector<vector<wstring>> theTable;
+	vector<string> colTitles;
+	sf.get_col_titles(prompt[1], colTitles);
 	vector<string> search = { "GID", "Region Name", "param2", "param3" };
 	vector<string> conditions = { "param3 IS NULL" };
 	sf.select(search, prompt[1], theTable, conditions);

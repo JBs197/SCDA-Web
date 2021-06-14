@@ -199,3 +199,19 @@ string JTREE::getRootName()
 {
 	return nameRoot;
 }
+void JTREE::listChildren(string& sparent, vector<int>& ikids, vector<string>& skids)
+{
+	int pIndex;
+	try { pIndex = mapS.at(sparent); }
+	catch (out_of_range& oor) { jf.err("mapS-jtree.listChildren"); }
+
+	vector<int> viTemp = treeSTdes[pIndex];
+	skids.resize(viTemp.size());
+	ikids.resize(viTemp.size());
+	for (int ii = 0; ii < viTemp.size(); ii++)
+	{
+		skids[ii] = treePL[viTemp[ii]];
+		ikids[ii] = treePLi[viTemp[ii]];
+	}
+}
+

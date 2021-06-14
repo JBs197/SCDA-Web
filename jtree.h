@@ -36,6 +36,7 @@ public:
 	void inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl, vector<int>& tree_ipl);
 	int getHierarchy(string& ext);
 	string getRootName();
+	void listChildren(string& sparent, vector<int>& ikids, vector<string>& skids);
 
 	// TEMPLATES 
 

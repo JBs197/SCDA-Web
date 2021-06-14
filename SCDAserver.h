@@ -1,8 +1,9 @@
 #pragma once
 #include <Wt/WServer.h>
 #include <functional>
-#include "sqlfunc.h"
 #include "jtree.h"
+#include "sqlfunc.h"
+#include "winfunc.h"
 #include "wtfunc.h"
 
 using namespace std;
