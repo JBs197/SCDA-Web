@@ -491,8 +491,7 @@ void SCDAwidget::folderClicked(Wt::WString wsFolder)
 }
 void SCDAwidget::init()
 {
-	int numTables;
-	sRef.init(numTables);
+	//sRef.init();
 	connect();
 	jt.init("Census Tables", sroot);
 	Wt::WApplication* app = Wt::WApplication::instance();
@@ -505,14 +504,10 @@ void SCDAwidget::init()
 	defNames[3] = Wt::WString::tr("cbDivision");
 	
 	makeUI();
-	initUI(numTables);
+	initUI();
 	setLayer(Root, prompt);
-
-	Wt::WLength padding = boxControl->padding(Wt::Side::Left);
-	double paddding = padding.value();
-	cout << "Container padding: " << to_string(paddding) << endl;
 }
-void SCDAwidget::initUI(int numTables)
+void SCDAwidget::initUI()
 {
 	Wt::WString wstemp;
 	string temp;
@@ -634,6 +629,8 @@ void SCDAwidget::makeUI()
 	boxSearch = uniqueBoxSearch.get();
 	auto uniqueWtMap = make_unique<WTFUNC>(commMap);
 	wtMap = uniqueWtMap.get();
+	auto uniqueListSearch = make_unique<Wt::WSelectionBox>();
+	sbList = uniqueListSearch.get();
 
 	auto hTestLayout = make_unique<Wt::WHBoxLayout>();
 	auto uniqueLineEditTest = make_unique<Wt::WLineEdit>();
@@ -683,6 +680,7 @@ void SCDAwidget::makeUI()
 	uniqueTabData->addTab(move(uniqueTreeRegion), "Regions");
 	uniqueTabData->addTab(move(uniqueBoxTable), "Data");
 	uniqueTabData->addTab(move(uniqueWtMap), "Map");
+	uniqueTabData->addTab(move(uniqueListSearch), "List");
 
 	hSearchLayout->addWidget(move(uniqueTextMessage));
 	hSearchLayout->addWidget(move(uniqueLineEditSearch));
@@ -761,6 +759,10 @@ void SCDAwidget::pbMapClicked()
 	sRef.pullMap(prompt);
 	tabData->setCurrentIndex(2);
 }
+void SCDAwidget::pbSearchClicked()
+{
+	// RESUME HERE. You know what to do. 
+}
 void SCDAwidget::pbTableClicked()
 {
 	vector<string> prompt(3);
@@ -784,7 +786,7 @@ void SCDAwidget::pbTestClicked()
 	prompt[1] = wsTable.toUTF8();
 	if (prompt[1].size() < 1)
 	{
-		prompt[1] = "TCatalogueIndex";
+		prompt[1] = "sqlite_master";
 	}
 	setTable(prompt);
 }
@@ -1173,7 +1175,6 @@ void SCDAwidget::selectTableRow(int iRow)
 }
 void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 {
-	jf.timerStart();
 	sRef.pullLayer(layer, prompt);
 	treeActive.clear();
 	if (layer < 3)
@@ -1258,8 +1259,7 @@ void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 			break;
 		}
 	}
-	long long timer = jf.timerStop();
-	jf.logTime("setLayer(" + to_string(layer) + ")", timer);
+
 }
 void SCDAwidget::setTable(vector<string> prompt)
 {

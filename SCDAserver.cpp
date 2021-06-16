@@ -1,7 +1,5 @@
 #include "SCDAserver.h"
 
-SCDAserver::SCDAserver(Wt::WServer& wtServer) : serverRef(wtServer) {}
-
 vector<vector<int>> SCDAserver::binMapBorder(string& tname0)
 {
 	string tname = tname0 + "border";
@@ -95,7 +93,7 @@ void SCDAserver::err(string func)
 {
 	jf.err(func);
 }
-void SCDAserver::init(int& numTables)
+void SCDAserver::init()
 {
 	sf.init(db_path);
 	auto uniqueWtf = make_unique<WTFUNC>(vsTemp);
@@ -496,9 +494,8 @@ void SCDAserver::pullTable(vector<string> prompt)
 	vector<vector<wstring>> theTable;
 	vector<string> colTitles;
 	sf.get_col_titles(prompt[1], colTitles);
-	vector<string> search = { "GID", "Region Name", "param2", "param3" };
-	vector<string> conditions = { "param3 IS NULL" };
-	sf.select(search, prompt[1], theTable, conditions);
+	vector<string> search = { "*" };
+	sf.select(search, prompt[1], theTable);
 	postDataEvent(DataEvent(DataEvent::Table, prompt[0], theTable), prompt[0]);
 }
 

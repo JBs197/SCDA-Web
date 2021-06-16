@@ -66,10 +66,11 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void connect();
 	void folderClicked(Wt::WString wsTable);
 	void init();
-	void initUI(int);
+	void initUI();
 	void makeUI();
 	void mouseMapClick(const Wt::WMouseEvent& e);
 	void pbMapClicked();
+	void pbSearchClicked();
 	void pbTestClicked();
 	void pbTableClicked();
 	void processDataEvent(const DataEvent& event);

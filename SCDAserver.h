@@ -75,7 +75,10 @@ typedef function<void(const DataEvent&)> DataEventCallback;
 class SCDAserver
 {
 public:
-	SCDAserver(Wt::WServer&);
+	SCDAserver(Wt::WServer& wtServer, string& dbPath) 
+		: serverRef(wtServer), db_path(dbPath) {
+		sf.init(db_path);
+	}
 	SCDAserver(const SCDAserver&) = delete;
 	SCDAserver& operator=(const SCDAserver&) = delete;
 	class User {};
@@ -86,7 +89,7 @@ public:
 	vector<double> binMapPosition(string& tname0);
 	double binMapScale(string& tname0);
 	bool connect(User* user, const DataEventCallback& handleEvent);
-	void init(int&);
+	void init();
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
 	vector<vector<string>> getSmallGeo(vector<vector<string>>& cataGeo, string sParent);
 	long long getTimer();
@@ -112,7 +115,7 @@ private:
 	};
 
 	unordered_map<string, int> cataMap;  // Cata desc -> gidTree index.
-	const string db_path = sroot + "\\SCDA.db";
+	const string db_path;
 	vector<vector<vector<int>>> gidTreeSt;  // Form [gidTree index][node index][ancestry, node, children]
 	vector<vector<int>> gidTreePl;  // Form [gidTree index][node index] GID.
 	Wt::WServer& serverRef;
