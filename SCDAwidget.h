@@ -27,6 +27,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	vector<int> cbActive;
 	vector<string> commMap;
 	string db_path = sroot + "\\SCDA.db";
+	bool debug = 1;
 	vector<Wt::WString> defNames, mapRegionList;
 	JFUNC jf;
 	JTREE jt;

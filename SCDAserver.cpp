@@ -135,42 +135,54 @@ string SCDAserver::getLinearizedColTitle(string& sCata, string& rowTitle, string
 	LCT += colTitle;
 	return LCT;
 }
-vector<vector<string>> SCDAserver::getSmallGeo(vector<vector<string>>& cataGeo, string sParent)
+void SCDAserver::getSmallGeo(vector<vector<string>>& smallGeo, string cataName)
 {
-	// Returns the geo data for the parent and its immediate children.
-	string layerParent, layerChild;
-	int indexParent = -1, index = 0, smallSize;
-	vector<int> indexChildren;
-	for (int ii = 0; ii < cataGeo.size(); ii++)
+	// Adds the geo data for the given parent's immediate children.
+
+	// Obtain the gid ancestry list for the children.
+	vector<string> gidRow, gidList, vsResult;
+	vector<string> search = { "*" };
+	string temp, tname = "TG_Region$" + cataName;
+	vector<string> conditions = { "[Region Name] LIKE '" + smallGeo[0][1] + "'" };
+	sf.select(search, tname, vsResult, conditions);
+	while (vsResult.back() == "") { vsResult.pop_back(); }
+	gidRow.resize(vsResult.size() - 1);
+	for (int ii = 2; ii < vsResult.size(); ii++)
 	{
-		if (cataGeo[ii][1] == sParent)
+		gidRow[ii - 2] = vsResult[ii];
+	}
+	gidRow[gidRow.size() - 1] = vsResult[0];
+
+	// Get the children's GIDs.
+	vector<vector<string>> vvsResult;
+	conditions.clear();
+	for (int ii = 0; ii < gidRow.size(); ii++)
+	{
+		temp.clear();
+		if (ii > 0) { temp += " AND "; }
+		temp += "param" + to_string(ii + 2) + " LIKE '" + gidRow[ii] + "'";
+		conditions.push_back(temp);
+	}
+	sf.select(search, tname, vvsResult, conditions);
+	for (int ii = 0; ii < vvsResult.size(); ii++)
+	{
+		while (vvsResult[ii].back() == "") { vvsResult[ii].pop_back(); }
+		if (vvsResult[ii].size() == gidRow.size() + 2)
 		{
-			layerParent = cataGeo[ii][2];
-			indexParent = ii;
-			if (ii < cataGeo.size() - 1) { layerChild = cataGeo[ii + 1][2]; }
-		}
-		else if (indexParent >= 0)
-		{
-			if (cataGeo[ii][2] == layerChild)
-			{
-				indexChildren.push_back(ii);
-			}
-			else if (cataGeo[ii][2] == layerParent) { break; }
+			gidList.push_back(vvsResult[ii][0]);
 		}
 	}
-	smallSize = indexChildren.size() + 1;
-	vector<vector<string>> smallGeo(smallSize, vector<string>(3));
-	smallGeo[0][0] = cataGeo[indexParent][0];
-	smallGeo[0][1] = cataGeo[indexParent][1];
-	smallGeo[0][2] = cataGeo[indexParent][2];
-	for (int ii = 1; ii < smallSize; ii++)
+
+	// Get the children's geo rows.
+	tname = cataName + "$Geo";
+	for (int ii = 0; ii < gidList.size(); ii++)
 	{
-		smallGeo[ii][0] = cataGeo[indexChildren[index]][0];
-		smallGeo[ii][1] = cataGeo[indexChildren[index]][1];
-		smallGeo[ii][2] = cataGeo[indexChildren[index]][2];
-		index++;
+		conditions = { "GID LIKE '" + gidList[ii] + "'" };
+		vsResult.clear();
+		sf.select(search, tname, vsResult, conditions);
+		smallGeo.push_back(vsResult);
 	}
-	return smallGeo;
+
 }
 long long SCDAserver::getTimer()
 {
@@ -188,13 +200,13 @@ void SCDAserver::pullMap(vector<string> prompt)
 	vector<string> vsTemp;
 	size_t pos1, pos2;
 	int inum;
-	vector<vector<string>> cataGeo, smallGeo, TMI;
+	vector<vector<string>> smallGeo, TMI;
 
 	// Load the border coordinates for the parent and children.
 	vector<vector<Wt::WPointF>> areas(1);
 	vector<double> regionData, mapScaling;  // Form [parentRatio, parentScale, parentWindowWidth, parentWindowHeight].
-	areas[0] = pullMapParent(cataName, geoLayers, cataGeo, mapScaling);
-	smallGeo = getSmallGeo(cataGeo, prompt[2]);
+	areas[0] = pullMapParent(cataName, geoLayers, smallGeo, mapScaling);
+	getSmallGeo(smallGeo, cataName);
 	if (prompt[2] == "Canada")
 	{
 		for (int ii = 1; ii < smallGeo.size(); ii++)
@@ -208,13 +220,7 @@ void SCDAserver::pullMap(vector<string> prompt)
 	sIDregion[1] = prompt[2];  // Parent name.
 	for (int ii = 1; ii < areas.size(); ii++)
 	{
-		if (smallGeo[ii].size() == 3) { sIDregion[ii + 1] = smallGeo[ii][1]; }
-		else if (smallGeo[ii].size() == 1)
-		{
-			pos1 = smallGeo[ii][0].rfind('$') + 1;
-			sIDregion[ii + 1] = smallGeo[ii][0].substr(pos1);
-		}
-		else { jf.err("smallGeo-SCDAserver.pullMap"); }
+		sIDregion[ii + 1] = smallGeo[ii][1];
 		areas[ii] = pullMapChild(geoLayers, smallGeo, ii, mapScaling);
 	}
 
@@ -227,6 +233,7 @@ void SCDAserver::pullMap(vector<string> prompt)
 		temp.clear();
 		conditions = { "GID LIKE " + smallGeo[ii][0] };
 		sf.select(search, cataName, temp, conditions);
+		// RESUME HERE. Missing data should get a grey placeholder.
 		pos1 = temp.find('.');
 		if (pos1 < temp.size())
 		{
@@ -247,28 +254,20 @@ vector<Wt::WPointF> SCDAserver::pullMapChild(vector<string>& geoLayers, vector<v
 	// Build the tMap template.
 	int indexLayer;
 	string tname0;
-	if (smallGeo[myIndex].size() == 3)
+	for (int ii = 0; ii < geoLayers.size(); ii++)
 	{
-		for (int ii = 0; ii < geoLayers.size(); ii++)
+		if (geoLayers[ii] == smallGeo[myIndex][2])
 		{
-			if (geoLayers[ii] == smallGeo[myIndex][2])
-			{
-				indexLayer = ii;
-				break;
-			}
+			indexLayer = ii;
+			break;
 		}
-		tname0 = "TMap$";
-		for (int ii = 1; ii <= indexLayer; ii++)
-		{
-			tname0 += geoLayers[ii] + "$";
-		}
-		tname0 += smallGeo[myIndex][1] + "$";
 	}
-	else if (smallGeo[myIndex].size() == 1)
+	tname0 = "TMap$";
+	for (int ii = 1; ii <= indexLayer; ii++)
 	{
-		tname0 = smallGeo[myIndex][0] + "$";
+		tname0 += geoLayers[ii] + "$";
 	}
-	else { jf.err("smallGeo-SCDAserver.pullMapChild"); }
+	tname0 += smallGeo[myIndex][1] + "$";
 
 	// Load the bin data.
 	vector<vector<vector<int>>> frames = binMapFrames(tname0);
@@ -291,11 +290,11 @@ vector<Wt::WPointF> SCDAserver::pullMapChild(vector<string>& geoLayers, vector<v
 	vector<Wt::WPointF> area = wtf->makeWPPath(frames[0], border, position);
 	return area;
 }
-vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo, vector<double>& mapScaling)
+vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& smallGeo, vector<double>& mapScaling)
 {
 	// Get the catalogue name.
 	vector<string> search = { "Name" };
-	string tname = "TCatalogueIndex", cataName, parentLayer;
+	string tname = "TCatalogueIndex", cataName;
 	vector<string> conditions = { "Description = '" + cataDesc + "'" };
 	sf.select(search, tname, cataName, conditions);
 	cataDesc = cataName;
@@ -308,22 +307,16 @@ vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& 
 	tname = cataName + "$Geo_Layers";
 	sf.select(search, tname, geoLayers);
 
-	// Load the catalogue's geo file, and build the parent's TMap template.
+	// Export the parent's row in smallGeo. 
 	search = { "*" };
 	tname = cataName + "$Geo";
-	sf.select(search, tname, cataGeo);
-	for (int ii = 0; ii < cataGeo.size(); ii++)
-	{
-		if (cataGeo[ii][1] == regionName)
-		{
-			parentLayer = cataGeo[ii][2];
-			break;
-		}
-	}
+	conditions = { "\"Region Name\" LIKE '" + regionName + "'" };
+	smallGeo.resize(1, vector<string>());
+	sf.select(search, tname, smallGeo[0], conditions);
 	int indexGL;
 	for (int ii = 0; ii < geoLayers.size(); ii++)
 	{
-		if (geoLayers[ii] == parentLayer) { indexGL = ii; break; }
+		if (geoLayers[ii] == smallGeo[0][2]) { indexGL = ii; break; }
 	}
 	string tname0 = "TMap$";
 	for (int ii = 1; ii <= indexGL; ii++)
@@ -384,7 +377,9 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	case 1:  // set Year
 		search = { "Description" };
 		tname = "TCatalogueIndex";
-		conditions = { "Year = " + prompt[1] };
+		conditions = {
+			"Year LIKE '" + prompt[1] + "'",
+			" AND Description NOT LIKE 'Incomplete'" };
 		sf.select(search, tname, descList, conditions);
 		postDataEvent(DataEvent(DataEvent::YearLayer, prompt[0], descList), prompt[0]);
 		break;

@@ -491,7 +491,6 @@ void SCDAwidget::folderClicked(Wt::WString wsFolder)
 }
 void SCDAwidget::init()
 {
-	//sRef.init();
 	connect();
 	jt.init("Census Tables", sroot);
 	Wt::WApplication* app = Wt::WApplication::instance();
@@ -506,6 +505,7 @@ void SCDAwidget::init()
 	makeUI();
 	initUI();
 	setLayer(Root, prompt);
+
 }
 void SCDAwidget::initUI()
 {
@@ -763,7 +763,7 @@ void SCDAwidget::pbMapClicked()
 	Wt::WApplication* app = Wt::WApplication::instance();
 	prompt[0] = app->sessionId();
 	prompt[1] = activeDesc;
-	prompt[2] = "Canada";  // TEMPORARY.
+	prompt[2] = selectedRegion.toUTF8(); 
 	prompt[3] = to_string(width) + "," + to_string(height);
 	prompt[4] = wsRowTitle.toUTF8();
 	prompt[5] = wsColTitle.toUTF8();
@@ -913,6 +913,13 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 			pTemp->addChildNode(make_unique<Wt::WTreeNode>("Loading..."));
 		}
 		treeRoot->expand();
+		if (debug)
+		{
+			inum = cbYear->count();
+			cbYear->setCurrentIndex(inum - 1);
+			cbYearClicked();
+			cbYear->setEnabled(0);
+		}
 		break;
 	}
 	case 5:  // Set the year layer.
@@ -1227,6 +1234,7 @@ void SCDAwidget::setLayer(Layer layer, vector<string> prompt)
 	wstring wtemp1, wtemp2;
 	vector<Wt::WTreeNode*> pYears, pDescs, pRegion1s, pRegion2s;
 	bool letmeout = 0;
+	int count;
 	for (int ii = 0; ii <= layer; ii++)
 	{
 		switch (ii)

@@ -91,12 +91,12 @@ public:
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init();
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
-	vector<vector<string>> getSmallGeo(vector<vector<string>>& cataGeo, string sParent);
+	void getSmallGeo(vector<vector<string>>& smallGeo, string cataName);
 	long long getTimer();
 	vector<string> getYearList();
 	void pullMap(vector<string> prompt);
 	vector<Wt::WPointF> pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling);
-	vector<Wt::WPointF> pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo, vector<double>& mapScaling);
+	vector<Wt::WPointF> pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& smallGeo, vector<double>& mapScaling);
 	void pullLayer(int layer, vector<string> prompt);
 	void pullList(vector<string> prompt);
 	void pullRegion(vector<string> prompt);
