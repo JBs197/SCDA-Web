@@ -44,7 +44,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 
 	WTFUNC *wtMap;
 	Wt::WColor colourSelected, colourWhite;
-	Wt::WContainerWidget *boxControl, *boxData, *boxTest, *boxLoad, *boxSearch, *boxTable;
+	Wt::WContainerWidget *boxControl, *boxData, *boxTest, *boxLoad, *boxSearch, *boxTable, *boxList;
 	Wt::WComboBox *cbYear, *cbDesc, *cbRegion, *cbDiv;
 	Wt::WImage* imgMap;
 	Wt::WLineEdit* lineEditTest, *lineEditSearch;
@@ -55,7 +55,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	SCDAserver& sRef;
 	Wt::WTable* wtTable;
 	Wt::WTabWidget* tabData;
-	Wt::WText* textMessage, *tableTitle, *textTable;
+	Wt::WText* textMessage, *tableTitle, *textTable, *textList;
 	Wt::WTree *treeCata;
 	Wt::WTreeNode* treeRoot;
 

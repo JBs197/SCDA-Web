@@ -8,16 +8,13 @@
   <style>
 	h2 {text-align: center;}
   </style>
-
 	<h2><span><p style="font-family:geneva, helvetica;">
-	Statistics Canada Data Analysis Web Tool
+		Statistics Canada Data Analysis Web Tool
 	</p></span></h2>
-
   </message>
 
   <message id="cbYear">Select a Year</message>
   <message id="cbDesc">Select a Catalogue Description</message>
   <message id="cbRegion">Select a Geographical Region</message>
   <message id="cbDivision">Select a Regional Division</message>
-
 </messages>

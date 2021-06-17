@@ -582,6 +582,7 @@ void SCDAwidget::initUI()
 	pbTest->clicked().connect(this, &SCDAwidget::pbTestClicked);
 	pbTable->clicked().connect(this, &SCDAwidget::pbTableClicked);
 	pbTable->setEnabled(0);
+	pbSearch->clicked().connect(this, &SCDAwidget::pbSearchClicked);
 	pbMap->clicked().connect(this, &SCDAwidget::pbMapClicked);
 	pbMap->setEnabled(0);
 	pbSearch->setMinimumSize(len100, len50);
@@ -617,6 +618,8 @@ void SCDAwidget::makeUI()
 	boxTest = uniqueBoxTest.get();
 	auto uniqueBoxLoad = make_unique<Wt::WContainerWidget>();
 	boxLoad = uniqueBoxLoad.get();
+	auto uniqueBoxList = make_unique<Wt::WContainerWidget>();
+	boxList = uniqueBoxList.get();
 
 	auto vDataLayout = make_unique<Wt::WVBoxLayout>();
 	auto uniqueTabData = make_unique<Wt::WTabWidget>();
@@ -629,8 +632,6 @@ void SCDAwidget::makeUI()
 	boxSearch = uniqueBoxSearch.get();
 	auto uniqueWtMap = make_unique<WTFUNC>(commMap);
 	wtMap = uniqueWtMap.get();
-	auto uniqueListSearch = make_unique<Wt::WSelectionBox>();
-	sbList = uniqueListSearch.get();
 
 	auto hTestLayout = make_unique<Wt::WHBoxLayout>();
 	auto uniqueLineEditTest = make_unique<Wt::WLineEdit>();
@@ -649,6 +650,12 @@ void SCDAwidget::makeUI()
 	textTable = uniqueTextTable.get();
 	auto uniqueTableRegion = make_unique<Wt::WTable>();
 	wtTable = uniqueTableRegion.get();
+
+	auto vListLayout = make_unique<Wt::WVBoxLayout>();
+	auto uniqueTextList = make_unique<Wt::WText>();
+	textList = uniqueTextList.get();
+	auto uniqueListSearch = make_unique<Wt::WSelectionBox>();
+	sbList = uniqueListSearch.get();
 
 	auto hSearchLayout = make_unique<Wt::WHBoxLayout>();
 	auto uniqueTextMessage = make_unique<Wt::WText>("Selected region:\nNone");
@@ -677,10 +684,14 @@ void SCDAwidget::makeUI()
 	vTableLayout->addWidget(move(uniqueTableRegion));
 	uniqueBoxTable->setLayout(move(vTableLayout));
 
+	vListLayout->addWidget(move(uniqueTextList));
+	vListLayout->addWidget(move(uniqueListSearch));
+	uniqueBoxList->setLayout(move(vListLayout));
+
 	uniqueTabData->addTab(move(uniqueTreeRegion), "Regions");
 	uniqueTabData->addTab(move(uniqueBoxTable), "Data");
 	uniqueTabData->addTab(move(uniqueWtMap), "Map");
-	uniqueTabData->addTab(move(uniqueListSearch), "List");
+	uniqueTabData->addTab(move(uniqueBoxList), "List");
 
 	hSearchLayout->addWidget(move(uniqueTextMessage));
 	hSearchLayout->addWidget(move(uniqueLineEditSearch));
@@ -761,7 +772,16 @@ void SCDAwidget::pbMapClicked()
 }
 void SCDAwidget::pbSearchClicked()
 {
-	// RESUME HERE. You know what to do. 
+	const Wt::WString wsTemp = lineEditSearch->displayText();
+	vector<string> prompt(2);
+	Wt::WApplication* app = Wt::WApplication::instance();
+	prompt[0] = app->sessionId();
+	prompt[1] = wsTemp.toUTF8();
+	sRef.pullList(prompt);
+	const Wt::WString wsTitle = "Displaying search results for " + wsTemp;
+	tabData->setCurrentIndex(3);
+	sbList->clear();
+	textList->setText(wsTitle);
 }
 void SCDAwidget::pbTableClicked()
 {
@@ -848,7 +868,25 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		updateMapRegionList(slist, mapRegionList, 1);
 		break;
 	}
-	case 3:  // Set the root layer.
+	case 3:  // Display a list on the selection box widget.
+	{
+		slist = event.get_list();
+		if (slist.size() < 1)
+		{
+			const Wt::WString wsItem("No results found.");
+			sbList->addItem(wsItem);
+		}
+		else
+		{
+			for (int ii = 0; ii < slist.size(); ii++)
+			{
+				const Wt::WString wsItem(slist[ii]);
+				sbList->addItem(wsItem);
+			}
+		}
+		break;
+	}
+	case 4:  // Set the root layer.
 	{
 		slist = event.get_list();
 		pYears = treeRoot->childNodes();
@@ -877,7 +915,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		treeRoot->expand();
 		break;
 	}
-	case 4:  // Set the year layer.
+	case 5:  // Set the year layer.
 	{
 		slist = event.get_list();
 		pYears = treeRoot->childNodes();
@@ -913,7 +951,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		activeYear = nextPrompt[1];
 		break;
 	}
-	case 5:  // Set the description layer.
+	case 6:  // Set the description layer.
 	{
 		wtable = event.get_wtable();
 		timer = jf.timerRestart();
@@ -985,7 +1023,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		activeDesc = nextPrompt[2];
 		break;
 	}
-	case 6:  // Set the region layer.
+	case 7:  // Set the region layer.
 	{
 		// wtable columns:  GID, Region Name, param4, param5, ...
 		wtable = event.get_wtable();
@@ -1092,7 +1130,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		activeRegion = nextPrompt[3];
 		break;
 	}
-	case 7:  // Set the division filter.
+	case 8:  // Set the division filter.
 	{
 		wlist = event.get_wtree_pl();
 		pTemps.resize(wlist.size() - 2);

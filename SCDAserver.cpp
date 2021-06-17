@@ -460,6 +460,20 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	timer = jf.timerStop();
 	jf.logTime("pullLayer(" + to_string(layer) + ")", timer);
 }
+void SCDAserver::pullList(vector<string> prompt)
+{
+	// prompt has form [sessionID, table name].
+	vector<string> sList;
+	if (prompt[1] == "all")
+	{
+		sf.all_tables(sList);
+	}
+	else 
+	{
+		sList = sf.getTableList(prompt[1]);
+	}
+	postDataEvent(DataEvent(DataEvent::List, prompt[0], sList), prompt[0]);
+}
 void SCDAserver::pullRegion(vector<string> prompt)
 {
 	// prompt has form [sessionID, cata desc, region name].

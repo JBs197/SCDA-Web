@@ -25,7 +25,7 @@ public:
 	const vector<vector<Wt::WPointF>> areas;
 	const vector<double> regionData;
 
-	enum eType { Connect, Table, Map, RootLayer, YearLayer, DescLayer, RegionLayer, DivLayer };
+	enum eType { Connect, Table, Map, List, RootLayer, YearLayer, DescLayer, RegionLayer, DivLayer };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<vector<Wt::WPointF>> get_areas() const { return areas; }
@@ -51,7 +51,7 @@ private:
 	DataEvent(eType et, const string& sID, const vector<vector<wstring>>& wtbl)
 		: etype(et), sessionID(sID), wtable(wtbl) {}
 
-	// Constructor for eTypes RootLayer, YearLayer.
+	// Constructor for eTypes List, RootLayer, YearLayer.
 	DataEvent(eType et, const string& sID, const vector<string>& lst) 
 		: etype(et), sessionID(sID), list(lst) {}
 
@@ -98,6 +98,7 @@ public:
 	vector<Wt::WPointF> pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling);
 	vector<Wt::WPointF> pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& cataGeo, vector<double>& mapScaling);
 	void pullLayer(int layer, vector<string> prompt);
+	void pullList(vector<string> prompt);
 	void pullRegion(vector<string> prompt);
 	void pullTable(vector<string> prompt);
 	void setDesc(vector<string>);
