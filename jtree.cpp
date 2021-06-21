@@ -1,13 +1,13 @@
 #include "jtree.h"
 
-void JTREE::addChild(string& sname, int& iname, string& sparent)
+void JTREE::addChild(string& sname, int& iname, string sparent)
 {
 	int indexParent;
 	try { indexParent = mapS.at(sparent); }
 	catch (out_of_range) { jf.err("mapS-jtree.addChild"); }
 	addChildWorker(sname, iname, indexParent);
 }
-void JTREE::addChild(string& sname, int& iname, int& iparent)
+void JTREE::addChild(string& sname, int& iname, int iparent)
 {
 	int indexParent;
 	try { indexParent = mapI.at(iparent); }
@@ -34,7 +34,7 @@ void JTREE::addChildWorker(string& sname, int& iname, int indexParent)
 	}
 	count++;
 }
-void JTREE::addChildren(vector<string>& snames, vector<int>& inames, string& sparent)
+void JTREE::addChildren(vector<string>& snames, vector<int>& inames, string sparent)
 {
 	if (snames.size() != inames.size()) { jf.err("Size mismatch-jt.addChildren"); }
 	int indexParent;
@@ -45,7 +45,7 @@ void JTREE::addChildren(vector<string>& snames, vector<int>& inames, string& spa
 		addChildWorker(snames[ii], inames[ii], indexParent);
 	}
 }
-void JTREE::addChildren(vector<string>& snames, vector<int>& inames, int& iparent)
+void JTREE::addChildren(vector<string>& snames, vector<int>& inames, int iparent)
 {
 	if (snames.size() != inames.size()) { jf.err("Size mismatch-jt.addChildren"); }
 	int indexParent;
@@ -144,8 +144,8 @@ void JTREE::init(string nR, string pR)
 	mapI.emplace(-1, 0);
 	mapS.emplace(nameRoot, 0);
 	count = 1;
-
 	extHierarchy = { ".pdf", ".png", ".bin" };
+	if (nameRoot == "") { invisRoot = 1; }
 }
 void JTREE::inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl, vector<int>& tree_ipl)
 {

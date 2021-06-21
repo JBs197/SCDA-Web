@@ -7,9 +7,14 @@ using namespace std;
 class JTREE
 {
 	int count;
-	string errorPath = sroot + "\\SCDA Error Log.txt";
 	vector<string> extHierarchy;
+	bool invisRoot = 0;
 	JFUNC jf;
+
+public:
+	JTREE() {}
+	~JTREE() {}
+
 	unordered_map<string, int> mapS;  // Index from string.
 	unordered_map<int, int> mapI;  // Index from int.
 	string pathRoot;  // Path to root folder. 
@@ -19,15 +24,11 @@ class JTREE
 	vector<string> treePL;  // snames by index.
 	vector<int> treePLi;  // inames by index.
 
-public:
-	JTREE() {}
-	~JTREE() {}
-
-	void addChild(string& sname, int& iname, string& sparent);
-	void addChild(string& sname, int& iname, int& iparent);
+	void addChild(string& sname, int& iname, string sparent);
+	void addChild(string& sname, int& iname, int iparent);
 	void addChildWorker(string& sname, int& iname, int indexParent);
-	void addChildren(vector<string>& snames, vector<int>& inames, string& sparent);
-	void addChildren(vector<string>& snames, vector<int>& inames, int& iparent);
+	void addChildren(vector<string>& snames, vector<int>& inames, string sparent);
+	void addChildren(vector<string>& snames, vector<int>& inames, int iparent);
 	bool alreadyExist(string sname, int iname, int parentIndex);
 	void deleteChildren(string& sParent);
 	void deleteLeaves(string& sParent);
