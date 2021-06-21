@@ -1065,7 +1065,12 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		tempIndex.push_back(0);
 		pParent = pRegion2s[treeActive[4]];
 		maxCol = jf.maxNumCol(wtable);
-		if (maxCol == 2)  // If all entries are the final tree layer...
+		if (maxCol == 0)
+		{
+			activeRegion = nextPrompt[3];
+			break;
+		}
+		else if (maxCol == 2)  // If all entries are the final tree layer...
 		{
 			for (int ii = 0; ii < wtable.size(); ii++)
 			{

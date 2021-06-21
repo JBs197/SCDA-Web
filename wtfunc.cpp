@@ -31,6 +31,8 @@ vector<string> WTFUNC::delinearizeTitle(string& linearTitle)
 		pos1 = pos2 + 1;
 		pos2 = linearTitle.find('@', pos1);
 	}
+	temp = linearTitle.substr(pos1);
+	title.push_back(temp);
 	return title;
 }
 void WTFUNC::drawMap(vector<vector<Wt::WPointF>>& Areas, vector<string>& sidAreaNames, vector<double>& regionData)
@@ -40,7 +42,8 @@ void WTFUNC::drawMap(vector<vector<Wt::WPointF>>& Areas, vector<string>& sidArea
 	sidAreaNames.pop_back();
 	areaNames.assign(sidAreaNames.begin() + 1, sidAreaNames.end()); // Form [parent, children].
 	areaData = regionData;
-	updateAreaColour(1);
+	areaDataKids.assign(regionData.begin() + 1, regionData.end());
+	updateAreaColour();
 	indexAreaSel = -1;
 	indexAreaPrevious = -1;
 	update(); 
@@ -249,13 +252,44 @@ void WTFUNC::paintLegendBarV(Wt::WPainter& painter)
 }
 void WTFUNC::paintLegendBox(Wt::WPainter& painter, int index)
 {
+	string shortName, sBase, temp;
+	vector<string> boxText;
+	size_t pos1 = dataName[0].find("Total - "), indexBox = 0;
+	if (pos1 < dataName[0].size())
+	{
+		boxText.resize(5);
+		boxText[0] = "Showing";
+		pos1 += 8;
+		sBase = dataName[0].substr(pos1);
+		for (int ii = 1; ii < dataName.size() - 1; ii++)
+		{
+			temp = dataName[ii];
+			while (temp[0] == '+') { temp.erase(temp.begin()); }
+			sBase += "->" + temp;
+		}
+		boxText[1] = sBase + " WITH";
+		boxText[2] = dataName.back();
+		indexBox = 3;
+	}
+	else
+	{
+		boxText.resize(dataName.size() + 3);
+		boxText[0] = "Showing";
+		for (int ii = 0; ii < dataName.size(); ii++)
+		{
+			boxText[ii + 1] = dataName[ii];
+		}
+		indexBox = dataName.size() + 1;
+	}
+	boxText[indexBox] = "for the region";
+
 	double dTemp = wlWidth.value();
-	Wt::WRectF box(dTemp - legendBoxDim[0] - 10.0, 1.0, legendBoxDim[0], legendBoxDim[1]);
+	double dHeight = 21.0 * (double)boxText.size();
+	Wt::WRectF box(dTemp - legendBoxDim[0] - 15.0, 1.0, legendBoxDim[0], dHeight);
 	Wt::WBrush wBrush(Wt::StandardColor::White);
 	painter.setBrush(wBrush);
 	painter.drawRect(box);
-	string shortName;
-	size_t pos1 = areaNames[index].find(" or ");
+	pos1 = areaNames[index].find(" or ");
 	if (pos1 < areaNames[index].size()) 
 	{
 		shortName = areaNames[index].substr(0, pos1);
@@ -263,14 +297,7 @@ void WTFUNC::paintLegendBox(Wt::WPainter& painter, int index)
 	else { shortName = areaNames[index]; }
 	pos1 = shortName.find("(Canada)");
 	if (pos1 < shortName.size()) { shortName.resize(pos1); }
-	vector<string> boxText(dataName.size() + 3);
-	boxText[0] = "Showing";
-	for (int ii = 0; ii < dataName.size(); ii++)
-	{
-		boxText[ii + 1] = dataName[ii];
-	}
-	boxText[dataName.size() + 1] = "for";
-	boxText[dataName.size() + 2] = shortName + " = " + to_string(int(areaData[index]));
+	boxText[indexBox + 1] = shortName + " = " + to_string(int(areaData[index]));
 	Wt::WString wsTemp; 
 	dTemp = box.y() - 15.0;
 	for (int ii = 0; ii < boxText.size(); ii++)
@@ -329,59 +356,57 @@ void WTFUNC::setWColour(Wt::WColor& wColour, vector<int> rgb, double percent)
 	double dTemp = 255.0 * percent;
 	wColour.setRgb(rgb[0], rgb[1], rgb[2], int(dTemp));
 }
-void WTFUNC::updateAreaColour(int mode)
+bool WTFUNC::testExcludeParent()
 {
-	// Mode 0 = include all regions, mode 1 = all regions except parent.
+	vector<int> minMaxIndex = jf.minMax(areaDataKids);
+	double percent = areaDataKids[minMaxIndex[1]] / areaData[0]; 
+	if (percent < defaultParentExclusionThreshold) { return 1; }
+	return 0;
+}
+void WTFUNC::updateAreaColour()
+{
 	size_t numArea = areas.size();
 	if (numArea != areaData.size()) { jf.err("Area size mismatch-wtf.updateAreaColour"); }
 	if (keyColour.size() != numColourBands + 1) { initColour(); }
 	areaColour.resize(numArea, vector<int>(3));
+	double percentage, dR, dG, dB, remains, dMin, dMax;
+	int floor, indexStart;
 	vector<int> indexMinMax;
-	double percentage, dR, dG, dB, remains;
-	int floor;
-	switch (mode)
+	if (testExcludeParent())
 	{
-	case 0:
+		indexMinMax = jf.minMax(areaDataKids);
+		dMin = areaDataKids[indexMinMax[0]];
+		dMax = areaDataKids[indexMinMax[1]];
+		areaColour[0] = extraColour;  // Parent.
+		indexStart = 1;
+	}
+	else
 	{
 		indexMinMax = jf.minMax(areaData);
-		for (int ii = 0; ii < numArea; ii++)
-		{
-			percentage = (areaData[ii] - areaData[indexMinMax[0]]) / areaData[indexMinMax[1]];
-			if (percentage > 0.9999) { percentage = 0.9999; }
-			percentage *= (double)numColourBands;
-			floor = int(percentage);
-			remains = percentage - (double)floor;
-			dR = (keyColour[floor + 1][0] - keyColour[floor][0]) * remains;
-			dG = (keyColour[floor + 1][1] - keyColour[floor][1]) * remains;
-			dB = (keyColour[floor + 1][2] - keyColour[floor][2]) * remains;
-			areaColour[ii][0] = keyColour[floor][0] + (int)dR;
-			areaColour[ii][1] = keyColour[floor][1] + (int)dG;
-			areaColour[ii][2] = keyColour[floor][2] + (int)dB;
-		}
-		break;
+		dMin = areaData[indexMinMax[0]];
+		dMax = areaData[indexMinMax[1]];
+		indexStart = 0;
 	}
-	case 1:
+	for (int ii = indexStart; ii < numArea; ii++)
 	{
-		vector<double> areaDataKids;
-		areaDataKids.assign(areaData.begin() + 1, areaData.end());
-		indexMinMax = jf.minMax(areaDataKids);
-		areaColour[0] = extraColour;  // Parent.
-		for (int ii = 1; ii < numArea; ii++)
+		if (areaData[ii] == -1.0)  // Data is missing, so draw as grey.
 		{
-			percentage = (areaData[ii] - areaDataKids[indexMinMax[0]]) / areaDataKids[indexMinMax[1]];
-			if (percentage > 0.9999) { percentage = 0.9999; }
-			percentage *= (double)numColourBands;
-			floor = int(percentage);
-			remains = percentage - (double)floor;
-			dR = (keyColour[floor + 1][0] - keyColour[floor][0]) * remains;
-			dG = (keyColour[floor + 1][1] - keyColour[floor][1]) * remains;
-			dB = (keyColour[floor + 1][2] - keyColour[floor][2]) * remains;
-			areaColour[ii][0] = keyColour[floor][0] + (int)dR;
-			areaColour[ii][1] = keyColour[floor][1] + (int)dG;
-			areaColour[ii][2] = keyColour[floor][2] + (int)dB;
+			areaColour[ii][0] = 180;
+			areaColour[ii][1] = 180;
+			areaColour[ii][2] = 180;
+			continue;
 		}
-		break;
-	}
+		percentage = (areaData[ii] - dMin) / dMax;
+		if (percentage > 0.9999) { percentage = 0.9999; }
+		percentage *= (double)numColourBands;
+		floor = int(percentage);
+		remains = percentage - (double)floor;
+		dR = (keyColour[floor + 1][0] - keyColour[floor][0]) * remains;
+		dG = (keyColour[floor + 1][1] - keyColour[floor][1]) * remains;
+		dB = (keyColour[floor + 1][2] - keyColour[floor][2]) * remains;
+		areaColour[ii][0] = keyColour[floor][0] + (int)dR;
+		areaColour[ii][1] = keyColour[floor][1] + (int)dG;
+		areaColour[ii][2] = keyColour[floor][2] + (int)dB;
 	}
 
 }

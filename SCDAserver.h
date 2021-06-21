@@ -97,6 +97,7 @@ public:
 	void pullMap(vector<string> prompt);
 	vector<Wt::WPointF> pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling);
 	vector<Wt::WPointF> pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& smallGeo, vector<double>& mapScaling);
+	void pullMapParentBackspace(vector<vector<string>>& smallGeo, string cataName);
 	void pullLayer(int layer, vector<string> prompt);
 	void pullList(vector<string> prompt);
 	void pullRegion(vector<string> prompt);

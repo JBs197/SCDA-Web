@@ -106,14 +106,14 @@ string SCDAserver::getLinearizedColTitle(string& sCata, string& rowTitle, string
 	vector<string> vsTemp, search = {"*"}, params;
 	jf.clean(rowStub, vsTemp, temp);
 	string tname = "TG_Row$" + sCata;
-	vector<string> conditions = { "\"Row Title\" LIKE '" + rowStub + "'" };
+	vector<string> conditions = { "\"Row Title\" LIKE " + rowStub };
 	sf.select(search, tname, vsTemp, conditions);
 	while (vsTemp.back() == "") { vsTemp.pop_back(); }
 	search = { "Row Title" };
 	for (int ii = 2; ii < vsTemp.size(); ii++)
 	{
 		param.clear();
-		conditions = { "\"Row Index\" LIKE '" + vsTemp[ii] + "'" };
+		conditions = { "\"Row Index\" = " + vsTemp[ii] };
 		sf.select(search, tname, param, conditions);
 		temp.clear();
 		for (int jj = 0; jj < params.size(); jj++)
@@ -143,7 +143,7 @@ void SCDAserver::getSmallGeo(vector<vector<string>>& smallGeo, string cataName)
 	vector<string> gidRow, gidList, vsResult;
 	vector<string> search = { "*" };
 	string temp, tname = "TG_Region$" + cataName;
-	vector<string> conditions = { "[Region Name] LIKE '" + smallGeo[0][1] + "'" };
+	vector<string> conditions = { "[Region Name] LIKE " + smallGeo[0][1] };
 	sf.select(search, tname, vsResult, conditions);
 	while (vsResult.back() == "") { vsResult.pop_back(); }
 	gidRow.resize(vsResult.size() - 1);
@@ -160,7 +160,7 @@ void SCDAserver::getSmallGeo(vector<vector<string>>& smallGeo, string cataName)
 	{
 		temp.clear();
 		if (ii > 0) { temp += " AND "; }
-		temp += "param" + to_string(ii + 2) + " LIKE '" + gidRow[ii] + "'";
+		temp += "param" + to_string(ii + 2) + " LIKE " + gidRow[ii];
 		conditions.push_back(temp);
 	}
 	sf.select(search, tname, vvsResult, conditions);
@@ -177,12 +177,12 @@ void SCDAserver::getSmallGeo(vector<vector<string>>& smallGeo, string cataName)
 	tname = cataName + "$Geo";
 	for (int ii = 0; ii < gidList.size(); ii++)
 	{
-		conditions = { "GID LIKE '" + gidList[ii] + "'" };
+		conditions = { "GID LIKE " + gidList[ii] };
 		vsResult.clear();
 		sf.select(search, tname, vsResult, conditions);
 		smallGeo.push_back(vsResult);
 	}
-
+	int bbq = 1;
 }
 long long SCDAserver::getTimer()
 {
@@ -207,7 +207,7 @@ void SCDAserver::pullMap(vector<string> prompt)
 	vector<double> regionData, mapScaling;  // Form [parentRatio, parentScale, parentWindowWidth, parentWindowHeight].
 	areas[0] = pullMapParent(cataName, geoLayers, smallGeo, mapScaling);
 	getSmallGeo(smallGeo, cataName);
-	if (prompt[2] == "Canada")
+	if (smallGeo[0][2] == "canada" && smallGeo[1][2] == "province")
 	{
 		for (int ii = 1; ii < smallGeo.size(); ii++)
 		{
@@ -217,7 +217,7 @@ void SCDAserver::pullMap(vector<string> prompt)
 	areas.resize(smallGeo.size());
 	vector<string> sIDregion(areas.size() + 1), conditions;  
 	sIDregion[0] = prompt[0];
-	sIDregion[1] = prompt[2];  // Parent name.
+	sIDregion[1] = smallGeo[0][1];  // Parent name.
 	for (int ii = 1; ii < areas.size(); ii++)
 	{
 		sIDregion[ii + 1] = smallGeo[ii][1];
@@ -231,9 +231,13 @@ void SCDAserver::pullMap(vector<string> prompt)
 	for (int ii = 0; ii < smallGeo.size(); ii++)
 	{
 		temp.clear();
-		conditions = { "GID LIKE " + smallGeo[ii][0] };
+		conditions = { "GID = " + smallGeo[ii][0] };
 		sf.select(search, cataName, temp, conditions);
-		// RESUME HERE. Missing data should get a grey placeholder.
+		if (temp == "")
+		{
+			regionData[ii] = -1.0;
+			continue;
+		}
 		pos1 = temp.find('.');
 		if (pos1 < temp.size())
 		{
@@ -293,14 +297,14 @@ vector<Wt::WPointF> SCDAserver::pullMapChild(vector<string>& geoLayers, vector<v
 vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& smallGeo, vector<double>& mapScaling)
 {
 	// Get the catalogue name.
-	vector<string> search = { "Name" };
+	vector<string> search = { "Name" }, vsResult;
 	string tname = "TCatalogueIndex", cataName;
-	vector<string> conditions = { "Description = '" + cataDesc + "'" };
+	vector<string> conditions = { "Description LIKE " + cataDesc };
 	sf.select(search, tname, cataName, conditions);
 	cataDesc = cataName;
 
 	// Get the catalogue's geo layers.
-	string regionName = geoLayers[0];
+	string regionName = geoLayers[0], gid;
 	string windowWH = geoLayers[1];
 	geoLayers.clear();
 	search = { "Layer" };
@@ -310,13 +314,31 @@ vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& 
 	// Export the parent's row in smallGeo. 
 	search = { "*" };
 	tname = cataName + "$Geo";
-	conditions = { "\"Region Name\" LIKE '" + regionName + "'" };
+	conditions = { "\"Region Name\" LIKE " + regionName };
 	smallGeo.resize(1, vector<string>());
 	sf.select(search, tname, smallGeo[0], conditions);
 	int indexGL;
 	for (int ii = 0; ii < geoLayers.size(); ii++)
 	{
 		if (geoLayers[ii] == smallGeo[0][2]) { indexGL = ii; break; }
+	}
+	if (indexGL == geoLayers.size() - 1)  // If this parent region has no children...
+	{
+		if (geoLayers[indexGL] == "province" && indexGL == 1)  // Display the Canada->province(Canada) map.
+		{
+			smallGeo[0].clear();
+			regionName = "Canada";
+			conditions = { "\"Region Name\" LIKE " + regionName };
+			sf.select(search, tname, smallGeo[0], conditions);
+			indexGL--;
+		}
+		else if (indexGL > 1)
+		{
+			pullMapParentBackspace(smallGeo, cataName);
+			regionName = smallGeo[0][1];
+			indexGL--;
+		}
+		else { jf.err("No children, no parent-SCDAserver.pullMapParent"); }
 	}
 	string tname0 = "TMap$";
 	for (int ii = 1; ii <= indexGL; ii++)
@@ -342,6 +364,22 @@ vector<Wt::WPointF> SCDAserver::pullMapParent(string& cataDesc, vector<string>& 
 	mapScaling[3] *= mapScaling[0];
 	return area;
 }
+void SCDAserver::pullMapParentBackspace(vector<vector<string>>& smallGeo, string cataName)
+{
+	string gidChild = smallGeo[0][0];
+	smallGeo[0].clear();
+	string tname = "TG_Region$" + cataName;
+	vector<string> search = { "*" };
+	vector<string> conditions = { "GID = " + gidChild };
+	vector<string> vsResult;
+	sf.select(search, tname, vsResult, conditions);
+	if (vsResult.size() < 2) { jf.err("TG_Region row not found-SCDAserver.pullMapParentBackspace"); }
+	while (vsResult.back() == "") { vsResult.pop_back(); }
+	string gidParent = vsResult.back();
+	tname = cataName + "$Geo";
+	conditions = { "GID = " + gidParent };
+	sf.select(search, tname, smallGeo[0], conditions);
+}
 void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 {
 	lock_guard<mutex> lock(m_server);
@@ -363,6 +401,7 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	string tname, sname, gid;
 	wstring wtemp;
 	vector<string> search, conditions, yearList, descList, regionList, divRow;
+	vector<string> colTitles;
 	vector<wstring> ancestry;
 	vector<vector<wstring>> results;
 	int maxCol;
@@ -371,30 +410,50 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	switch (layer)
 	{
 	case 0:  // set Root
+		// prompt has form [sID].
 		yearList = sf.selectYears();
 		postDataEvent(DataEvent(DataEvent::RootLayer, prompt[0], yearList), prompt[0]);
 		break;
 	case 1:  // set Year
+	{
+		// prompt has form [sID, sYear].
 		search = { "Description" };
 		tname = "TCatalogueIndex";
 		conditions = {
-			"Year LIKE '" + prompt[1] + "'",
-			" AND Description NOT LIKE 'Incomplete'" };
+			"Year LIKE " + prompt[1],
+			" AND Description NOT LIKE Incomplete" };
 		sf.select(search, tname, descList, conditions);
 		postDataEvent(DataEvent(DataEvent::YearLayer, prompt[0], descList), prompt[0]);
 		break;
+	}
 	case 2:  // set Desc  NOTE: this layer returns the first TWO layers of regions.
 	{
+		// prompt has form [sID, sYear, sDesc].
 		search = { "Name" };
 		tname = "TCatalogueIndex";
 		sf.sclean(prompt[2], 1);  // Double apostraphes.
-		conditions = { "Description LIKE '" + prompt[2] + "'" };
+		conditions = { "Description LIKE " + prompt[2] };
 		sf.select(search, tname, sname, conditions);
 		if (sname.size() < 1) { jf.err("select-SCDAserver.pullLayer"); }
 		tname = "TG_Region$" + sname;
-		search = { "GID", "Region Name", "param2" };
-		conditions = { "param3 IS NULL" };
-		sf.select(search, tname, results, conditions);
+		sf.get_col_titles(tname, colTitles);
+		if (colTitles.size() == 2)
+		{
+			search = { "GID", "Region Name"};
+			sf.select(search, tname, results);
+		}
+		else if (colTitles.size() == 3)
+		{
+			search = { "GID", "Region Name", "param2" };
+			sf.select(search, tname, results);
+		}
+		else if (colTitles.size() > 3)
+		{
+			search = { "GID", "Region Name", "param2" };
+			conditions = { "param3 IS NULL" };
+			sf.select(search, tname, results, conditions);
+		}
+		else { jf.err("colTitles-SCDAserver.pullLayer"); }
 		jf.removeBlanks(results);
 		postDataEvent(DataEvent(DataEvent::DescLayer, prompt[0], results), prompt[0]);
 		break;
@@ -403,14 +462,19 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	{
 		search = { "Name" };
 		tname = "TCatalogueIndex";
-		conditions = { "Description = '" + prompt[2] + "'" };
+		conditions = { "Description LIKE " + prompt[2] };
 		sf.select(search, tname, sname, conditions);
 		
 		tname = "TG_Region$" + sname;
 		maxCol = sf.get_num_col(tname);
-
+		if (maxCol < 4)
+		{
+			results.clear();
+			postDataEvent(DataEvent(DataEvent::RegionLayer, prompt[0], results), prompt[0]);
+			break;
+		}
 		search = { "GID" };  
-		conditions = { "[Region Name] = '" + prompt[3] + "'" };
+		conditions = { "[Region Name] LIKE " + prompt[3] };
 		sf.select(search, tname, gid, conditions);
 
 		search = { "GID", "Region Name" };
@@ -428,14 +492,14 @@ void SCDAserver::pullLayer(int layer, vector<string> prompt)
 	{
 		search = { "Name" };
 		tname = "TCatalogueIndex";
-		conditions = { "Description = '" + prompt[2] + "'" };
+		conditions = { "Description LIKE " + prompt[2] };
 		sf.select(search, tname, sname, conditions);
 
 		tname = "TG_Region$" + sname;
 		maxCol = sf.get_num_col(tname);
 
 		search = { "*" };
-		conditions = { "[Region Name] = '" + prompt[3] + "'" };
+		conditions = { "[Region Name] LIKE " + prompt[3] };
 		sf.select(search, tname, divRow, conditions);
 
 		search = { "Region Name" };
@@ -475,13 +539,15 @@ void SCDAserver::pullRegion(vector<string> prompt)
 	vector<string> search = { "Name" };
 	string tname = "TCatalogueIndex";
 	string cataName;
-	vector<string> conditions = { "Description = '" + prompt[1] + "'" };
+	vector<string> conditions = { "Description LIKE " + prompt[1] };
 	sf.select(search, tname, cataName, conditions);
 
 	string gid;
 	search = { "GID" };
 	tname = "TG_Region$" + cataName;
-	conditions = { "[Region Name] = '" + prompt[2] + "'" };
+	string temp = prompt[2];
+	sf.sclean(temp, 1);
+	conditions = { "[Region Name] LIKE " + temp };
 	sf.select(search, tname, gid, conditions);
 
 	tname = cataName + "$" + gid;
