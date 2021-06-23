@@ -1,5 +1,37 @@
 #include "jtree.h"
 
+void JTREE::addBranchSTPL(vector<vector<int>>& treeST, vector<string>& treePL, vector<int>& treePLi, string sTrunk)
+{
+	// Add a STPL tree as a branch to the chosen (existing) parent, sTrunk.
+	if (treeST.size() != treePL.size() || treePL.size() != treePLi.size())
+	{
+		jf.err("Input mismatch-jt.addBranchSTPL");
+	}
+	vector<vector<int>> genLayers;
+	int pivot, myIndex, parentIndex;
+	string sParent;
+	for (int ii = 0; ii < treeST.size(); ii++)
+	{
+		pivot = jf.getPivot(treeST[ii]);
+		while (pivot >= genLayers.size()) { genLayers.push_back(vector<int>()); }
+		genLayers[pivot].push_back(ii);
+	}
+	for (int ii = 0; ii < genLayers.size(); ii++)
+	{
+		for (int jj = 0; jj < genLayers[ii].size(); jj++)
+		{
+			myIndex = genLayers[ii][jj];
+			if (ii == 0) { sParent = sTrunk; }
+			else
+			{
+				pivot = jf.getPivot(treeST[myIndex]);
+				parentIndex = treeST[myIndex][pivot - 1];
+				sParent = treePL[parentIndex];
+			}
+			addChild(treePL[myIndex], treePLi[myIndex], sParent);
+		}
+	}
+}
 void JTREE::addChild(string& sname, int& iname, string sparent)
 {
 	int indexParent;
@@ -16,12 +48,16 @@ void JTREE::addChild(string& sname, int& iname, int iparent)
 }
 void JTREE::addChildWorker(string& sname, int& iname, int indexParent)
 {
-	if (alreadyExist(sname, iname, indexParent)) { return; }
+	int iName;
+	if (iname < -1) { iName = -1 * (count + 1); }  // Unique dummy values.
+	else { iName = iname; }
+	if (alreadyExist(sname, iName, indexParent)) { return; }
+
 	treeSTdes[indexParent].push_back(count);
 	mapS.emplace(sname, count);
-	mapI.emplace(iname, count);
+	mapI.emplace(iName, count);
 	treePL.push_back(sname);
-	treePLi.push_back(iname);
+	treePLi.push_back(iName);
 	treeSTdes.push_back(vector<int>());
 	if (treeSTanc[indexParent][0] >= 0)  // If parent is not root...
 	{
@@ -184,16 +220,13 @@ void JTREE::inputTreeSTPL(vector<vector<int>>& tree_st, vector<string>& tree_pl,
 		}
 	}
 }
-int JTREE::getHierarchy(string& ext)
+int JTREE::getCount()
 {
-	for (int ii = 0; ii < extHierarchy.size(); ii++)
-	{
-		if (ext == extHierarchy[ii])
-		{
-			return ii;
-		}
-	}
-	return -1;
+	return count;
+}
+bool JTREE::getRemovePath()
+{
+	return removePath;
 }
 string JTREE::getRootName()
 {
@@ -214,4 +247,8 @@ void JTREE::listChildren(string& sparent, vector<int>& ikids, vector<string>& sk
 		ikids[ii] = treePLi[viTemp[ii]];
 	}
 }
-
+void JTREE::setRemovePath(int yesno)
+{
+	if (yesno > 0) { removePath = 1; }
+	else { removePath = 0; }
+}
