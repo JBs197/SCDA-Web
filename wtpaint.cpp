@@ -1,4 +1,4 @@
-#include "wtfunc.h"
+#include "wtpaint.h"
 
 void WTFUNC::areaClicked(int index)
 {

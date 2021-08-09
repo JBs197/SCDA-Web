@@ -2,7 +2,7 @@
 
 using namespace std;
 mutex m_err, m_server, m_map;
-const string sroot = "F:";
+const string sroot = "E:";
 
 class SCDAapp : public Wt::WApplication
 {
@@ -41,7 +41,7 @@ unique_ptr<Wt::WApplication> makeApp(const Wt::WEnvironment& env, SCDAserver& my
 {	
 	return make_unique<SCDAapp>(env, myServer);
 }
-vector<string> make_wrun_args(string exec_dir, string& dbPath)
+vector<string> make_wrun_args(string exec_dir)
 {
 	// Temporary bootloader function. Will be made more flexible later.
 
@@ -56,7 +56,6 @@ vector<string> make_wrun_args(string exec_dir, string& dbPath)
 	args[1] = "--http-port=" + default_http_port;
 	args[2] = "--approot=" + proj_dir;
 	args[3] = "--docroot=" + proj_dir + "\\html";
-	dbPath = proj_dir + "\\SCDA.db";
 	return args;
 }
 
@@ -66,8 +65,8 @@ int main()
 	JFUNC jf;
 	WINFUNC wf;
 	const string execPath = wf.get_exec_path(), wtAppPath = "";
-	string dbPath;
-	const vector<string> args = make_wrun_args(execPath, dbPath);
+	string dbPath = sroot + "\\SCDA.db";
+	const vector<string> args = make_wrun_args(execPath);
 	int signal;
 	Wt::WServer wtServer(execPath, args, wtAppPath);
 	SCDAserver myServer(wtServer, dbPath);

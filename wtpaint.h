@@ -1,6 +1,4 @@
 #pragma once
-#include <string>
-#include <vector>
 #include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WPanel.h>
@@ -17,7 +15,7 @@
 using namespace std;
 extern mutex m_map;
 
-class WTFUNC : public Wt::WPaintedWidget
+class WTPAINT : public Wt::WPaintedWidget
 {
 	vector<vector<int>> areaColour, keyColour;  // Wt prefers ints for some reason...
 	vector<int> extraColour;
@@ -38,13 +36,13 @@ class WTFUNC : public Wt::WPaintedWidget
 	Wt::WLength wlWidth, wlHeight;	
 
 public:
-	WTFUNC(vector<string>& cW) : Wt::WPaintedWidget(), commWidget(cW)
+	WTPAINT(vector<string>& cW) : Wt::WPaintedWidget(), commWidget(cW)
 	{
 		wlWidth = Wt::WLength(defaultLength);
 		wlHeight = Wt::WLength(defaultLength);
 		resize(wlWidth, wlHeight);
 	}
-	~WTFUNC() {}
+	~WTPAINT() {}
 	void areaClicked(int index);
 	void clearAreas();
 	vector<string> delinearizeTitle(string& linearTitle);

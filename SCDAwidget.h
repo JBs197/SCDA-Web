@@ -7,6 +7,7 @@
 #include <Wt/WSpinBox.h>
 #include <Wt/WTree.h>
 #include <Wt/WTreeNode.h>
+#include <Wt/WTreeView.h>
 #include <Wt/WTable.h>
 #include <Wt/WTableCell.h>
 #include <Wt/WPanel.h>
