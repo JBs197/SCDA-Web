@@ -1,6 +1,6 @@
 #include "wtpaint.h"
 
-void WTFUNC::areaClicked(int index)
+void WTPAINT::areaClicked(int index)
 {
 	indexAreaPrevious = indexAreaSel;
 	indexAreaSel = index;
@@ -10,7 +10,7 @@ void WTFUNC::areaClicked(int index)
 	m_map.unlock();
 	update(Wt::PaintFlag::Update);
 }
-void WTFUNC::clearAreas()
+void WTPAINT::clearAreas()
 {
 	auto listAreas = Wt::WPaintedWidget::areas();
 	for (int ii = 0; ii < listAreas.size(); ii++)
@@ -18,7 +18,7 @@ void WTFUNC::clearAreas()
 		Wt::WPaintedWidget::removeArea(listAreas[ii]);
 	}
 }
-vector<string> WTFUNC::delinearizeTitle(string& linearTitle)
+vector<string> WTPAINT::delinearizeTitle(string& linearTitle)
 {
 	vector<string> title;
 	string temp;
@@ -35,7 +35,7 @@ vector<string> WTFUNC::delinearizeTitle(string& linearTitle)
 	title.push_back(temp);
 	return title;
 }
-void WTFUNC::drawMap(vector<vector<Wt::WPointF>>& Areas, vector<string>& sidAreaNames, vector<double>& regionData)
+void WTPAINT::drawMap(vector<vector<Wt::WPointF>>& Areas, vector<string>& sidAreaNames, vector<double>& regionData)
 {
 	areas = Areas;  // Form [parent, children].
 	dataName = delinearizeTitle(sidAreaNames.back());
@@ -48,11 +48,11 @@ void WTFUNC::drawMap(vector<vector<Wt::WPointF>>& Areas, vector<string>& sidArea
 	indexAreaPrevious = -1;
 	update(); 
 }
-void WTFUNC::err(string func)
+void WTPAINT::err(string func)
 {
 	jf.err(func);
 }
-vector<vector<int>> WTFUNC::getFrame(vector<Wt::WPointF>& path)
+vector<vector<int>> WTPAINT::getFrame(vector<Wt::WPointF>& path)
 {
 	vector<vector<double>> TLBRd(2, vector<double>(2));
 	TLBRd[0][0] = path[0].x();
@@ -70,7 +70,7 @@ vector<vector<int>> WTFUNC::getFrame(vector<Wt::WPointF>& path)
 	jf.toInt(TLBRd, TLBR);
 	return TLBR;
 }
-vector<int> WTFUNC::getScaleValues(int numTicks)
+vector<int> WTPAINT::getScaleValues(int numTicks)
 {
 	vector<int> ticks(numTicks);
 	vector<int> indexMinMax = jf.minMax(areaData);
@@ -84,14 +84,14 @@ vector<int> WTFUNC::getScaleValues(int numTicks)
 	}
 	return ticks;
 }
-void WTFUNC::initAreas(vector<int>& indexOrder)
+void WTPAINT::initAreas(vector<int>& indexOrder)
 {
 	for (int ii = 0; ii < indexOrder.size(); ii++)
 	{
 		mapAreas.emplace(areaNames[indexOrder[ii]], indexOrder[ii]);
 		auto wpArea = make_unique<Wt::WPolygonArea>();
 		wpArea->setPoints(areas[indexOrder[ii]]);
-		function<void()> fn = bind(&WTFUNC::areaClicked, this, indexOrder[ii]);
+		function<void()> fn = bind(&WTPAINT::areaClicked, this, indexOrder[ii]);
 		wpArea->clicked().connect(fn);
 		this->addArea(move(wpArea));
 	}
@@ -101,12 +101,12 @@ void WTFUNC::initAreas(vector<int>& indexOrder)
 		double widthD = wlWidth.value() - 2.0;
 		double heightD = wlHeight.value() - 2.0;
 		auto wpArea = make_unique<Wt::WRectArea>(1.0, 1.0, widthD, heightD);
-		function<void()> fn = bind(&WTFUNC::areaClicked, this, 0);
+		function<void()> fn = bind(&WTPAINT::areaClicked, this, 0);
 		wpArea->clicked().connect(fn);
 		this->addArea(move(wpArea));
 	}
 }
-void WTFUNC::initColour()
+void WTPAINT::initColour()
 {
 	keyColour.resize(6);
 	keyColour[0] = { 255, 0, 0 };  // Red
@@ -117,19 +117,19 @@ void WTFUNC::initColour()
 	keyColour[5] = { 127, 0, 255 };  // Violet
 	extraColour = { 255, 0, 127 };  // Pink
 }
-void WTFUNC::init_proj_dir(string exec_dir)
+void WTPAINT::init_proj_dir(string exec_dir)
 {
 	size_t pos1 = exec_dir.rfind('\\');  // Debug or release.
 	pos1 = exec_dir.rfind('\\', pos1 - 1);  // Project folder.
 	proj_dir = exec_dir.substr(0, pos1);
 }
-void WTFUNC::initSize(double w, double h)
+void WTPAINT::initSize(double w, double h)
 {
 	wlHeight = Wt::WLength(h);
 	wlWidth = Wt::WLength(w);
 	resize(wlWidth, wlHeight);
 }
-vector<Wt::WPointF> WTFUNC::makeWPPath(vector<vector<int>>& frameTLBR, vector<vector<int>>& border, vector<double>& windowDimPosition)
+vector<Wt::WPointF> WTPAINT::makeWPPath(vector<vector<int>>& frameTLBR, vector<vector<int>>& border, vector<double>& windowDimPosition)
 {
 	int numPoints = border.size();
 	vector<vector<double>> borderD(numPoints, vector<double>(2));
@@ -177,7 +177,7 @@ vector<Wt::WPointF> WTFUNC::makeWPPath(vector<vector<int>>& frameTLBR, vector<ve
 	}
 	return area;
 }
-void WTFUNC::paintEvent(Wt::WPaintDevice* paintDevice)
+void WTPAINT::paintEvent(Wt::WPaintDevice* paintDevice)
 {
 	Wt::WPainter painter(paintDevice);
 	Wt::WLength penWidth(2.0, Wt::LengthUnit::Pixel);
@@ -214,7 +214,7 @@ void WTFUNC::paintEvent(Wt::WPaintDevice* paintDevice)
 		paintLegendBox(painter, indexAreaSel);
 	}
 }
-void WTFUNC::paintLegendBarV(Wt::WPainter& painter)
+void WTPAINT::paintLegendBarV(Wt::WPainter& painter)
 {
 	int numColour = numColourBands + 1;
 	if (keyColour.size() != numColour) { initColour(); }
@@ -250,7 +250,7 @@ void WTFUNC::paintLegendBarV(Wt::WPainter& painter)
 	painter.setBrush(wBrush);
 	painter.drawRect(rectV);
 }
-void WTFUNC::paintLegendBox(Wt::WPainter& painter, int index)
+void WTPAINT::paintLegendBox(Wt::WPainter& painter, int index)
 {
 	string shortName, sBase, temp;
 	vector<string> boxText;
@@ -308,7 +308,7 @@ void WTFUNC::paintLegendBox(Wt::WPainter& painter, int index)
 		painter.drawText(box, Wt::AlignmentFlag::Center, Wt::TextFlag::SingleLine, wsTemp);
 	}
 }
-void WTFUNC::paintRegion(Wt::WPainter& painter, int index, double percent)
+void WTPAINT::paintRegion(Wt::WPainter& painter, int index, double percent)
 {
 	Wt::WPainterPath wpPath = Wt::WPainterPath(areas[index][0]);
 	for (int jj = 1; jj < areas[index].size(); jj++)
@@ -325,7 +325,7 @@ void WTFUNC::paintRegion(Wt::WPainter& painter, int index, double percent)
 	painter.setBrush(wBrush);
 	painter.drawPath(wpPath);
 }
-void WTFUNC::paintRegionAll(Wt::WPainter& painter, vector<int> indexOrder, double percent)
+void WTPAINT::paintRegionAll(Wt::WPainter& painter, vector<int> indexOrder, double percent)
 {
 	Wt::WColor wColour(Wt::StandardColor::White);
 	Wt::WBrush wBrush(wColour);
@@ -351,19 +351,19 @@ void WTFUNC::paintRegionAll(Wt::WPainter& painter, vector<int> indexOrder, doubl
 		painter.drawPath(wpPath);		
 	}
 }
-void WTFUNC::setWColour(Wt::WColor& wColour, vector<int> rgb, double percent)
+void WTPAINT::setWColour(Wt::WColor& wColour, vector<int> rgb, double percent)
 {
 	double dTemp = 255.0 * percent;
 	wColour.setRgb(rgb[0], rgb[1], rgb[2], int(dTemp));
 }
-bool WTFUNC::testExcludeParent()
+bool WTPAINT::testExcludeParent()
 {
 	vector<int> minMaxIndex = jf.minMax(areaDataKids);
 	double percent = areaDataKids[minMaxIndex[1]] / areaData[0]; 
 	if (percent < defaultParentExclusionThreshold) { return 1; }
 	return 0;
 }
-void WTFUNC::updateAreaColour()
+void WTPAINT::updateAreaColour()
 {
 	size_t numArea = areas.size();
 	if (numArea != areaData.size()) { jf.err("Area size mismatch-wtf.updateAreaColour"); }

@@ -4,7 +4,7 @@
 #include "jtree.h"
 #include "sqlfunc.h"
 #include "winfunc.h"
-#include "wtfunc.h"
+#include "wtpaint.h"
 
 using namespace std;
 extern const string sroot;
@@ -16,22 +16,24 @@ public:
 	const vector<vector<int>> tree_st;
 	const vector<wstring> wtree_pl;
 	const vector<string> tree_pl;
-	const vector<string> list;
+	const vector<string> list, listCol, listRow;
 	const vector<wstring> wlist;
-	const vector<vector<wstring>> wtable;
+	const vector<vector<string>> table;
 	const vector<string> ancestry;
 	const string stext;
 	const vector<Wt::WPainterPath> wpPaths;
 	const vector<vector<Wt::WPointF>> areas;
 	const vector<double> regionData;
 
-	enum eType { Connect, Table, Map, List, RootLayer, YearLayer, DescLayer, RegionLayer, DivLayer };
+	enum eType { Connect, Label, Map, Table, Topic, Variable };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<vector<Wt::WPointF>> get_areas() const { return areas; }
 	vector<string> get_list() const { return list; }
+	vector<string> getListCol() const { return listCol; }
+	vector<string> getListRow() const { return listRow; }
 	vector<wstring> get_wlist() const { return wlist; }
-	vector<vector<wstring>> get_wtable() const { return wtable; }
+	vector<vector<string>> getTable() const { return table; }
 	string get_text() const { return stext; }
 	vector<string> get_tree_pl() const { return tree_pl; }
 	vector<vector<int>> get_tree_st() const { return tree_st; }
@@ -47,18 +49,6 @@ private:
 	// Constructor for eType Connect.
 	DataEvent(eType et, const string& sID) : etype(et), sessionID(sID) {}
 
-	// Constructor for eTypes Table, DescLayer, RegionLayer.
-	DataEvent(eType et, const string& sID, const vector<vector<wstring>>& wtbl)
-		: etype(et), sessionID(sID), wtable(wtbl) {}
-
-	// Constructor for eTypes List, RootLayer, YearLayer.
-	DataEvent(eType et, const string& sID, const vector<string>& lst) 
-		: etype(et), sessionID(sID), list(lst) {}
-
-	// Constructor for eType DivLayer.
-	DataEvent(eType et, const string& sID, const vector<wstring>& wlst)
-		: etype(et), sessionID(sID), wtree_pl(wlst) {}
-
 	// Constructor for eType Label.
 	DataEvent(eType et, const string& sID, const string& txt)
 		: etype(et), sessionID(sID), stext(txt) {}
@@ -66,6 +56,18 @@ private:
 	// Constructor for eType Map.
 	DataEvent(eType et, const vector<string>& sIDregion, const vector<vector<Wt::WPointF>>& area, const vector<double>& rData)
 		: etype(et), sessionID(sIDregion[0]), list(sIDregion), areas(area), regionData(rData) {}
+
+	// Constructor for eType Table.
+	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<string>& vsCol, const vector<string>& vsRow)
+		: etype(et), sessionID(sID), table(vvsTable), listCol(vsCol), listRow(vsRow) {}
+
+	// Constructor for eType Topic.
+	DataEvent(eType et, const string& sID, const vector<string>& vsCol, const vector<string>& vsRow)
+		: etype(et), sessionID(sID), listCol(vsCol), listRow(vsRow) {}
+
+	// Constructor for eType Variable.
+	DataEvent(eType et, const string& sID, const vector<string>& lst)
+		: etype(et), sessionID(sID), list(lst) {}
 
 	friend class SCDAserver;
 };
@@ -90,26 +92,26 @@ public:
 	double binMapScale(string& tname0);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init();
+	vector<vector<string>> getCatalogue(string sYear, string sCategory, string sColTopic, string sRowTopic);
+	vector<string> getDataIndex(string sYear, string sCata, string sDIM);
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
 	void getSmallGeo(vector<vector<string>>& smallGeo, string cataName);
 	long long getTimer();
-	vector<string> getYearList();
+	vector<string> getTopicList(string sYear);
+	vector<string> getYear(string sYear);
 	void pullMap(vector<string> prompt);
 	vector<Wt::WPointF> pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling);
 	vector<Wt::WPointF> pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& smallGeo, vector<double>& mapScaling);
 	void pullMapParentBackspace(vector<vector<string>>& smallGeo, string cataName);
-	void pullLayer(int layer, vector<string> prompt);
-	void pullList(vector<string> prompt);
-	void pullRegion(vector<string> prompt);
 	void pullTable(vector<string> prompt);
-	void setDesc(vector<string>);
-	void setYear(vector<string>);
+	void pullTopic(vector<string> prompt);
+	void pullVariable(vector<string> prompt);
 
 private:
-	vector<string> vsTemp;
 	JFUNC jf;
 	SQLFUNC sf;
-	WTFUNC *wtf;
+	vector<string> vsTemp;
+	WTPAINT *wtf;
 	struct UserInfo
 	{
 		string sessionID;

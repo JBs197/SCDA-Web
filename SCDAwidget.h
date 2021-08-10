@@ -24,12 +24,11 @@ extern const string sroot;
 
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
-	string activeDesc, activeDiv, activeRegion, activeYear;
+	string activeCategory, activeColTopic, activeRowTopic, activeYear;
 	vector<int> cbActive;
 	vector<string> commMap;
 	string db_path = sroot + "\\SCDA.db";
-	bool debug = 1;
-	vector<Wt::WString> defNames, mapRegionList;
+	vector<Wt::WString> mapRegionList;
 	JFUNC jf;
 	JTREE jt;
 	enum Layer { Root, Year, Description, Region, Division };
@@ -44,41 +43,42 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	enum treeType { Tree, Subtree };
 	const Wt::WString wsAll = Wt::WString("All");
 
-	WTFUNC *wtMap;
+	WTPAINT* wtMap;
 	Wt::WColor colourSelected, colourWhite;
-	Wt::WContainerWidget *boxControl, *boxData, *boxTest, *boxLoad, *boxSearch, *boxTable, *boxList;
-	Wt::WComboBox *cbYear, *cbDesc, *cbRegion, *cbDiv;
+	Wt::WComboBox *cbCategory, *cbColTopic, *cbColTopicTable, *cbRowTopic, *cbRowTopicTable;
+	Wt::WComboBox *cbYear;
 	Wt::WImage* imgMap;
+	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* lineEditTest, *lineEditSearch;
-	Wt::WPanel *panelYear, *panelDesc, *panelRegion, *panelDiv;
-	Wt::WPushButton *pbTest, *pbTable, *pbMap, *pbSearch;
+	Wt::WPanel *panelCategory, *panelColTopic, *panelRowTopic, *panelYear;
+	Wt::WPushButton *pbColTopic, *pbMobile, *pbRowTopic;
 	Wt::WSelectionBox* sbList;
 	Wt::WSpinBox* spinBoxMapX, *spinBoxMapY, *spinBoxMapRot;
 	SCDAserver& sRef;
-	Wt::WTable* wtTable;
+	Wt::WTable* tableData;
 	Wt::WTabWidget* tabData;
 	Wt::WText* textMessage, *tableTitle, *textTable, *textList;
 	Wt::WTree *treeCata;
 	Wt::WTreeNode* treeRoot;
 
-	void cbDescClicked();
-	void cbDivClicked();
-	void cbRegionClicked();
+	vector<Wt::WComboBox*> varCB;
+	vector<Wt::WPanel*> varPanel;
+
+	void cbCategoryClicked();
+	void cbColRowClicked(string id);
+	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem);
+	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem, string selItem);
+	void cbVariableClicked();
 	void cbYearClicked();
 	void connect();
-	void folderClicked(Wt::WString wsTable);
+	string getVariable();
 	void init();
 	void initUI();
 	void makeUI();
 	void mouseMapClick(const Wt::WMouseEvent& e);
-	void pbMapClicked();
-	void pbSearchClicked();
-	void pbTestClicked();
-	void pbTableClicked();
 	void processDataEvent(const DataEvent& event);
 	void selectTableCell(int iRow, int iCol);
 	void selectTableRow(int iRow);
-	void setLayer(Layer layer, vector<string> prompt);
 	void setTable(vector<string> prompt);
 	void tableClicked(Wt::WString wsTable);
 	void updateMapRegionList(vector<string>& sList, vector<Wt::WString>& wsList, int mode);

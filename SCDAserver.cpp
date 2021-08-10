@@ -96,8 +96,175 @@ void SCDAserver::err(string func)
 void SCDAserver::init()
 {
 	sf.init(db_path);
-	auto uniqueWtf = make_unique<WTFUNC>(vsTemp);
+	auto uniqueWtf = make_unique<WTPAINT>(vsTemp);
 	wtf = uniqueWtf.get();
+}
+vector<vector<string>> SCDAserver::getCatalogue(string sYear, string sCategory, string sColTopic, string sRowTopic)
+{
+	// For a complete or incomplete set of criteria, return the list of catalogues that
+	// match that criteria. Return form [year index][sYear, sCata0, sCata1, ...].
+	if (sYear.size() < 1 || sCategory.size() < 1 || sColTopic.size() < 1 || sRowTopic.size() < 1) { jf.err("Missing input-SCDAserver.getCatalogue"); }
+	vector<vector<string>> vvsCata, vvsResult;
+	vector<string> vsResult, vsYear, conditions;
+	string tname, result, sColDIM, sRowDIM;
+	int colDIMIndex, rowDIMIndex;
+	vector<string> search = { "Year" }, dirt = { "'" }, soap = { "''" };
+	if (sYear == "*")
+	{
+		tname = "Census";
+		sf.select(search, tname, vsYear);
+	}
+	else { vsYear = getYear(sYear); }
+
+	if (sCategory == "*")  // Return results for all topical categories.
+	{
+		vvsCata.resize(vsYear.size(), vector<string>(1));
+		for (int ii = 0; ii < vvsCata.size(); ii++)
+		{
+			vvsCata[ii][0] = vsYear[ii];
+		}
+
+		search = { "Catalogue" };
+		for (int ii = 0; ii < vvsCata.size(); ii++)
+		{
+			vsResult.clear();
+			tname = "Census$" + vvsCata[ii][0];
+			sf.select(search, tname, vsResult);
+			vvsCata[ii].resize(1 + vsResult.size());
+			for (int jj = 0; jj < vsResult.size(); jj++)
+			{
+				vvsCata[ii][1 + jj] = vsResult[jj];
+			}
+		}		
+	}
+	else  // Return results for a given topical category.
+	{
+		// Establish which years contain this category.
+		search = { "Topic Index" };
+		jf.clean(sCategory, dirt, soap);
+		conditions = { "Topic LIKE " + sCategory };
+		for (int ii = 0; ii < vsYear.size(); ii++)
+		{
+			tname = "Topic$" + vsYear[ii];
+			result.clear();
+			sf.select(search, tname, result, conditions);
+			if (result.size() > 0) 
+			{ 
+				vvsCata.push_back({ vsYear[ii] });
+			}
+		}
+		if (vvsCata.size() < 1) { jf.err("Category not found-SCDAserver.getCatalogue"); }
+
+		// Determine which catalogues, per year, contain this category.
+		search = { "Catalogue" };
+		for (int ii = 0; ii < vvsCata.size(); ii++)
+		{
+			tname = "Census$" + vvsCata[ii][0];
+			sf.select(search, tname, vvsCata[ii], conditions);
+		}
+
+		// Eliminate catalogues that do not comply with the column/row criteria.
+		search = { "DIMIndex", "DIM" };
+		if (sColTopic != "*" || sRowTopic != "*")
+		{
+			for (int ii = 0; ii < vvsCata.size(); ii++)
+			{
+				for (int jj = 1; jj < vvsCata[ii].size(); jj++)
+				{
+					tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIMIndex";
+					vvsResult.clear();
+					sf.select(search, tname, vvsResult);
+					if (vvsResult.size() > 1)  // Normal catalogue.
+					{
+						colDIMIndex = vvsResult.size() - 1;
+						rowDIMIndex = vvsResult.size() - 2;
+						if (sColTopic == "*")
+						{
+							sRowDIM = vvsResult[rowDIMIndex][1];
+							if (sRowDIM != sRowTopic)
+							{
+								vvsCata[ii].erase(vvsCata[ii].begin() + jj);
+								jj--;
+								continue;
+							}
+						}
+						else if (sRowTopic == "*")
+						{
+							sColDIM = vvsResult[colDIMIndex][1];
+							if (sColDIM != sColTopic)
+							{
+								vvsCata[ii].erase(vvsCata[ii].begin() + jj);
+								jj--;
+								continue;
+							}
+						}
+						else
+						{
+							sColDIM = vvsResult[colDIMIndex][1];
+							sRowDIM = vvsResult[rowDIMIndex][1];
+							if (sColDIM != sColTopic || sRowDIM != sRowTopic)
+							{
+								vvsCata[ii].erase(vvsCata[ii].begin() + jj);
+								jj--;
+								continue;
+							}
+						}
+					}
+					else if (vvsResult.size() == 1)  // noDIM catalogue.
+					{
+						if (sColTopic != "*" && sColTopic != "Value")
+						{ 
+							vvsCata[ii].erase(vvsCata[ii].begin() + jj);
+							jj--;
+							continue; 
+						}
+						sRowDIM = vvsResult[0][1];
+						if (sRowTopic != "*" && sRowTopic != sRowDIM)
+						{
+							vvsCata[ii].erase(vvsCata[ii].begin() + jj);
+							jj--;
+							continue;
+						}
+					}
+					else { jf.err("Empty DIMIndex-SCDAserver.getCatalogue"); }
+				}
+				if (vvsCata[ii].size() < 2)
+				{
+					vvsCata.erase(vvsCata.begin() + ii);
+					ii--;
+				}
+			}
+		}
+	}
+	return vvsCata;
+}
+vector<string> SCDAserver::getDataIndex(string sYear, string sCata, string sDIM)
+{
+	// Returns the unique DataIndex for the given combination of DIMs.
+	string temp;
+	vector<string> vsDataIndex, vsDIM, conditions;
+	size_t pos1 = 0;
+	size_t pos2 = sDIM.find('$');
+	while (pos2 < sDIM.size())
+	{
+		vsDIM.push_back(sDIM.substr(pos1, pos2 - pos1));
+		pos1 = pos2 + 1;
+		pos2 = sDIM.find('$', pos1);
+	}
+	vsDIM.push_back(sDIM.substr(pos1));
+
+	string tname = "DataIndex$" + sYear + "$" + sCata;
+	vector<string> search = { "DataIndex" };
+	for (int ii = 0; ii < vsDIM.size(); ii++)
+	{
+		temp.clear();
+		if (ii > 0) { temp += "AND "; }
+		temp += "DIM" + to_string(ii) + " = " + vsDIM[ii];
+		conditions.push_back(temp);
+	}
+	sf.select(search, tname, vsDataIndex, conditions);
+	if (vsDataIndex.size() < 1) { jf.err("No DataIndex found-SCDAserver.getDataIndex"); }
+	return vsDataIndex;
 }
 string SCDAserver::getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle)
 {
@@ -188,9 +355,54 @@ long long SCDAserver::getTimer()
 {
 	return jf.timerStop();
 }
-vector<string> SCDAserver::getYearList()
+vector<string> SCDAserver::getTopicList(string sYear)
 {
-	return sf.selectYears();
+	// Returns an alphabetically-sorted list of topical categories for the 
+	// given external year.
+	vector<string> vsTopic;
+	string tname;
+	set<string> setTopic;
+	vector<string> search = { "Topic" };
+	vector<string> vsYear = getYear(sYear);
+	lock_guard<mutex> lg(m_server);
+	for (int ii = 0; ii < vsYear.size(); ii++)
+	{
+		tname = "Topic$" + vsYear[ii];
+		sf.select(search, tname, vsTopic);
+	}
+	for (int ii = 0; ii < vsTopic.size(); ii++)  // Filter out repeated entries.
+	{
+		if (setTopic.count(vsTopic[ii])) 
+		{ 
+			vsTopic.erase(vsTopic.begin() + ii);
+			ii--; 
+		}
+		else { setTopic.emplace(vsTopic[ii]); }
+	}
+	sort(vsTopic.begin(), vsTopic.end());
+	return vsTopic;
+}
+vector<string> SCDAserver::getYear(string sYear)
+{
+	// Returns a list of internal years represented by a single external year. 
+	vector<string> vsYear;
+	if (sYear == "2016") { vsYear = { "2016", "2017" }; }
+	else if (sYear == "2011") { vsYear = { "2011", "2013" }; }
+	else { vsYear = { sYear }; }
+	return vsYear;
+}
+void SCDAserver::postDataEvent(const DataEvent& event, string sID)
+{
+	string temp;
+	for (userMap::const_iterator ii = users.begin(); ii != users.end(); ii++)
+	{
+		temp = ii->second.sessionID;
+		if (temp == sID)
+		{
+			serverRef.post(sID, bind(ii->second.eventCallback, event));
+			break;
+		}
+	}
 }
 void SCDAserver::pullMap(vector<string> prompt)
 {
@@ -380,197 +592,149 @@ void SCDAserver::pullMapParentBackspace(vector<vector<string>>& smallGeo, string
 	conditions = { "GID = " + gidParent };
 	sf.select(search, tname, smallGeo[0], conditions);
 }
-void SCDAserver::postDataEvent(const DataEvent& event, string sID)
-{
-	lock_guard<mutex> lock(m_server);
-	string temp;
-	for (userMap::const_iterator ii = users.begin(); ii != users.end(); ii++)
-	{
-		temp = ii->second.sessionID;
-		if (temp == sID)
-		{
-			serverRef.post(sID, bind(ii->second.eventCallback, event));
-			break;
-		}
-	}
-}
-void SCDAserver::pullLayer(int layer, vector<string> prompt)
-{
-	// prompt form [sessionID, syear, sdesc, sregion, sdiv, ...] as applicable.
-	jf.timerStart();
-	string tname, sname, gid;
-	wstring wtemp;
-	vector<string> search, conditions, yearList, descList, regionList, divRow;
-	vector<string> colTitles;
-	vector<wstring> ancestry;
-	vector<vector<wstring>> results;
-	int maxCol;
-	long long timer;
-
-	switch (layer)
-	{
-	case 0:  // set Root
-		// prompt has form [sID].
-		yearList = sf.selectYears();
-		postDataEvent(DataEvent(DataEvent::RootLayer, prompt[0], yearList), prompt[0]);
-		break;
-	case 1:  // set Year
-	{
-		// prompt has form [sID, sYear].
-		search = { "Description" };
-		tname = "TCatalogueIndex";
-		conditions = {
-			"Year LIKE " + prompt[1],
-			" AND Description NOT LIKE Incomplete" };
-		sf.select(search, tname, descList, conditions);
-		postDataEvent(DataEvent(DataEvent::YearLayer, prompt[0], descList), prompt[0]);
-		break;
-	}
-	case 2:  // set Desc  NOTE: this layer returns the first TWO layers of regions.
-	{
-		// prompt has form [sID, sYear, sDesc].
-		search = { "Name" };
-		tname = "TCatalogueIndex";
-		sf.sclean(prompt[2], 1);  // Double apostraphes.
-		conditions = { "Description LIKE " + prompt[2] };
-		sf.select(search, tname, sname, conditions);
-		if (sname.size() < 1) { jf.err("select-SCDAserver.pullLayer"); }
-		tname = "TG_Region$" + sname;
-		sf.get_col_titles(tname, colTitles);
-		if (colTitles.size() == 2)
-		{
-			search = { "GID", "Region Name"};
-			sf.select(search, tname, results);
-		}
-		else if (colTitles.size() == 3)
-		{
-			search = { "GID", "Region Name", "param2" };
-			sf.select(search, tname, results);
-		}
-		else if (colTitles.size() > 3)
-		{
-			search = { "GID", "Region Name", "param2" };
-			conditions = { "param3 IS NULL" };
-			sf.select(search, tname, results, conditions);
-		}
-		else { jf.err("colTitles-SCDAserver.pullLayer"); }
-		jf.removeBlanks(results);
-		postDataEvent(DataEvent(DataEvent::DescLayer, prompt[0], results), prompt[0]);
-		break;
-	}
-	case 3:  // set Region   NOTE: this layer returns the remainder of TGRegion.
-	{
-		search = { "Name" };
-		tname = "TCatalogueIndex";
-		conditions = { "Description LIKE " + prompt[2] };
-		sf.select(search, tname, sname, conditions);
-		
-		tname = "TG_Region$" + sname;
-		maxCol = sf.get_num_col(tname);
-		if (maxCol < 4)
-		{
-			results.clear();
-			postDataEvent(DataEvent(DataEvent::RegionLayer, prompt[0], results), prompt[0]);
-			break;
-		}
-		search = { "GID" };  
-		conditions = { "[Region Name] LIKE " + prompt[3] };
-		sf.select(search, tname, gid, conditions);
-
-		search = { "GID", "Region Name" };
-		conditions = { "param3 = " + gid };
-		for (int ii = 4; ii < maxCol; ii++)
-		{
-			search.push_back("param" + to_string(ii));
-		}
-		sf.select(search, tname, results, conditions);
-		jf.removeBlanks(results);
-		postDataEvent(DataEvent(DataEvent::RegionLayer, prompt[0], results), prompt[0]);
-		break;
-	}
-	case 4:  // set Division   NOTE: this layer returns the remainder of TGRegion.
-	{
-		search = { "Name" };
-		tname = "TCatalogueIndex";
-		conditions = { "Description LIKE " + prompt[2] };
-		sf.select(search, tname, sname, conditions);
-
-		tname = "TG_Region$" + sname;
-		maxCol = sf.get_num_col(tname);
-
-		search = { "*" };
-		conditions = { "[Region Name] LIKE " + prompt[3] };
-		sf.select(search, tname, divRow, conditions);
-
-		search = { "Region Name" };
-		jf.removeBlanks(divRow);
-		for (int ii = 2; ii < divRow.size(); ii++)
-		{
-			conditions = { "GID = " + divRow[ii] };
-			sf.select(search, tname, wtemp, conditions);
-			ancestry.push_back(wtemp);
-		}
-		ancestry.push_back(jf.utf8to16(prompt[3]));
-
-		postDataEvent(DataEvent(DataEvent::DivLayer, prompt[0], ancestry), prompt[0]);
-		break;
-	}
-	}
-	timer = jf.timerStop();
-	jf.logTime("pullLayer(" + to_string(layer) + ")", timer);
-}
-void SCDAserver::pullList(vector<string> prompt)
-{
-	// prompt has form [sessionID, table name].
-	vector<string> sList;
-	if (prompt[1] == "all")
-	{
-		sf.all_tables(sList);
-	}
-	else 
-	{
-		sList = sf.getTableList(prompt[1]);
-	}
-	postDataEvent(DataEvent(DataEvent::List, prompt[0], sList), prompt[0]);
-}
-void SCDAserver::pullRegion(vector<string> prompt)
-{
-	// prompt has form [sessionID, cata desc, region name].
-	vector<string> search = { "Name" };
-	string tname = "TCatalogueIndex";
-	string cataName;
-	vector<string> conditions = { "Description LIKE " + prompt[1] };
-	sf.select(search, tname, cataName, conditions);
-
-	string gid;
-	search = { "GID" };
-	tname = "TG_Region$" + cataName;
-	string temp = prompt[2];
-	sf.sclean(temp, 1);
-	conditions = { "[Region Name] LIKE " + temp };
-	sf.select(search, tname, gid, conditions);
-
-	tname = cataName + "$" + gid;
-	vector<vector<wstring>> theTable(1, vector<wstring>());
-	vector<string> colTitles;
-	sf.get_col_titles(tname, colTitles);
-	theTable[0].resize(colTitles.size());
-	for (int ii = 0; ii < colTitles.size(); ii++)
-	{
-		theTable[0][ii] = jf.utf8to16(colTitles[ii]);
-	}
-	search = { "*" };
-	sf.select(search, tname, theTable);
-	postDataEvent(DataEvent(DataEvent::Table, prompt[0], theTable), prompt[0]);
-}
 void SCDAserver::pullTable(vector<string> prompt)
 {
-	// prompt has form [sessionID, table name].
-	vector<vector<wstring>> theTable;
-	vector<string> colTitles;
-	sf.get_col_titles(prompt[1], colTitles);
-	vector<string> search = { "*" };
-	sf.select(search, prompt[1], theTable);
-	postDataEvent(DataEvent(DataEvent::Table, prompt[0], theTable), prompt[0]);
-}
+	// Prompt has form [id, year, cata, sDIM, GEO_CODE].
+	vector<vector<string>> vvsTable;
+	vector<string> vsCol, vsRow, vsResult, vsDataIndex, conditions;
+	string tnameDIM, tnameDim, tnameData;
+	int iCol, iRow, index;
+	vector<string> search = { "DIMIndex" };
+	string tname = "Census$" + prompt[1] + "$" + prompt[2] + "$DIMIndex";
+	sf.select(search, tname, vsResult);
+	if (vsResult.size() == 0) { jf.err("Empty DIMIndex-SCDAserver.pullTable"); }
+	else if (vsResult.size() == 1)  // noDIM table.
+	{
+		tnameDim = "Census$" + prompt[1] + "$" + prompt[2] + "$Dim";
+		search = { "Dim" };
+		sf.select(search, tnameDim, vsRow);
+		if (vsRow.size() < 1) { jf.err("No dim found for noDIM-SCDAserver.pullTable"); }
+		vsCol = { "Value" };
+		tnameData = "Data$" + prompt[1] + "$" + prompt[2] + "$" + prompt[4];
+		search = { "*" };
+		sf.select(search, tnameData, vvsTable);
+		if (vvsTable.size() < 1) { jf.err("No data returned for noDIM-SCDAserver.pullTable"); }
+	}
+	else
+	{
+		tnameDim = "Census$" + prompt[1] + "$" + prompt[2] + "$Dim";
+		search = { "Dim" };
+		sf.select(search, tnameDim, vsCol);
+		if (vsCol.size() < 1) { jf.err("No columns found-SCDAserver.pullTable"); }
+		iRow = vsResult.size() - 2;
+		tnameDIM = "Census$" + prompt[1] + "$" + prompt[2] + "$DIM$" + to_string(iRow);
+		search = { "DIM" };
+		sf.select(search, tnameDIM, vsRow);
+		if (vsRow.size() < 1) { jf.err("No rows found-SCDAserver.pullTable"); }
 
+		vsDataIndex = getDataIndex(prompt[1], prompt[2], prompt[3]);
+		tnameData = "Data$" + prompt[1] + "$" + prompt[2] + "$" + prompt[4];
+		search = { "*" };
+		for (int ii = 0; ii < vsDataIndex.size(); ii++)
+		{
+			vsResult.clear();
+			conditions = { "DataIndex = " + vsDataIndex[ii] };
+			sf.select(search, tnameData, vsResult, conditions);
+			if (vsResult.size() < 1) { jf.err("No data found-SCDAserver.pullTable"); }
+			index = vvsTable.size();
+			vvsTable.push_back(vector<string>());
+			vvsTable[index].assign(vsResult.begin() + 1, vsResult.end());
+		}
+	}
+	postDataEvent(DataEvent(DataEvent::Table, prompt[0], vvsTable, vsCol, vsRow), prompt[0]);
+}
+void SCDAserver::pullTopic(vector<string> prompt)
+{
+	// Posts an event containing the list of options for the column topic and
+	// the row topic. The prompt has form [id, year, category, colTopic, rowTopic].
+	vector<vector<string>> vvsCata = getCatalogue(prompt[1], prompt[2], prompt[3], prompt[4]);
+	vector<vector<string>> vvsResult;
+	vector<string> vsColTopic, vsRowTopic;
+	string tname, temp, sCol, sRow;
+	set<string> setColTopic, setRowTopic;
+	vector<string> search = { "DIMIndex", "DIM" }, dirt = {"'"}, soap = {"''"};
+
+	int numCata = 0;
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		numCata += vvsCata[ii].size() - 1;
+	}
+	if (numCata == 0) { jf.err("All catalogues were eliminated-SCDAserver.pullTopic"); }
+
+	lock_guard<mutex> lg(m_server);
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		for (int jj = 1; jj < vvsCata[ii].size(); jj++)
+		{
+			tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIMIndex";
+			vvsResult.clear();
+			sf.select(search, tname, vvsResult);
+			if (vvsResult.size() > 1)  // Normal table.
+			{
+				sCol = vvsResult[vvsResult.size() - 1][1];
+				sRow = vvsResult[vvsResult.size() - 2][1];
+				if (prompt[3] == "*" || prompt[3] == sCol)
+				{
+					if (!setRowTopic.count(sRow))
+					{
+						vsRowTopic.push_back(sRow);
+						setRowTopic.emplace(sRow);
+					}
+				}
+				if (prompt[4] == "*" || prompt[4] == sRow)
+				{
+					if (!setColTopic.count(sCol))
+					{
+						vsColTopic.push_back(sCol);
+						setColTopic.emplace(sCol);
+					}
+				}
+			}
+			else if (vvsResult.size() == 1)  // noDIM table.
+			{
+				sRow = vvsResult[vvsResult.size() - 1][1];
+				if (prompt[3] == "*")
+				{
+					if (!setRowTopic.count(sRow))
+					{
+						vsRowTopic.push_back(sRow);
+						setRowTopic.emplace(sRow);
+					}
+				}
+			}
+			else { jf.err("No DIMIndex found-SCDAserver.pullTopic"); }
+		}
+	}
+	if (vsRowTopic.size() < 1) { jf.err("All row topics eliminated-SCDAserver.pullTopic"); }
+	if (vsColTopic.size() < 1) 
+	{ 
+		vsColTopic.push_back("Value");
+	}
+	postDataEvent(DataEvent(DataEvent::Topic, prompt[0], vsColTopic, vsRowTopic), prompt[0]);
+}
+void SCDAserver::pullVariable(vector<string> prompt)
+{
+	// Creates a "variable" event for the next unspecified DIM. If all DIMs are set,
+	// then this function will create a "table" event instead. 
+	// Prompt has form [id, year, category, colTopic, rowTopic, sDIM].
+	if (prompt[3] == "*" || prompt[4] == "*") { jf.err("No wildcards allowed-SCDAserver.pullVariable"); }
+	vector<vector<string>> vvsResult;
+	vector<vector<string>> vvsCata = getCatalogue(prompt[1], prompt[2], prompt[3], prompt[4]);
+	int numCata = 0;
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		numCata += vvsCata[ii].size() - 1;
+	}
+	if (numCata != 1) { jf.err("Multiple catalogues-SCDAserver.pullVariable"); }
+
+	lock_guard<mutex> lg(m_server);
+	vector<string> search = { "DIMIndex", "DIM" };
+	string tname = "Census$" + vvsCata[0][0] + "$" + vvsCata[0][1] + "$DIMIndex";
+	sf.select(search, tname, vvsResult);
+	if (vvsResult.size() == 0) { jf.err("Empty DIMIndex-SCDAserver.pullVariable"); }
+	else if (vvsResult.size() == 1)
+	{
+
+	}
+
+}
