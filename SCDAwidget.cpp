@@ -4,6 +4,7 @@ void SCDAwidget::cbCategoryClicked()
 {
 	// Populate tableData with its "input form", containing options for the user
 	// to choose column and row topics. 
+	resetVariable();
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt(5);
 	activeColTopic = "*";
@@ -34,6 +35,7 @@ void SCDAwidget::cbColRowClicked(string id)
 {
 	// When a column or row topic is specified, obtain an updated listing for
 	// its opposite (column/row), and for its mirror (side panel/input table).
+	resetVariable();
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt(5);
 	Wt::WString wTemp;
@@ -80,12 +82,34 @@ void SCDAwidget::cbColRowClicked(string id)
 	}
 	else
 	{
-		sRef.pullVariable(prompt);
+		vector<vector<string>> vvsDummy;
+		sRef.pullVariable(prompt, vvsDummy);
 	}
+}
+void SCDAwidget::cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem)
+{
+	// Repopulate the combobox with the given list, showing the top item. 
+	cb->clear();
+	for (int ii = 0; ii < vsItem.size(); ii++)
+	{
+		cb->addItem(vsItem[ii]);
+	}
+	cb->setCurrentIndex(0);
 }
 void SCDAwidget::cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem)
 {
 	cbRenew(cb, sTop, vsItem, sTop);  // Default is top item shown. 
+}
+void SCDAwidget::cbRenew(Wt::WComboBox*& cb, string sTop, vector<vector<string>>& vvsItem)
+{
+	// Populates the combobox with sTop, followed by the final elements of vvsItem.
+	cb->clear();
+	cb->addItem(sTop);
+	for (int ii = 0; ii < vvsItem.size(); ii++)
+	{
+		cb->addItem(vvsItem[ii].back());
+	}
+	cb->setCurrentIndex(0);
 }
 void SCDAwidget::cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem, string selItem)
 {
@@ -100,17 +124,81 @@ void SCDAwidget::cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem
 	}
 	cb->setCurrentIndex(index + 1);
 }
-void SCDAwidget::cbVariableClicked()
+void SCDAwidget::cbVarMIDClicked(string id)
 {
 	Wt::WApplication* app = Wt::WApplication::instance();
-	vector<string> prompt(6);
+	vector<string> prompt(5);
 	prompt[0] = app->sessionId();
 	prompt[1] = activeYear;
 	prompt[2] = activeCategory;
 	prompt[3] = activeColTopic;
 	prompt[4] = activeRowTopic;
-	prompt[5] = getVariable();
-	sRef.pullVariable(prompt);
+	auto boxChildren = boxConfig->children();
+	int numVar = boxChildren.size() - 5;
+	vector<vector<string>> vvsVariable;
+	string sTitle, sMID;
+	Wt::WString wTemp;
+	for (int ii = 0; ii < numVar; ii++)
+	{
+		wTemp = varTitle[ii]->currentText();
+		sTitle = wTemp.toUTF8();
+		wTemp = varMID[ii]->currentText();
+		sMID = wTemp.toUTF8();
+		vvsVariable.push_back({ sTitle, sMID });
+	}  
+	sRef.pullVariable(prompt, vvsVariable);
+}
+void SCDAwidget::cbVarTitleClicked(string id)
+{
+	int removeVar = -1;
+	int index = mapVarIndex.at(id);
+	Wt::WString wTemp = varTitle[index]->currentText();
+	string sTitle;
+	string sTitleClicked = wTemp.toUTF8();
+	string sTop = "[None selected]";
+	if (sTitleClicked == sTop)
+	{
+		varPanel[index]->setTitle("Select a parameter ...");
+		varMID[index]->clear();
+		varMID[index]->addItem(sTop);
+		varMID[index]->setEnabled(0);
+		return; 
+	}
+	else  // If this title already exists in a panel, delete that panel. (There can be only one ... !)
+	{
+		auto boxChildren = boxConfig->children();
+		for (int ii = numPreVariable; ii < boxChildren.size(); ii++)
+		{
+			if (ii - numPreVariable == index) { continue; }
+			wTemp = varTitle[ii - numPreVariable]->currentText();
+			sTitle = wTemp.toUTF8();
+			if (sTitle == sTitleClicked)
+			{
+				removeVar = ii - numPreVariable;
+				break;
+			}
+		}
+	}
+	vector<string> vsMID;
+	for (int ii = 0; ii < vvsParameter.size(); ii++)
+	{
+		if (vvsParameter[ii].back() == sTitleClicked)
+		{
+			vsMID = vvsParameter[ii];
+			break;
+		}
+	}
+	vsMID.pop_back();
+	varMID[index]->setEnabled(1);
+	cbRenew(varMID[index], vsMID);
+	varPanel[index]->setTitle("Parameter");
+	cbVarMIDClicked("");
+	if (removeVar >= 0) 
+	{ 
+		Wt::WApplication* app = Wt::WApplication::instance();
+		app->processEvents();
+		removeVariable(removeVar); 
+	}
 }
 void SCDAwidget::cbYearClicked()
 {
@@ -125,18 +213,6 @@ void SCDAwidget::connect()
 		Wt::WApplication::instance()->enableUpdates(1);
 		sessionID = Wt::WApplication::instance()->sessionId();
 	}
-}
-string SCDAwidget::getVariable()
-{
-	string sVar = "";
-	int iVar;
-	for (int ii = 0; ii < varCB.size(); ii++)
-	{
-		iVar = varCB[ii]->currentIndex();
-		if (ii > 0) { sVar += "$"; }
-		sVar += to_string(iVar);
-	}
-	return sVar;
 }
 void SCDAwidget::init()
 {
@@ -200,6 +276,8 @@ void SCDAwidget::makeUI()
 	this->clear();
 	auto hLayout = make_unique<Wt::WHBoxLayout>();
 
+	auto boxConfigUnique = make_unique<Wt::WContainerWidget>();
+	boxConfig = boxConfigUnique.get();
 	auto vLayoutConfig = make_unique<Wt::WVBoxLayout>();
 	layoutConfig = vLayoutConfig.get();
 	auto pbMobileUnique = make_unique<Wt::WPushButton>();
@@ -223,6 +301,8 @@ void SCDAwidget::makeUI()
 
 	auto tabDataUnique = make_unique<Wt::WTabWidget>();
 	tabData = tabDataUnique.get();
+	auto treeRegionUnique = make_unique<Wt::WTree>();
+	treeRegion = treeRegionUnique.get();
 	auto tableDataUnique = make_unique<Wt::WTable>();
 	tableData = tableDataUnique.get();
 	auto wtMapUnique = make_unique<WTPAINT>(commMap);
@@ -238,11 +318,14 @@ void SCDAwidget::makeUI()
 	vLayoutConfig->addWidget(move(panelCategoryUnique));
 	vLayoutConfig->addWidget(move(panelRowTopicUnique));
 	vLayoutConfig->addWidget(move(panelColTopicUnique));
+	numPreVariable = vLayoutConfig->count();
+	boxConfigUnique->setLayout(move(vLayoutConfig));
 
-	tabDataUnique->addTab(move(tableDataUnique), "Table");
-	tabDataUnique->addTab(move(wtMapUnique), "Map");
+	tabDataUnique->addTab(move(treeRegionUnique), "Geographic Region");
+	tabDataUnique->addTab(move(tableDataUnique), "Data Table");
+	tabDataUnique->addTab(move(wtMapUnique), "Data Map");
 
-	hLayout->addLayout(move(vLayoutConfig), 1);
+	hLayout->addWidget(move(boxConfigUnique), 1);
 	hLayout->addWidget(move(tabDataUnique), 2);
 	this->setLayout(move(hLayout));
 }
@@ -280,22 +363,44 @@ void SCDAwidget::mouseMapClick(const Wt::WMouseEvent& e)
 		textMessage->setText(wsTemp);
 	}
 }
+void SCDAwidget::populateTree(Wt::WTree*& tree, JTREE& jt)
+{
+	auto oldRoot = tree->treeRoot();
+	if (oldRoot != nullptr) { tree->removeWidget(oldRoot); }
+	string temp = jt.getRootName();
+	auto rootUnique = make_unique<Wt::WTreeNode>(temp.c_str());
+	auto root = rootUnique.get();
+	populateTreeHelper(root, jt);
+	tree->setTreeRoot(move(rootUnique));
+}
+void SCDAwidget::populateTreeHelper(Wt::WTreeNode*& node, JTREE& jt)
+{
+	// Recursive function that takes an existing node and makes its children.
+	vector<string> vsChildren;
+	vector<int> viChildren;
+	Wt::WString wTemp = node->label()->text();
+	string sNode = wTemp.toUTF8();
+	jt.listChildren(sNode, viChildren, vsChildren);
+	for (int ii = 0; ii < vsChildren.size(); ii++)
+	{
+		auto childUnique = make_unique<Wt::WTreeNode>(vsChildren[ii].c_str());
+		auto child = childUnique.get();
+		populateTreeHelper(child, jt);
+		node->addChildNode(move(childUnique));
+	}
+}
 void SCDAwidget::processDataEvent(const DataEvent& event)
 {
 	jf.timerStart();
 	Wt::WApplication* app = Wt::WApplication::instance();
 	app->triggerUpdate();
-	vector<Wt::WTreeNode*> pYears, pDescs, pRegion1s, pRegion2s, pDivs;
-	vector<vector<Wt::WTreeNode*>> pTemps;
 	vector<vector<Wt::WPointF>> areas;
-	Wt::WTreeNode* pParent = nullptr;
-	Wt::WTreeNode* pTemp = nullptr;
 	Wt::WString wsYear, wsDesc, wsRegion;
 	wstring wtemp;
 	string sessionID = app->sessionId(), nameAreaSel;
 	vector<string> slist, listCol, listRow;
 	vector<wstring> wlist;
-	vector<vector<string>> table;
+	vector<vector<string>> table, vvsCata, vvsVariable;
 	unordered_map<wstring, int> mapW;
 	long long timer;
 	vector<int> tempIndex;
@@ -364,32 +469,155 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		
 		if (listCol.size() == 1 && listRow.size() == 1)
 		{
-			cbVariableClicked();
+			vector<vector<string>> vvsVariable;
+			vector<string> prompt(5);
+			prompt[0] = app->sessionId();
+			prompt[1] = activeYear;
+			prompt[2] = activeCategory;
+			prompt[3] = activeColTopic;
+			prompt[4] = activeRowTopic;
+			sRef.pullVariable(prompt, vvsVariable);
 		}
 		break;
 	}
-	case 5:  // Variable: create a new panel with options for the user to specify.
+	case 5:  // Tree: populate the tree tab using the JTREE object.
 	{
-		slist = event.get_list();  // Last value is the variable name.
-		if (slist.size() < 3) { jf.err("Variable event missing input-SCDAwidget.processDataEvent"); }
+		jt = event.getTree();
+		populateTree(treeRegion, jt);
+		treeRegion->setSelectionMode(Wt::SelectionMode::Single);
+		auto treeRoot = treeRegion->treeRoot();
+		treeRegion->select(treeRoot);
+		Wt::WApplication* app = Wt::WApplication::instance();
+		app->processEvents();
+		setTable(treeRegion);
+		tabData->setCurrentIndex(1);
+		break;
+	}
+	case 6:  // Variable: create a new panel with options for the user to specify.
+	{
+		vvsVariable = event.getVariable();  // Form [variable index][MID0, MID1, ..., variable title].
+		if (vvsVariable.size() < 1) { jf.err("Variable event missing input-SCDAwidget.processDataEvent"); }
+		int index = varPanel.size();
+		if (!index) { vvsParameter = vvsVariable; }  // vvsVariable represents the full list of variables.
 		string sTop = "[None selected]";
-		int index = varCB.size();
-		auto varCBUnique = make_unique<Wt::WComboBox>();
-		varCB.push_back(varCBUnique.get());		
-		auto varPanelUnique = make_unique<Wt::WPanel>();
-		varPanel.push_back(varPanelUnique.get());
-
-		varPanel[index]->setTitle(slist[slist.size() - 1].c_str());
-		slist.pop_back();
-		cbRenew(varCB[index], sTop, slist);
-		varPanelUnique->setCentralWidget(move(varCBUnique));
-		layoutConfig->addWidget(move(varPanelUnique));
+		string sTitle = "Select a parameter ...";
+		Wt::WString wTemp;
+		string temp;
 		
+		// Add a new blank panel only if there isn't already a blank panel.
+		if (varPanel.size() > 0)
+		{
+			wTemp = varPanel[varPanel.size() - 1]->title();
+			temp = wTemp.toUTF8();
+		}
+		if (temp != sTitle) 
+		{
+			auto varPanelUnique = make_unique<Wt::WPanel>();
+			varPanel.push_back(varPanelUnique.get());
+			temp = varPanelUnique->id();
+			mapVarIndex.emplace(temp, index);
+			auto varBoxUnique = make_unique<Wt::WContainerWidget>();
+			auto varVLayoutUnique = make_unique<Wt::WVBoxLayout>();
+
+			auto varCBTitleUnique = make_unique<Wt::WComboBox>();
+			varTitle.push_back(varCBTitleUnique.get());
+			temp = varCBTitleUnique->id();
+			mapVarIndex.emplace(temp, index);
+			function<void()> fnVarTitle = bind(&SCDAwidget::cbVarTitleClicked, this, temp);
+			varTitle[index]->changed().connect(fnVarTitle);
+
+			auto varCBMIDUnique = make_unique<Wt::WComboBox>();
+			varMID.push_back(varCBMIDUnique.get());
+			temp = varCBMIDUnique->id();
+			mapVarIndex.emplace(temp, index);
+			function<void()> fnVarMID = bind(&SCDAwidget::cbVarMIDClicked, this, temp);
+			varMID[index]->changed().connect(fnVarMID);
+
+			if (vvsVariable.size() == 1)  // Display the only possibility with its default MID.
+			{
+				varPanel[index]->setTitle("Parameter");
+				varTitle[index]->addItem(vvsVariable[0].back());
+				vvsVariable[0].pop_back();
+				cbRenew(varMID[index], vvsVariable[0]);
+			}
+			else
+			{
+				varPanel[index]->setTitle(sTitle);
+				cbRenew(varTitle[index], sTop, vvsVariable);
+				varMID[index]->addItem(sTop);
+				varMID[index]->setEnabled(0);
+			}
+			varVLayoutUnique->addWidget(move(varCBTitleUnique));
+			varVLayoutUnique->addWidget(move(varCBMIDUnique));
+			varBoxUnique->setLayout(move(varVLayoutUnique));
+			varPanelUnique->setCentralWidget(move(varBoxUnique));
+			layoutConfig->addWidget(move(varPanelUnique));
+		}
+
+		// If there are no more unspecified variables, populate the region tree tab.
+		if (vvsVariable.size() == 1)
+		{
+			Wt::WApplication* app = Wt::WApplication::instance();
+			app->processEvents();
+			vvsCata = event.getCata();
+			activeYear = vvsCata[0][0];
+			activeCata = vvsCata[0][1];
+			vector<string> promptTree(3);
+			promptTree[0] = app->sessionId();
+			promptTree[1] = vvsCata[0][0];
+			promptTree[2] = vvsCata[0][1];
+			sRef.pullTree(promptTree);
+		}
+	
 		break;
 	}
 	}
 	timer = jf.timerStop();
 	jf.logTime("processDataEvent#" + to_string(etype), timer);
+}
+void SCDAwidget::removeVariable(int varIndex)
+{
+	// Remove the given variable's panel widget. Update mapVarIndex, varPanel, varTitle, varMID;
+	int index;
+	string id;
+	Wt::WString wTemp;
+	auto varPanelTemp = varPanel;
+	varPanel.clear();
+	auto varTitleTemp = varTitle;
+	varTitle.clear();
+	auto varMIDTemp = varMID;
+	varMID.clear();
+	mapVarIndex.clear();
+	for (int ii = 0; ii < varPanelTemp.size(); ii++)
+	{
+		if (ii == varIndex) { continue; }
+		index = varPanel.size();
+		varPanel.push_back(varPanelTemp[ii]);
+		id = varPanel[index]->id();
+		mapVarIndex.emplace(id, index);
+		varTitle.push_back(varTitleTemp[ii]);
+		id = varTitle[index]->id();
+		mapVarIndex.emplace(id, index);
+		varMID.push_back(varMIDTemp[ii]);
+		id = varMID[index]->id();
+		mapVarIndex.emplace(id, index);
+	}
+	auto boxChildren = boxConfig->children();
+	boxConfig->removeWidget(boxChildren[numPreVariable + varIndex]);
+}
+void SCDAwidget::resetVariable()
+{
+	// Remove all "variable" panels and clear all "variable" buffers.
+	auto boxChildren = boxConfig->children();
+	for (int ii = 5; ii < boxChildren.size(); ii++)
+	{
+		boxConfig->removeWidget(boxChildren[ii]);
+	}
+	vvsParameter.clear();
+	varPanel.clear();
+	varTitle.clear();
+	varMID.clear();
+	mapVarIndex.clear();
 }
 void SCDAwidget::selectTableCell(int iRow, int iCol)
 {
@@ -425,9 +653,15 @@ void SCDAwidget::selectTableRow(int iRow)
 	selectedRow = iRow;
 	//if (pbTable->isEnabled()) { pbMap->setEnabled(1); }
 }
-void SCDAwidget::setTable(vector<string> prompt)
+void SCDAwidget::setTable(Wt::WTree*& tree)
 {
-	sRef.pullTable(prompt);
+	// This variant loads a table using a selected region from the tree. 
+	auto selNodeSet = tree->selectedNodes();
+	if (selNodeSet.size() != 1) { return; }
+	auto selNodeIt = selNodeSet.begin();
+	auto selNode = *selNodeIt;
+	Wt::WString wTemp = selNode->label()->text();
+
 }
 void SCDAwidget::tableClicked(Wt::WString wsTable)
 {

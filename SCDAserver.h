@@ -13,34 +13,30 @@ extern mutex m_server;
 class DataEvent
 {
 public:
-	const vector<vector<int>> tree_st;
-	const vector<wstring> wtree_pl;
-	const vector<string> tree_pl;
+	const JTREE tree;
 	const vector<string> list, listCol, listRow;
-	const vector<wstring> wlist;
-	const vector<vector<string>> table;
+	const vector<vector<string>> catalogue, table, variable;
 	const vector<string> ancestry;
 	const string stext;
 	const vector<Wt::WPainterPath> wpPaths;
 	const vector<vector<Wt::WPointF>> areas;
 	const vector<double> regionData;
 
-	enum eType { Connect, Label, Map, Table, Topic, Variable };
+	enum eType { Connect, Label, Map, Table, Topic, Tree, Variable };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<vector<Wt::WPointF>> get_areas() const { return areas; }
+	vector<vector<string>> getCata() const { return catalogue; }
 	vector<string> get_list() const { return list; }
 	vector<string> getListCol() const { return listCol; }
 	vector<string> getListRow() const { return listRow; }
-	vector<wstring> get_wlist() const { return wlist; }
+	vector<double> get_regionData() const { return regionData; }
 	vector<vector<string>> getTable() const { return table; }
 	string get_text() const { return stext; }
-	vector<string> get_tree_pl() const { return tree_pl; }
-	vector<vector<int>> get_tree_st() const { return tree_st; }
-	vector<wstring> get_wtree_pl() const { return wtree_pl; }
-	int type() const { return etype; }
+	JTREE getTree() const { return tree; }
+	vector<vector<string>> getVariable() const { return variable; }
 	vector<Wt::WPainterPath> get_wpPaths() const { return wpPaths; }
-	vector<double> get_regionData() const { return regionData; }
+	int type() const { return etype; }
 	
 private:
 	eType etype;
@@ -65,9 +61,13 @@ private:
 	DataEvent(eType et, const string& sID, const vector<string>& vsCol, const vector<string>& vsRow)
 		: etype(et), sessionID(sID), listCol(vsCol), listRow(vsRow) {}
 
+	// Constructor for eType Tree.
+	DataEvent(eType et, const string& sID, const JTREE& jt)
+		: etype(et), sessionID(sID), tree(jt) {}
+
 	// Constructor for eType Variable.
-	DataEvent(eType et, const string& sID, const vector<string>& lst)
-		: etype(et), sessionID(sID), list(lst) {}
+	DataEvent(eType et, const string& sID, const vector<vector<string>>& var, const vector<vector<string>>& cata)
+		: etype(et), sessionID(sID), variable(var), catalogue(cata) {}
 
 	friend class SCDAserver;
 };
@@ -92,20 +92,25 @@ public:
 	double binMapScale(string& tname0);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init();
-	vector<vector<string>> getCatalogue(string sYear, string sCategory, string sColTopic, string sRowTopic);
-	vector<string> getDataIndex(string sYear, string sCata, string sDIM);
+	vector<vector<string>> getCatalogue(vector<string>& vsPrompt);
+	vector<vector<string>> getCatalogue(vector<string>& vsPrompt, vector<vector<string>>& vvsVariable);
+	vector<string> getColTitle(string sYear, string sCata);
+	vector<string> getDataIndex(string sYear, string sCata, vector<vector<string>>& vvsDIM);
+	vector<vector<string>> getGeo(string sYear, string sCata);
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
-	void getSmallGeo(vector<vector<string>>& smallGeo, string cataName);
+	vector<string> getRowTitle(string sYear, string sCata);
 	long long getTimer();
 	vector<string> getTopicList(string sYear);
+	vector<vector<string>> getVariableCandidate(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsVariable);
 	vector<string> getYear(string sYear);
 	void pullMap(vector<string> prompt);
 	vector<Wt::WPointF> pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling);
 	vector<Wt::WPointF> pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& smallGeo, vector<double>& mapScaling);
 	void pullMapParentBackspace(vector<vector<string>>& smallGeo, string cataName);
-	void pullTable(vector<string> prompt);
+	void pullTable(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTopic(vector<string> prompt);
-	void pullVariable(vector<string> prompt);
+	void pullTree(vector<string> prompt);
+	void pullVariable(vector<string> prompt, vector<vector<string>> variable);
 
 private:
 	JFUNC jf;
