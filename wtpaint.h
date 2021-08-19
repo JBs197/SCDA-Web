@@ -13,7 +13,6 @@
 #include "jfunc.h"
 
 using namespace std;
-extern mutex m_map;
 
 class WTPAINT : public Wt::WPaintedWidget
 {
@@ -23,7 +22,6 @@ class WTPAINT : public Wt::WPaintedWidget
 	vector<string> areaNames, dataName;
 	vector<vector<Wt::WPointF>> areas;
 	const double colourDimPercent = 0.7, barThickness = 20.0;
-	vector<string>& commWidget;
 	const string defaultLength = "200.0";
 	const double defaultParentExclusionThreshold = 0.5;  // If no child's data passes this percentage of the parent's data, exclude parent from the map's legend/colour.
 	int indexAreaSel, indexAreaPrevious;
@@ -36,12 +34,7 @@ class WTPAINT : public Wt::WPaintedWidget
 	Wt::WLength wlWidth, wlHeight;	
 
 public:
-	WTPAINT(vector<string>& cW) : Wt::WPaintedWidget(), commWidget(cW)
-	{
-		wlWidth = Wt::WLength(defaultLength);
-		wlHeight = Wt::WLength(defaultLength);
-		resize(wlWidth, wlHeight);
-	}
+	WTPAINT() : Wt::WPaintedWidget() {}
 	~WTPAINT() {}
 	void areaClicked(int index);
 	void clearAreas();

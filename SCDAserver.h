@@ -5,6 +5,7 @@
 #include "sqlfunc.h"
 #include "winfunc.h"
 #include "wtpaint.h"
+#include "wjtree.h"
 
 using namespace std;
 extern const string sroot;
@@ -66,8 +67,8 @@ private:
 		: etype(et), sessionID(sID), tree(jt) {}
 
 	// Constructor for eType Variable.
-	DataEvent(eType et, const string& sID, const vector<vector<string>>& var, const vector<vector<string>>& cata)
-		: etype(et), sessionID(sID), variable(var), catalogue(cata) {}
+	DataEvent(eType et, const string& sID, const vector<vector<string>>& var, const vector<vector<string>>& cata, const vector<string>& DIMIndex)
+		: etype(et), sessionID(sID), variable(var), catalogue(cata), list(DIMIndex) {}
 
 	friend class SCDAserver;
 };
@@ -92,11 +93,14 @@ public:
 	double binMapScale(string& tname0);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init();
+	vector<vector<Wt::WPointF>> getBorderKM(vector<string>& vsGeoCode, string sYear);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt, vector<vector<string>>& vvsVariable);
 	vector<string> getColTitle(string sYear, string sCata);
 	vector<string> getDataIndex(string sYear, string sCata, vector<vector<string>>& vvsDIM);
+	vector<string> getDIMIndex(vector<vector<string>>& vvsCata);
 	vector<vector<string>> getGeo(string sYear, string sCata);
+	void getGeoFamily(vector<string>& vsGeoCode, vector<vector<string>>& geo);
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
 	vector<string> getRowTitle(string sYear, string sCata);
 	long long getTimer();
@@ -104,9 +108,6 @@ public:
 	vector<vector<string>> getVariableCandidate(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsVariable);
 	vector<string> getYear(string sYear);
 	void pullMap(vector<string> prompt);
-	vector<Wt::WPointF> pullMapChild(vector<string>& geoLayers, vector<vector<string>>& smallGeo, int myIndex, vector<double>& mapScaling);
-	vector<Wt::WPointF> pullMapParent(string& cataDesc, vector<string>& geoLayers, vector<vector<string>>& smallGeo, vector<double>& mapScaling);
-	void pullMapParentBackspace(vector<vector<string>>& smallGeo, string cataName);
 	void pullTable(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTopic(vector<string> prompt);
 	void pullTree(vector<string> prompt);

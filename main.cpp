@@ -1,7 +1,7 @@
 #include "SCDAwidget.h"
 
 using namespace std;
-mutex m_err, m_server, m_map;
+mutex m_err, m_server;
 const string sroot = "E:";
 
 class SCDAapp : public Wt::WApplication
@@ -34,8 +34,14 @@ string getConfigPath(const string& execPath)
 	pos1 = execPath.rfind('\\', pos1 - 1); // Debug or release.
 	pos1 = execPath.rfind('\\', pos1 - 1);  // Project folder.
 	string projDir = execPath.substr(0, pos1);
-	projDir += "\\html\\wt_config.xml";
-	return projDir;
+	pos1 = projDir.find('\\');
+	while (pos1 < projDir.size())
+	{
+		projDir[pos1] = '/';
+		pos1 = projDir.find('\\', pos1 + 1);
+	}
+	string configPath = projDir + "/html/wt_config.xml";
+	return configPath;
 }
 unique_ptr<Wt::WApplication> makeApp(const Wt::WEnvironment& env, SCDAserver& myServer)
 {	
@@ -43,19 +49,24 @@ unique_ptr<Wt::WApplication> makeApp(const Wt::WEnvironment& env, SCDAserver& my
 }
 vector<string> make_wrun_args(string exec_dir)
 {
-	// Temporary bootloader function. Will be made more flexible later.
-
 	size_t pos1 = exec_dir.rfind('\\');  // Executable folder.
 	pos1 = exec_dir.rfind('\\', pos1 - 1); // Debug or release.
 	pos1 = exec_dir.rfind('\\', pos1 - 1);  // Project folder.
 	string proj_dir = exec_dir.substr(0, pos1);
+	pos1 = proj_dir.find('\\');
+	while (pos1 < proj_dir.size())
+	{
+		proj_dir[pos1] = '/';
+		pos1 = proj_dir.find('\\', pos1 + 1);
+	}
 	string default_http_addr = "0.0.0.0";
 	string default_http_port = "8181";
-	vector<string> args(4);
+	vector<string> args(5);
 	args[0] = "--http-address=" + default_http_addr;
 	args[1] = "--http-port=" + default_http_port;
 	args[2] = "--approot=" + proj_dir;
-	args[3] = "--docroot=" + proj_dir + "\\html";
+	args[3] = "--docroot=" + proj_dir + "/html";
+	args[4] = "-c" + proj_dir + "/html/wt_config.xml";
 	return args;
 }
 
@@ -67,6 +78,7 @@ int main()
 	const string execPath = wf.get_exec_path(), wtAppPath = "";
 	string dbPath = sroot + "\\SCDA.db";
 	const vector<string> args = make_wrun_args(execPath);
+	const string wtConfigPath = getConfigPath(execPath);
 	int signal;
 	Wt::WServer wtServer(execPath, args, wtAppPath);
 	SCDAserver myServer(wtServer, dbPath);
