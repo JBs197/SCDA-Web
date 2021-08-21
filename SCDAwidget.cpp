@@ -286,6 +286,13 @@ void SCDAwidget::dataClick()
 	int tabIndex = tabData->currentIndex();
 
 }
+int SCDAwidget::getHeight()
+{
+	const Wt::WEnvironment& env = Wt::WApplication::instance()->environment();
+	int iHeight = env.screenHeight();
+	if (iHeight < 0) { jf.err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
+	return iHeight;
+}
 vector<vector<string>> SCDAwidget::getVariable()
 {
 	// Checks the active state of each "variable" panel and returns each title and MID.
@@ -303,6 +310,13 @@ vector<vector<string>> SCDAwidget::getVariable()
 	}
 	return vvsVariable;
 }
+int SCDAwidget::getWidth()
+{
+	const Wt::WEnvironment& env = Wt::WApplication::instance()->environment();
+	int iWidth = env.screenWidth();
+	if (iWidth < 0) { jf.err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
+	return iWidth;
+}
 void SCDAwidget::init()
 {
 	connect();	
@@ -315,6 +329,10 @@ void SCDAwidget::initUI()
 	string temp;
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt = { app->sessionId() };
+	string sPath = app->docRoot();
+	sPath += "\\SCDA-Wt.css";
+	auto cssLink = Wt::WLink(sPath);
+	app->useStyleSheet(cssLink);
 
 	// Colourful things.
 	colourSelected.setRgb(200, 200, 255, 50);
@@ -322,6 +340,10 @@ void SCDAwidget::initUI()
 
 	// Initial values for widget sizes.
 	boxConfig->setMaximumSize(len300p, wlAuto);
+	boxMap->setStyleClass("paintMap");
+	boxMap->setStyleClass("box");
+	//boxData->setMinimumSize(len800p, len800p);
+	//boxMap->setMinimumSize(len700p, len700p);
 
 	// Initial values for cbYear.
 	activeYear = "2016";  // Default for now, as it is the only possibility.
@@ -408,8 +430,8 @@ void SCDAwidget::makeUI()
 	treeRegion = treeRegionUnique.get();
 	auto tableDataUnique = make_unique<Wt::WTable>();
 	tableData = tableDataUnique.get();
-	auto wtMapUnique = make_unique<WTPAINT>();
-	wtMap = wtMapUnique.get();
+	auto boxMapUnique = make_unique<Wt::WContainerWidget>();
+	boxMap = boxMapUnique.get();
 
 	hLayoutTestUnique->addWidget(move(pbMobileUnique));
 	hLayoutTestUnique->addWidget(move(leTestUnique), 1);
@@ -430,60 +452,26 @@ void SCDAwidget::makeUI()
 
 	tabDataUnique->addTab(move(treeRegionUnique), "Geographic Region");
 	tabDataUnique->addTab(move(tableDataUnique), "Data Table");
-	tabDataUnique->addTab(move(wtMapUnique), "Data Map");
+	tabDataUnique->addTab(move(boxMapUnique), "Data Map");
 	boxDataUnique->addWidget(move(tabDataUnique));
 
 	hLayout->addWidget(move(boxConfigUnique), 1);
 	hLayout->addWidget(move(boxDataUnique), 2);
 	this->setLayout(move(hLayout));
 }
-void SCDAwidget::mouseMapClick(const Wt::WMouseEvent& e)
-{
-	auto coord = e.widget();
-	cout << "(" << to_string(coord.x) << "," << to_string(coord.y) << ")" << endl;
-	Wt::WLength wlTemp = Wt::WLength(wtMap->width());
-	double widthD = wlTemp.value();
-	cout << "Widget width: " << to_string(widthD) << endl;
-	int patience = 5;
-	while (patience > 0)
-	{
-		this_thread::sleep_for(20ms);
-		m_map.lock();
-		if (commMap.size() > 0)
-		{
-			mapRegion = commMap[0];
-			commMap.clear();
-			patience = -1;
-		}
-		m_map.unlock();
-		patience--;
-	}
-	if (patience < 0)
-	{
-		size_t posCan = mapRegion.rfind("(Canada)");
-		string sTemp;
-		if (posCan < mapRegion.size())
-		{
-			sTemp = mapRegion.substr(0, posCan);
-		}
-		else { sTemp = mapRegion; }
-		Wt::WString wsTemp = "Selected region:\n" + Wt::WString::fromUTF8(sTemp);
-		textMessage->setText(wsTemp);
-	}
-}
-void SCDAwidget::populateTree(JTREE& jt, WTreeNode*& node)
+void SCDAwidget::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 {
 	// Recursive function that takes an existing node and makes its children.
 	vector<string> vsChildren;
 	vector<int> viChildren;
-	WString wTemp = node->label()->text();
+	Wt::WString wTemp = node->label()->text();
 	string sNode = wTemp.toUTF8();
 	int iNode = jt.getIName(sNode);
 	jt.listChildren(sNode, viChildren, vsChildren);
 	for (int ii = 0; ii < vsChildren.size(); ii++)
 	{
-		wTemp = WString::fromUTF8(vsChildren[ii]);
-		auto childUnique = make_unique<WTreeNode>(wTemp);
+		wTemp = Wt::WString::fromUTF8(vsChildren[ii]);
+		auto childUnique = make_unique<Wt::WTreeNode>(wTemp);
 		auto child = childUnique.get();
 		populateTree(jt, child);
 		node->addChildNode(move(childUnique));
@@ -493,8 +481,12 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 {
 	jf.timerStart();
 	Wt::WApplication* app = Wt::WApplication::instance();
+	string sPath = app->docRoot();
+	sPath += "/SCDA-Wt.css";
+	auto cssLink = Wt::WLink(sPath);
+	app->useStyleSheet(cssLink);
 	app->triggerUpdate();
-	vector<vector<Wt::WPointF>> areas;
+	vector<vector<vector<double>>> areas;
 	string temp;
 	string sessionID = app->sessionId(), nameAreaSel;
 	vector<string> slist, listCol, listRow, vsDIMIndex;
@@ -515,12 +507,16 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	}
 	case 2:  // Map: display it on the painter widget.
 	{
-		slist = event.get_list();
-		areas = event.get_areas();
-		regionData = event.get_regionData();		
+		slist = event.get_list();  // vsRegionName.
+		areas = event.get_areas();  // Border coords.
+		regionData = event.get_regionData();  // vdData.
+		boxMap->setStyleClass("paintMap");
+		auto wtMapUnique = make_unique<WTPAINT>();
+		wtMap = boxMap->addWidget(move(wtMapUnique));
+		wtMap->setStyleClass("paintMap");
 		wtMap->drawMap(areas, slist, regionData);
-		slist.pop_back();
-		updateMapRegionList(slist, mapRegionList, 1);
+		tabData->setTabEnabled(2, 1);
+		tabData->setCurrentIndex(2);
 		break;
 	}
 	case 3:  // Table: populate the widget with data.
@@ -528,6 +524,10 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		table = event.getTable();
 		listCol = event.getListCol();
 		listRow = event.getListRow();
+		activeTableColTitle = listCol.back();
+		listCol.pop_back();
+		activeTableRowTitle = listRow.back();
+		listRow.pop_back();
 		int iRow, iCol;
 		Wt::WString wTemp;
 		tableData->clear();
@@ -552,10 +552,9 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 				tableData->elementAt(iRow, iCol)->addWidget(move(textUnique));
 			}
 		}
-		selectedRow = -1;
 		tabData->setTabEnabled(1, 1);
 		temp = "Data Table (" + listCol[0] + ")";
-		wTemp = WString::fromUTF8(temp);
+		wTemp = Wt::WString::fromUTF8(temp);
 		auto tab = tabData->itemAt(1);
 		tab->setText(wTemp);
 		break;
@@ -727,27 +726,6 @@ void SCDAwidget::selectTableCell(int iRow, int iCol)
 
 	//if (pbTable->isEnabled()) { pbMap->setEnabled(1); }
 }
-void SCDAwidget::selectTableRow(int iRow)
-{
-	int numCol = tableData->columnCount();
-	if (selectedRow >= 0)
-	{
-		for (int ii = 0; ii < numCol; ii++)
-		{
-			tableData->elementAt(selectedRow, ii)->decorationStyle().setBackgroundColor(colourWhite);
-			tableData->elementAt(iRow, ii)->decorationStyle().setBackgroundColor(colourSelected);
-		}
-	}
-	else
-	{
-		for (int ii = 0; ii < numCol; ii++)
-		{
-			tableData->elementAt(iRow, ii)->decorationStyle().setBackgroundColor(colourSelected);
-		}
-	}
-	selectedRow = iRow;
-	//if (pbTable->isEnabled()) { pbMap->setEnabled(1); }
-}
 void SCDAwidget::setTable(int geoCode, string sRegion)
 {
 	// This variant loads a table using a selected region from the tree. 
@@ -776,8 +754,22 @@ void SCDAwidget::tableClicked(int iRow, int iCol)
 void SCDAwidget::tableDoubleClicked(int iRow, int iCol)
 {
 	tableClicked(iRow, iCol);  // Highlight.
-	auto kids = tableData->elementAt(iRow + 1, iCol + 1)->children();
-	int bbq = 1;
+	Wt::WText* cell = (Wt::WText*)tableData->elementAt(0, 0)->widget(0);
+	Wt::WString wTemp = cell->text();
+	Wt::WApplication* app = Wt::WApplication::instance();
+	vector<string> prompt(4);
+	prompt[0] = app->sessionId();
+	prompt[1] = activeYear;
+	prompt[2] = activeCata;
+	prompt[3] = wTemp.toUTF8();  // Parent region name. 
+	
+	vector<vector<string>> variable = getVariable();
+	cell = (Wt::WText*)tableData->elementAt(iRow + 1, 0)->widget(0);
+	wTemp = cell->text();
+	string temp = wTemp.toUTF8();
+	variable.push_back({ activeTableRowTitle, temp });
+	variable.push_back({ activeTableColTitle, to_string(iCol + 1) });
+	sRef.pullMap(prompt, variable);
 }
 void SCDAwidget::test()
 {
@@ -793,21 +785,4 @@ void SCDAwidget::treeClicked()
 	string sRegion = wTemp.toUTF8(); 
 	int geoCode = jtRegion.getIName(sRegion);
 	setTable(geoCode, sRegion);
-}
-void SCDAwidget::updateMapRegionList(vector<string>& sList, vector<Wt::WString>& wsList, int mode)
-{
-	// Mode 0 = standard translation, mode 1 = ignore first sList entry.
-	wsList.clear();
-	switch (mode)
-	{
-	case 1:
-	{
-		wsList.resize(sList.size() - 1);
-		for (int ii = 0; ii < wsList.size(); ii++)
-		{
-			wsList[ii] = Wt::WString::fromUTF8(sList[ii + 1]);
-		}
-	}
-	}
-
 }

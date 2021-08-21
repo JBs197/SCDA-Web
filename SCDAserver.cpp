@@ -1,5 +1,26 @@
 #include "SCDAserver.h"
 
+void SCDAserver::addFrameKM(vector<vector<vector<double>>>& borderKM, vector<string>& vsGeoCode, string sYear)
+{
+	// Append each region's TLBR frame coordinates to the list of border coordinates. 
+	double xC, yC;
+	string tname;
+	vector<vector<string>> vvsFrame;
+	vector<string> search = { "xFrameKM", "yFrameKM" };
+	for (int ii = 0; ii < vsGeoCode.size(); ii++)
+	{
+		vvsFrame.clear();
+		tname = "MapFrame$" + sYear + "$" + vsGeoCode[ii];
+		sf.select(search, tname, vvsFrame);
+		if (vvsFrame.size() != 2) { jf.err("No frame found-SCDAserver.addFrameKM"); }
+		for (int jj = 0; jj < vvsFrame.size(); jj++)
+		{
+			xC = stod(vvsFrame[jj][0]);
+			yC = stod(vvsFrame[jj][1]);
+			borderKM[ii].push_back({ xC, yC });
+		}
+	}
+}
 vector<vector<int>> SCDAserver::binMapBorder(string& tname0)
 {
 	string tname = tname0 + "border";
@@ -96,14 +117,13 @@ void SCDAserver::err(string func)
 void SCDAserver::init()
 {
 	sf.init(db_path);
-	auto uniqueWtf = make_unique<WTPAINT>(vsTemp);
+	auto uniqueWtf = make_unique<WTPAINT>();
 	wtf = uniqueWtf.get();
 }
-vector<vector<Wt::WPointF>> SCDAserver::getBorderKM(vector<string>& vsGeoCode, string sYear)
+vector<vector<vector<double>>> SCDAserver::getBorderKM(vector<string>& vsGeoCode, string sYear)
 {
-	// Return form [region index][border coords].
-	vector<vector<Wt::WPointF>> border(vsGeoCode.size(), vector<Wt::WPointF>());
-	double xC, yC;
+	// Return form [region index][border point index][xCoord, yCoord].
+	vector<vector<vector<double>>> border(vsGeoCode.size(), vector<vector<double>>());
 	string tname;
 	vector<vector<string>> vvsBorder;
 	vector<string> search = { "xBorderKM", "yBorderKM" };
@@ -113,12 +133,11 @@ vector<vector<Wt::WPointF>> SCDAserver::getBorderKM(vector<string>& vsGeoCode, s
 		vvsBorder.clear();
 		sf.select(search, tname, vvsBorder);
 		if (vvsBorder.size() < 1) { jf.err("No border found-SCDAserver.getBorderKM"); }
-		border[ii].resize(vvsBorder.size());
+		border[ii].resize(vvsBorder.size(), vector<double>(2));
 		for (int jj = 0; jj < vvsBorder.size(); jj++)
 		{
-			xC = stod(vvsBorder[jj][0]);
-			yC = stod(vvsBorder[jj][1]);
-			border[ii][jj] = Wt::WPointF(xC, yC);
+			border[ii][jj][0] = stod(vvsBorder[jj][0]);
+			border[ii][jj][1] = stod(vvsBorder[jj][1]);
 		}
 	}
 	return border;
@@ -343,27 +362,54 @@ vector<vector<string>> SCDAserver::getCatalogue(vector<string>& vsPrompt, vector
 	if (vvsCata.size() < 1) { jf.err("No surviving catalogues-SCDAserver.getCatalogue"); }
 	return vvsCata;
 }
-void SCDAserver::getGeoFamily(vector<string>& vsGeoCode, vector<vector<string>>& geo)
+void SCDAserver::getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName)
 {
 	// vsGeoCode return form [sGeoCodeParent, sGeoCodeChild0, ...].
-	if (vsGeoCode.size() < 1 || geo.size() < 1) { jf.err("Missing input-SCDAserver.getGeoFamily"); }
+	// vsRegionName return form [sRegionNameParent, sRegionNameChild0, ...].
+	if (geo.size() < 1 || vsGeoCode.size() < 1 || vsRegionName.size() < 1) { jf.err("Missing input-SCDAserver.getGeoFamily"); }
 	for (int ii = 0; ii < geo.size(); ii++)
 	{
 		if (geo[ii].back() == vsGeoCode[0])
 		{
 			vsGeoCode.push_back(geo[ii][0]);
+			vsRegionName.push_back(geo[ii][1]);
 		}
 	}
 }
 vector<string> SCDAserver::getColTitle(string sYear, string sCata)
 {
+	vector<string> vsResult;
+	vector<string> search = { "DIMIndex" };
+	string tname = "Census$" + sYear + "$" + sCata + "$DIMIndex";
+	int iSize = sf.select(search, tname, vsResult);
+	if (iSize < 2) { jf.err("Insufficient DIMIndex-SCDAserver.getColTitle"); }
+	int index = iSize - 1;
 	vector<string> vsDim;
-	vector<string> search = { "Dim" };
-	string tname = "Census$" + sYear + "$" + sCata + "$Dim";
+	search = { "Dim" };
+	tname = "Census$" + sYear + "$" + sCata + "$Dim";
 	string orderby = "MID ASC";
 	sf.selectOrderBy(search, tname, vsDim, orderby);
 	if (vsDim.size() < 1) { jf.err("No Dim found-SCDAserver.getColTitle"); }
+	vsDim.push_back(vsResult[index]);
 	return vsDim;
+}
+vector<double> SCDAserver::getDataFamily(string sYear, string sCata, vector<string> vsIndex, vector<string> vsGeoCode)
+{
+	// Return each region's data value, in the same order as vsGeoCode.
+	// vsIndex has form [uniqueDataIndex, dimIndex] where dimIndex begins at 1.
+	vector<double> data(vsGeoCode.size());
+	string tname, result;
+	vector<string> search = { vsIndex[1] };
+	vector<string> conditions = { "DataIndex = " + vsIndex[0] };
+	string tname0 = "Data$" + sYear + "$" + sCata + "$";
+	for (int ii = 0; ii < vsGeoCode.size(); ii++)
+	{
+		tname = tname0 + vsGeoCode[ii];
+		result.clear();
+		sf.select(search, tname, result, conditions);
+		data[ii] = stod(result);
+	}
+	return data;
 }
 vector<string> SCDAserver::getDataIndex(string sYear, string sCata, vector<vector<string>>& vvsDIM)
 {
@@ -388,7 +434,9 @@ vector<string> SCDAserver::getDataIndex(string sYear, string sCata, vector<vecto
 	}
 	
 	search = { "MID" };
-	for (int ii = 0; ii < vsDIMTitle.size() - 2; ii++)
+	if (vvsDIM.size() >= vsDIMTitle.size()) { jf.err("Invalid vvsDIM-SCDAserver.getDataIndex"); }
+	int iSearch = max(vsDIMTitle.size() - 2, vvsDIM.size());
+	for (int ii = 0; ii < iSearch; ii++)
 	{
 		for (int jj = 0; jj < vvsDIM.size(); jj++)
 		{
@@ -494,17 +542,20 @@ string SCDAserver::getLinearizedColTitle(string& sCata, string& rowTitle, string
 vector<string> SCDAserver::getRowTitle(string sYear, string sCata)
 {
 	vector<string> vsResult;
-	vector<string> search = { "DIMIndex" };
+	vector<string> search = { "DIM" };
 	string tname = "Census$" + sYear + "$" + sCata + "$DIMIndex";
-	int iSize = sf.select(search, tname, vsResult);
+	string orderby = "DIMIndex ASC";
+	int iSize = sf.selectOrderBy(search, tname, vsResult, orderby);
 	if (iSize < 2) { jf.err("Insufficient DIMIndex-SCDAserver.getRowTitle"); }
 	int index = iSize - 2;
+	string DIMIndexTitle = vsResult[index];
 	tname = "Census$" + sYear + "$" + sCata + "$DIM$" + to_string(index);
 	search = { "DIM" };
 	vsResult.clear();
-	string orderby = "MID ASC";
+	orderby = "MID ASC";
 	iSize = sf.selectOrderBy(search, tname, vsResult, orderby);
 	if (iSize < 2) { jf.err("No row titles found-SCDAserver.getRowTitle"); }
+	vsResult.push_back(DIMIndexTitle);
 	return vsResult;
 }
 long long SCDAserver::getTimer()
@@ -705,10 +756,11 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 		}
 	}
 }
-void SCDAserver::pullMap(vector<string> prompt)
+void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 {
 	// Prompt has form [id, year, cata, sParent].
-	string result;
+	// vvsDIM has form [some index][DIM title, DIM value] (all DIMs must be represented).
+	string result, tnameData;
 	vector<string> vsResult;
 	vector<vector<string>> vvsResult;
 	string tnameGeo = "Geo$" + prompt[1] + "$" + prompt[2];
@@ -719,15 +771,26 @@ void SCDAserver::pullMap(vector<string> prompt)
 
 	// Get the list of regions to display.
 	vector<string> vsGeoCode = { result };
+	vector<string> vsRegionName = { prompt[3] };
 	vector<vector<string>> geo = getGeo(prompt[1], prompt[2]);
 	jf.removeBlanks(geo);
-	getGeoFamily(vsGeoCode, geo);
+	getGeoFamily(geo, vsGeoCode, vsRegionName);
 
-	// Get all the border coordinates, form [region index][border coords].
-	vector<vector<Wt::WPointF>> areas = getBorderKM(vsGeoCode, prompt[1]);
+	// Get all the border coordinates, form [region index][border point index][xCoord, yCoord].
+	vector<vector<vector<double>>> areas = getBorderKM(vsGeoCode, prompt[1]);
+	addFrameKM(areas, vsGeoCode, prompt[1]);  // Final two coordinates (for the parent region) are the frame TLBR.
 
-	// RESUME HERE.
+	// Retrieve the unique DataIndex needed for this row of data. 
+	vector<string> vsDim = vvsDIM.back();  // Form [column DIMIndex title, dimIndex(1, ...)].
+	vvsDIM.pop_back();
+	vector<string> vsDataIndex = getDataIndex(prompt[1], prompt[2], vvsDIM);
+	if (vsDataIndex.size() != 1) { jf.err("Failed to return one DataIndex-SCDAserver.pullMap"); }
+	vsDataIndex.push_back("dim" + vsDim[1]);  // Now has form [dataIndex, dimTitle].
 
+	// Get all the table data cells, form [region index][numeric value].
+	vector<double> data = getDataFamily(prompt[1], prompt[2], vsDataIndex, vsGeoCode);
+
+	postDataEvent(DataEvent(DataEvent::Map, prompt[0], vsRegionName, areas, data), prompt[0]);
 }
 void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 {

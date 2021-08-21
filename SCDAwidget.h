@@ -29,6 +29,7 @@ extern const string sroot;
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
 	string activeCata, activeCategory, activeColTopic, activeRowTopic, activeYear;
+	string activeTableColTitle, activeTableRowTitle;
 	vector<int> cbActive;
 	string db_path = sroot + "\\SCDA.db";
 	vector<Wt::WString> mapRegionList;
@@ -52,7 +53,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WColor colourSelected, colourWhite;
 	Wt::WComboBox *cbCategory, *cbColTopic, *cbColTopicTable, *cbRowTopic, *cbRowTopicTable;
 	Wt::WComboBox *cbYear;
-	Wt::WContainerWidget *boxConfig, *boxData, *boxTest;
+	Wt::WContainerWidget *boxConfig, *boxData, *boxMap, *boxTest;
 	Wt::WImage* imgMap;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
@@ -82,23 +83,22 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbYearClicked();
 	void connect();
 	void dataClick();
+	int getHeight();
 	vector<vector<string>> getVariable();
+	int getWidth();
 	void init();
 	void initUI();
 	void makeUI();
-	void mouseMapClick(const Wt::WMouseEvent& e);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
 	void processDataEvent(const DataEvent& event);
 	void removeVariable(int varIndex);
 	void resetVariables();
 	void selectTableCell(int iRow, int iCol);
-	void selectTableRow(int iRow);
 	void setTable(int geoCode, string sRegion);
 	void tableClicked(int iRow, int iCol);
 	void tableDoubleClicked(int iRow, int iCol);
 	void test();
 	void treeClicked();
-	void updateMapRegionList(vector<string>& sList, vector<Wt::WString>& wsList, int mode);
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) 
@@ -110,6 +110,7 @@ public:
 	Wt::WLength len5p = Wt::WLength("5px");
 	Wt::WLength len300p = Wt::WLength("300px");
 	Wt::WLength len600p = Wt::WLength("600px");
-
+	Wt::WLength len700p = Wt::WLength("700px");
+	Wt::WLength len800p = Wt::WLength("800px");
 };
 

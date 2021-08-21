@@ -5,7 +5,6 @@
 #include "sqlfunc.h"
 #include "winfunc.h"
 #include "wtpaint.h"
-#include "wjtree.h"
 
 using namespace std;
 extern const string sroot;
@@ -20,13 +19,13 @@ public:
 	const vector<string> ancestry;
 	const string stext;
 	const vector<Wt::WPainterPath> wpPaths;
-	const vector<vector<Wt::WPointF>> areas;
+	const vector<vector<vector<double>>> areas;
 	const vector<double> regionData;
 
 	enum eType { Connect, Label, Map, Table, Topic, Tree, Variable };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
-	vector<vector<Wt::WPointF>> get_areas() const { return areas; }
+	vector<vector<vector<double>>> get_areas() const { return areas; }
 	vector<vector<string>> getCata() const { return catalogue; }
 	vector<string> get_list() const { return list; }
 	vector<string> getListCol() const { return listCol; }
@@ -51,8 +50,8 @@ private:
 		: etype(et), sessionID(sID), stext(txt) {}
 
 	// Constructor for eType Map.
-	DataEvent(eType et, const vector<string>& sIDregion, const vector<vector<Wt::WPointF>>& area, const vector<double>& rData)
-		: etype(et), sessionID(sIDregion[0]), list(sIDregion), areas(area), regionData(rData) {}
+	DataEvent(eType et, const string& sID, const vector<string>& vsRegion, const vector<vector<vector<double>>>& area, const vector<double>& rData)
+		: etype(et), sessionID(sID), list(vsRegion), areas(area), regionData(rData) {}
 
 	// Constructor for eType Table.
 	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<string>& vsCol, const vector<string>& vsRow)
@@ -86,6 +85,7 @@ public:
 	SCDAserver& operator=(const SCDAserver&) = delete;
 	class User {};
 
+	void addFrameKM(vector<vector<vector<double>>>& borderKM, vector<string>& vsGeoCode, string sYear);
 	vector<vector<int>> binMapBorder(string& tname0);
 	vector<vector<vector<int>>> binMapFrames(string& tname0);
 	string binMapParent(string& tname0);
@@ -93,21 +93,22 @@ public:
 	double binMapScale(string& tname0);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init();
-	vector<vector<Wt::WPointF>> getBorderKM(vector<string>& vsGeoCode, string sYear);
+	vector<vector<vector<double>>> getBorderKM(vector<string>& vsGeoCode, string sYear);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt, vector<vector<string>>& vvsVariable);
 	vector<string> getColTitle(string sYear, string sCata);
+	vector<double> getDataFamily(string sYear, string sCata, vector<string> vsIndex, vector<string> vsGeoCode);
 	vector<string> getDataIndex(string sYear, string sCata, vector<vector<string>>& vvsDIM);
 	vector<string> getDIMIndex(vector<vector<string>>& vvsCata);
 	vector<vector<string>> getGeo(string sYear, string sCata);
-	void getGeoFamily(vector<string>& vsGeoCode, vector<vector<string>>& geo);
+	void getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName);
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
 	vector<string> getRowTitle(string sYear, string sCata);
 	long long getTimer();
 	vector<string> getTopicList(string sYear);
 	vector<vector<string>> getVariableCandidate(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsVariable);
 	vector<string> getYear(string sYear);
-	void pullMap(vector<string> prompt);
+	void pullMap(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTable(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTopic(vector<string> prompt);
 	void pullTree(vector<string> prompt);
