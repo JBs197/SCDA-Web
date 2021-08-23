@@ -32,7 +32,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string activeTableColTitle, activeTableRowTitle;
 	vector<int> cbActive;
 	string db_path = sroot + "\\SCDA.db";
-	vector<Wt::WString> mapRegionList;
 	JFUNC jf;
 	JTREE jtRegion;
 	enum Layer { Root, Year, Description, Region, Division };
@@ -41,18 +40,19 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	const int num_filters = 3;
 	int numPreVariable = -1;  // Number of widgets in boxConfig prior to the "variable" panels.
 	Wt::WString selectedRegion, selectedFolder;
-	vector<int> selectedCell = { -1,-1 };
+	int selectedCol = -1, selectedRow = -1;
 	string sessionID, mapRegion;
 	vector<int> treeActive;
 	enum treeType { Tree, Subtree };
 	vector<vector<string>> vvsParameter;  // Form [variable index][MID0, MID1, ..., variable title].
 	const Wt::WString wsAll = Wt::WString("All");
+	const Wt::WString wsNoneSel = Wt::WString("[None selected]");
 
 	WTPAINT* wtMap;
 
-	Wt::WColor colourSelected, colourWhite;
-	Wt::WComboBox *cbCategory, *cbColTopic, *cbColTopicTable, *cbRowTopic, *cbRowTopicTable;
-	Wt::WComboBox *cbYear;
+	Wt::WColor colourSelectedStrong, colourSelectedWeak, colourWhite;
+	Wt::WComboBox *cbCategory, *cbColTopicTitle, *cbColTopicTable, *cbColTopicSel;
+	Wt::WComboBox *cbRowTopicSel, *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
 	Wt::WContainerWidget *boxConfig, *boxData, *boxMap, *boxTest;
 	Wt::WImage* imgMap;
 	Wt::WVBoxLayout* layoutConfig;
@@ -64,7 +64,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	SCDAserver& sRef;
 	Wt::WTable* tableData;
 	Wt::WTabWidget* tabData;
-	Wt::WText* textMessage, *tableTitle, *textTable, *textList;
+	Wt::WText* textLegend, *tableTitle, *textTable, *textList;
 	Wt::WTree* treeRegion;
 
 	vector<Wt::WComboBox*> varMID, varTitle;
@@ -73,7 +73,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void addVariable(vector<string>& vsVariable);
 	void addVariable(vector<vector<string>>& vvsCandidate);
 	void cbCategoryClicked();
-	void cbColRowClicked(string id);
+	void cbColRowSelClicked();
+	void cbColRowTitleClicked(string id);
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<vector<string>>& vvsItem);
@@ -82,21 +83,29 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbVarMIDClicked(string id);
 	void cbYearClicked();
 	void connect();
-	void dataClick();
 	int getHeight();
+	Wt::WString getTextLegend();
 	vector<vector<string>> getVariable();
 	int getWidth();
 	void init();
 	void initUI();
 	void makeUI();
+	void mapAreaClicked(int areaIndex);
+	void mapAreaDoubleClicked(int areaIndex);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
 	void processDataEvent(const DataEvent& event);
 	void removeVariable(int varIndex);
+	void resetMap();
+	void resetTable();
+	void resetTopicSel();
+	void resetTree();
 	void resetVariables();
-	void selectTableCell(int iRow, int iCol);
 	void setTable(int geoCode, string sRegion);
+	void tableCBUpdate(int iRow, int iCol);
 	void tableClicked(int iRow, int iCol);
+	void tableDeselect(int iRow, int iCol);
 	void tableDoubleClicked(int iRow, int iCol);
+	void tableSelect(int iRow, int iCol);
 	void test();
 	void treeClicked();
 
@@ -108,6 +117,7 @@ public:
 
 	Wt::WLength wlAuto = Wt::WLength::Auto;
 	Wt::WLength len5p = Wt::WLength("5px");
+	Wt::WLength len200p = Wt::WLength("200px");
 	Wt::WLength len300p = Wt::WLength("300px");
 	Wt::WLength len600p = Wt::WLength("600px");
 	Wt::WLength len700p = Wt::WLength("700px");

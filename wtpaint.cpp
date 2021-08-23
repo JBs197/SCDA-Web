@@ -1,11 +1,8 @@
 #include "wtpaint.h"
 
-void WTPAINT::areaClicked(int index)
+string WTPAINT::areaClicked(int index)
 {
-	indexAreaPrevious = indexAreaSel;
-	indexAreaSel = index;
-	nameAreaSel = areaName[index];	
-	update(Wt::PaintFlag::Update);
+	return areaName[index];
 }
 void WTPAINT::clearAreas()
 {
@@ -57,10 +54,9 @@ void WTPAINT::displaceParentToWidget(vector<vector<vector<double>>>& vvvdBorder,
 		vvvdBorder[0][ii][1] -= parentFrameKM[0][1];
 	}
 }
-void WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdBorder, vector<string>& vsRegion, vector<double>& vdData)
+vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdBorder, vector<string>& vsRegion, vector<double>& vdData)
 {
-	indexAreaSel = -1;
-	indexAreaPrevious = -1;
+	if (vvvdBorder.size() < 2 || vsRegion.size() < 2 || vdData.size() < 2) { jf.err("Less than two regions given-wtpaint.drawMap"); }
 	vector<vector<double>> parentFrameKM, childFrameKM;
 	displaceParentToWidget(vvvdBorder, parentFrameKM);
 	vector<Wt::WPointF> borderParent = scaleParentToWidget(vvvdBorder, parentFrameKM);
@@ -84,7 +80,8 @@ void WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdBorder, vector<string>
 
 	makeAreas();
 	updateAreaColour();
-	update(); 
+	update();
+	return area;
 }
 vector<double> WTPAINT::getChildTL(vector<vector<double>>& vvdBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM)
 {
@@ -137,8 +134,6 @@ void WTPAINT::makeAreas()
 	for (int ii = 0; ii < border.size(); ii++)
 	{
 		auto wpArea = make_unique<Wt::WPolygonArea>(border[ii]);
-		function<void()> fn = bind(&WTPAINT::areaClicked, this, ii);
-		wpArea->clicked().connect(fn);
 		area.push_back(wpArea.get());
 		this->addArea(move(wpArea));
 	}
@@ -161,145 +156,105 @@ void WTPAINT::paintEvent(Wt::WPaintDevice* paintDevice)
 	Wt::WPen pen(Wt::PenStyle::SolidLine);
 	pen.setWidth(penWidth);
 	painter.setPen(pen);
-	Wt::WBrush brush(Wt::BrushStyle::Solid);
-	painter.setBrush(brush);
 	if (area.size() < 1) { return; }
-
-	if (indexAreaSel < 0)  // Nothing selected, so all regions are drawn.
-	{
-		paintRegionAll(painter);
-		//paintLegendBarV(painter);
-		//paintLegendBox(painter, 0);
-	}
-	else if (indexAreaPrevious < 0)
-	{
-		if (indexAreaSel != 0) { paintRegion(painter, indexAreaSel, 1.0); }
-		//paintLegendBox(painter, indexAreaSel);
-	}
-	else
-	{
-		if (indexAreaPrevious != 0) { paintRegion(painter, indexAreaPrevious, colourDimPercent); }
-		if (indexAreaSel != 0) { paintRegion(painter, indexAreaSel, 1.0); }
-		//paintLegendBox(painter, indexAreaSel);
-	}
+	paintRegionAll(painter);
+	paintLegendBar(painter);
+	resize(barTLBR[1][0] + 1.0, barTLBR[1][1] + 1.0);
 }
-void WTPAINT::paintLegendBarV(Wt::WPainter& painter)
+void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 {
 	int numColour = numColourBands + 1;
 	if (keyColour.size() != numColour) { initColour(); }
-	double dLen = dHeight - (2.0 * barThickness);
-	Wt::WRectF rectV(barThickness, barThickness, barThickness, dLen);
+	double width = barTLBR[1][0] - barTLBR[0][0];
+	if (width <= 0.0) { jf.err("Invalid barTLBR width-wtpaint.paintLegendBar"); }
+	double height = barTLBR[1][1] - barTLBR[0][1];
+	if (height <= 0.0) { jf.err("Invalid barTLBR height-wtpaint.paintLegendBar"); }
+	bool barVertical = 0;
+	if (height > width) { barVertical = 1; }
+
+	double dLen, wGradX0, wGradX1, wGradY0, wGradY1, tickX, tickY, dTemp, xCoord, yCoord;
+	Wt::WRectF rectColour; 
 	Wt::WGradient wGrad;
 	Wt::WColor wColour;
 	Wt::WString wsTemp;
 	string temp;
 	vector<int> scaleValues = getScaleValues(numColour);
-	double wGradX = 1.5 * barThickness;
-	double wGradY0 = dLen + barThickness - 1.0;
-	double wGradY1 = barThickness + 1.0;
-	wGrad.setLinearGradient(wGradX, wGradY0, wGradX, wGradY1);
+	if (barVertical)
+	{
+		dLen = dHeight - (2.0 * barThickness);
+		rectColour = Wt::WRectF(barTLBR[1][0] - (1.5 * barThickness), barThickness, barThickness, dLen);
+		wGradX0 = 1.5 * barThickness;
+		wGradX1 = wGradX0;
+		wGradY0 = dLen + barThickness - 1.0;
+		wGradY1 = barThickness + 1.0;
+		tickX = barTLBR[1][0] - (1.5 * barThickness);
+		xCoord = barTLBR[0][0] - 2.0;
+	}
+	else
+	{
+		dLen = dWidth - (2.0 * barThickness);
+		rectColour = Wt::WRectF(barThickness, barTLBR[1][1] - (1.5 * barThickness), dLen, barThickness);
+		wGradX0 = barThickness + 1.0; 
+		wGradX1 = dLen + barThickness - 1.0; 
+		wGradY0 = 1.5 * barThickness;
+		wGradY1 = wGradY0;
+		tickY = barTLBR[1][1] - (1.5 * barThickness);
+		yCoord = barTLBR[0][1];
+	}
+	wGrad.setLinearGradient(wGradX0, wGradY0, wGradX1, wGradY1);
 	double bandWidth = 1.0 / (double)(numColourBands);
-	double tickX = 2.0 * barThickness, tickY, dTemp, xCoord, yCoord;
 	for (int ii = 0; ii < numColour; ii++)
 	{
 		dTemp = (double)ii * bandWidth;
 		wColour.setRgb(keyColour[ii][0], keyColour[ii][1], keyColour[ii][2]);
 		wGrad.addColorStop(dTemp, wColour);
-		tickY = wGradY0 - (dTemp * dLen) + 1.0;
-		painter.drawLine(tickX, tickY, tickX + (barThickness / 2.0), tickY);
 		temp = to_string(scaleValues[ii]);
 		wsTemp = Wt::WString::fromUTF8(temp);
-		xCoord = tickX + barThickness;
-		if (ii == 0) { yCoord = tickY - 14.0; }
-		else if (ii == numColour - 1) { yCoord = tickY; }
-		else { yCoord = tickY - 7.0; }
-		painter.drawText(xCoord, yCoord, 100.0, barThickness, Wt::AlignmentFlag::Left, wsTemp);
+		if (barVertical) 
+		{ 
+			tickY = wGradY0 - (dTemp * dLen) + 1.0; 
+			painter.drawLine(tickX, tickY, tickX - (barThickness / 2.0), tickY);
+			if (ii == 0) { yCoord = min(tickY - (barNumberHeight / 2.0), barTLBR[1][1] - barNumberHeight); }
+			else if (ii == numColour - 1) { yCoord = max(tickY - (barNumberHeight / 2.0), 0.0); }
+			else { yCoord = tickY - (barNumberHeight / 2.0); }
+			painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsTemp);
+		}
+		else 
+		{ 
+			tickX = wGradX0 + (dTemp * dLen) - 1.0; 
+			painter.drawLine(tickX, tickY, tickX, tickY - (barThickness / 2.0));
+			if (ii == 0) 
+			{ 
+				xCoord = 0.0; 
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsTemp);
+			}
+			else if (ii == numColour - 1) 
+			{ 
+				xCoord = barTLBR[1][0] - barNumberWidth; 
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsTemp);
+			}
+			else 
+			{ 
+				xCoord = tickX - (barNumberWidth / 2.0);
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsTemp);
+			}
+		}		
 	}
 	Wt::WBrush wBrush(wGrad);
 	painter.setBrush(wBrush);
-	painter.drawRect(rectV);
-}
-void WTPAINT::paintLegendBox(Wt::WPainter& painter, int index)
-{
-	string shortName, sBase, temp;
-	vector<string> boxText;
-	size_t pos1 = dataName[0].find("Total - "), indexBox = 0;
-	if (pos1 < dataName[0].size())
-	{
-		boxText.resize(5);
-		boxText[0] = "Showing";
-		pos1 += 8;
-		sBase = dataName[0].substr(pos1);
-		for (int ii = 1; ii < dataName.size() - 1; ii++)
-		{
-			temp = dataName[ii];
-			while (temp[0] == '+') { temp.erase(temp.begin()); }
-			sBase += "->" + temp;
-		}
-		boxText[1] = sBase + " WITH";
-		boxText[2] = dataName.back();
-		indexBox = 3;
-	}
-	else
-	{
-		boxText.resize(dataName.size() + 3);
-		boxText[0] = "Showing";
-		for (int ii = 0; ii < dataName.size(); ii++)
-		{
-			boxText[ii + 1] = dataName[ii];
-		}
-		indexBox = dataName.size() + 1;
-	}
-	boxText[indexBox] = "for the region";
-
-	double dHeight = 21.0 * (double)boxText.size();
-	Wt::WRectF box(dWidth - legendBoxDim[0] - 15.0, 1.0, legendBoxDim[0], dHeight);
-	Wt::WBrush wBrush(Wt::StandardColor::White);
-	painter.setBrush(wBrush);
-	painter.drawRect(box);
-	pos1 = areaName[index].find(" or ");
-	if (pos1 < areaName[index].size()) 
-	{
-		shortName = areaName[index].substr(0, pos1);
-	}
-	else { shortName = areaName[index]; }
-	pos1 = shortName.find("(Canada)");
-	if (pos1 < shortName.size()) { shortName.resize(pos1); }
-	boxText[indexBox + 1] = shortName + " = " + to_string(int(areaData[index]));
-	Wt::WString wsTemp; 
-	double dTemp = box.y() - 15.0;
-	for (int ii = 0; ii < boxText.size(); ii++)
-	{
-		wsTemp = Wt::WString::fromUTF8(boxText[ii]);
-		dTemp += 20.0;
-		box.setY(dTemp);
-		painter.drawText(box, Wt::AlignmentFlag::Center, Wt::TextFlag::SingleLine, wsTemp);
-	}
-}
-void WTPAINT::paintRegion(Wt::WPainter& painter, int index, double percent)
-{
-	Wt::WPainterPath wpPath = Wt::WPainterPath(border[index][0]);
-	for (int jj = 1; jj < border[index].size(); jj++)
-	{
-		wpPath.lineTo(border[index][jj]);
-	}
-	wpPath.closeSubPath();
-	Wt::WColor wColour(Wt::StandardColor::White);
-	Wt::WBrush wBrush(wColour);
-	painter.setBrush(wBrush);
-	painter.drawPath(wpPath);
-	setWColour(wColour, areaColour[index], percent);
-	wBrush.setColor(wColour);
-	painter.setBrush(wBrush);
-	painter.drawPath(wpPath);
+	painter.drawRect(rectColour);
 }
 void WTPAINT::paintRegionAll(Wt::WPainter& painter)
 {
-	Wt::WColor wColour(Wt::StandardColor::White);
-	Wt::WBrush wBrush(wColour);
-	painter.setBrush(wBrush);
+	Wt::WColor wColour;
+	Wt::WBrush wBrush;
+	painter.save();
 	for (int ii = border.size() - 1; ii >= 0; ii--)
 	{
+		wColour = Wt::WColor(areaColour[ii][0], areaColour[ii][1], areaColour[ii][2]);
+		wBrush = Wt::WBrush(Wt::BrushStyle::Solid);
+		wBrush.setColor(wColour);
+		painter.setBrush(wBrush);
 		Wt::WPainterPath wpPath = Wt::WPainterPath(border[ii][0]);
 		for (int jj = 1; jj < border[ii].size(); jj++)
 		{
@@ -307,6 +262,7 @@ void WTPAINT::paintRegionAll(Wt::WPainter& painter)
 		}
 		wpPath.closeSubPath();
 		painter.drawPath(wpPath);
+		painter.restore();
 	}
 }
 void WTPAINT::scaleChildToWidget(vector<vector<double>>& vvdBorder, vector<vector<double>>& vvdFrame)
@@ -322,22 +278,51 @@ void WTPAINT::scaleChildToWidget(vector<vector<double>>& vvdBorder, vector<vecto
 		vvdBorder[ii][1] *= widgetPPKM;
 	}
 }
-vector<Wt::WPointF> WTPAINT::scaleParentToWidget(vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& vvdFrame)
+vector<Wt::WPointF> WTPAINT::scaleParentToWidget(vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& parentFrameKM)
 {
 	// Returns the parent region's border (in pixels), scaled to the widget.
 	if (dHeight < 0.0 || dWidth < 0.0) { jf.err("No widget dimensions-wtpaint.scaleParentToWidget"); }
 	vector<Wt::WPointF> parentBorder(vvvdBorder[0].size());
-	double imgWidthKM = vvdFrame[1][0] - vvdFrame[0][0];
-	double imgHeightKM = vvdFrame[1][1] - vvdFrame[0][1];
-	double xRatio = imgWidthKM / dWidth;  // km per pixel
-	double yRatio = imgHeightKM / dHeight;
-	double ratio = max(xRatio, yRatio);
+	barTLBR.clear();
+	barTLBR.resize(2, vector<double>(2));
+	imgTLBR.clear();
+	imgTLBR.resize(2, vector<double>(2));
+	imgTLBR[0] = { 0.0, 0.0 };
+	double barSpaceHorizontal = barNumberWidth + (2.0 * barThickness);
+	double barSpaceVertical = barNumberHeight + (2.0 * barThickness);
+	double imgWidthKM = parentFrameKM[1][0] - parentFrameKM[0][0];
+	double imgHeightKM = parentFrameKM[1][1] - parentFrameKM[0][1];
+	double xRatio = imgWidthKM / (dWidth - barSpaceHorizontal);  // km per pixel
+	double yRatio = imgHeightKM / (dHeight - barSpaceVertical);
+	double ratio; 
+	if (xRatio > yRatio)  // Legend bar will be horizontal.
+	{
+		xRatio = imgWidthKM / dWidth;
+		ratio = max(xRatio, yRatio);
+		imgTLBR[1][0] = imgWidthKM / ratio; 
+		imgTLBR[1][1] = imgHeightKM / ratio;
+		barTLBR[0][0] = 0.0;
+		barTLBR[0][1] = min(dHeight - barSpaceVertical, imgTLBR[1][1] + 10.0);
+		barTLBR[1][0] = dWidth;
+		barTLBR[1][1] = min(dHeight, imgTLBR[1][1] + 10.0 + barSpaceVertical);
+	}
+	else  // Legend bar will be vertical.
+	{
+		yRatio = imgHeightKM / dHeight;
+		ratio = max(xRatio, yRatio);
+		imgTLBR[1][0] = imgWidthKM / ratio;
+		imgTLBR[1][1] = imgHeightKM / ratio;
+		barTLBR[0][0] = min(dWidth - barSpaceHorizontal, imgTLBR[1][0] + 10.0);
+		barTLBR[0][1] = 0.0;
+		barTLBR[1][0] = min(dWidth, imgTLBR[1][0] + 10.0 + barSpaceHorizontal);
+		barTLBR[1][1] = dHeight;		
+	}	
+	widgetPPKM = 1.0 / ratio;
 	for (int ii = 0; ii < vvvdBorder[0].size(); ii++)
 	{
 		parentBorder[ii].setX(vvvdBorder[0][ii][0] / ratio);
 		parentBorder[ii].setY(vvvdBorder[0][ii][1] / ratio);
 	}
-	widgetPPKM = 1.0 / ratio;
 	return parentBorder;
 }
 void WTPAINT::setDimensions(int iHeight, int iWidth)
@@ -353,7 +338,8 @@ void WTPAINT::setWColour(Wt::WColor& wColour, vector<int> rgb, double percent)
 }
 bool WTPAINT::testExcludeParent()
 {
-	areaDataChildren.assign(areaData.begin() + 1, areaData.end());
+	areaDataChildren.assign(areaData.begin(), areaData.end() - 1);
+	if (areaName.back() == "Canada") { return 1; }
 	vector<int> minMaxIndex = jf.minMax(areaDataChildren);
 	double percent = areaDataChildren[minMaxIndex[1]] / areaData[0];
 	if (percent < defaultParentExclusionThreshold) { return 1; }
@@ -366,28 +352,33 @@ void WTPAINT::updateAreaColour()
 	if (keyColour.size() != numColourBands + 1) { initColour(); }
 	areaColour.resize(numArea, vector<int>(3));
 	double percentage, dR, dG, dB, remains, dMin, dMax;
-	int floor, indexStart;
+	int floor, indexEnd;
 	vector<int> indexMinMax;
-	if (numArea == 1)
-	{
-		//
-	}
-	else if (testExcludeParent())
+	if (testExcludeParent())
 	{
 		indexMinMax = jf.minMax(areaDataChildren);
 		dMin = areaDataChildren[indexMinMax[0]];
 		dMax = areaDataChildren[indexMinMax[1]];
-		areaColour[0] = extraColour;  // Parent.
-		indexStart = 1;
+		areaColour[areaColour.size() - 1] = { 0, 0, 0 };  // Parent.
+		indexEnd = numArea - 1;
 	}
 	else
 	{
 		indexMinMax = jf.minMax(areaData);
 		dMin = areaData[indexMinMax[0]];
 		dMax = areaData[indexMinMax[1]];
-		indexStart = 0;
+		indexEnd = numArea;
 	}
-	for (int ii = indexStart; ii < numArea; ii++)
+	
+	if (dMin == dMax)  // Every data point is identical ! 
+	{
+		for (int ii = 0; ii < indexEnd; ii++)
+		{
+			areaColour[ii] = extraColour;
+		}
+		return;
+	}
+	for (int ii = 0; ii < indexEnd; ii++)
 	{
 		if (areaData[ii] == -1.0)  // Data is missing, so draw as grey.
 		{
@@ -396,7 +387,7 @@ void WTPAINT::updateAreaColour()
 			areaColour[ii][2] = 180;
 			continue;
 		}
-		percentage = (areaData[ii] - dMin) / dMax;
+		percentage = (areaData[ii] - dMin) / (dMax - dMin);
 		if (percentage > 0.9999) { percentage = 0.9999; }
 		percentage *= (double)numColourBands;
 		floor = int(percentage);

@@ -366,6 +366,8 @@ void SCDAserver::getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeo
 {
 	// vsGeoCode return form [sGeoCodeParent, sGeoCodeChild0, ...].
 	// vsRegionName return form [sRegionNameParent, sRegionNameChild0, ...].
+	// If sRegionNameParent is not a parent, then find its own parent, and that region
+	// will serve as sRegionNameParent instead. 
 	if (geo.size() < 1 || vsGeoCode.size() < 1 || vsRegionName.size() < 1) { jf.err("Missing input-SCDAserver.getGeoFamily"); }
 	for (int ii = 0; ii < geo.size(); ii++)
 	{
@@ -374,6 +376,33 @@ void SCDAserver::getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeo
 			vsGeoCode.push_back(geo[ii][0]);
 			vsRegionName.push_back(geo[ii][1]);
 		}
+	}
+	if (vsGeoCode.size() < 2) // The given region has no children. 
+	{ 
+		string oldGeoCode = vsGeoCode[0];
+		for (int ii = 0; ii < geo.size(); ii++)
+		{
+			if (geo[ii][0] == oldGeoCode)
+			{
+				vsGeoCode[0] = geo[ii].back();
+				vsRegionName[0] = "";
+				break;
+			}
+			else if (ii == geo.size() - 1) { jf.err("Parent vsGeoCode not found-SCDAserver.getGeoFamily"); }
+		}
+		for (int ii = 0; ii < geo.size(); ii++)
+		{
+			if (geo[ii].back() == vsGeoCode[0])
+			{
+				vsGeoCode.push_back(geo[ii][0]);
+				vsRegionName.push_back(geo[ii][1]);
+			}
+			else if (geo[ii][0] == vsGeoCode[0])
+			{
+				vsRegionName[0] = geo[ii][1];
+			}
+		}
+		if (vsGeoCode.size() < 2) { jf.err("Failed to find any child regions-SCDAserver.getGeoFamily"); }
 	}
 }
 vector<string> SCDAserver::getColTitle(string sYear, string sCata)

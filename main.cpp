@@ -8,7 +8,7 @@ class SCDAapp : public Wt::WApplication
 {
 	SCDAserver& serverRef;
 	const Wt::WEnvironment& envRef;
-	
+
 public:
 	SCDAapp(const Wt::WEnvironment&, SCDAserver&);
 };
@@ -24,7 +24,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	this->messageResourceBundle().use(mrb);
 	auto cssLink = Wt::WLink(docRoot() + "\\SCDA-Wt.css");
 	this->useStyleSheet(cssLink);
-	
+
 	root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
 }
@@ -45,7 +45,7 @@ string getConfigPath(const string& execPath)
 	return configPath;
 }
 unique_ptr<Wt::WApplication> makeApp(const Wt::WEnvironment& env, SCDAserver& myServer)
-{	
+{
 	return make_unique<SCDAapp>(env, myServer);
 }
 vector<string> make_wrun_args(string exec_dir)
