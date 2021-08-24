@@ -17,12 +17,12 @@ public:
 	const vector<string> list, listCol, listRow;
 	const vector<vector<string>> catalogue, table, variable;
 	const vector<string> ancestry;
-	const string stext;
+	const string sYear, sCata;
 	const vector<Wt::WPainterPath> wpPaths;
 	const vector<vector<vector<double>>> areas;
 	const vector<double> regionData;
 
-	enum eType { Connect, Label, Map, Table, Topic, Tree, Variable };
+	enum eType { Catalogue, Connect, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<vector<vector<double>>> get_areas() const { return areas; }
@@ -31,8 +31,9 @@ public:
 	vector<string> getListCol() const { return listCol; }
 	vector<string> getListRow() const { return listRow; }
 	vector<double> get_regionData() const { return regionData; }
+	string getSCata() const { return sCata; }
+	string getSYear() const { return sYear; }
 	vector<vector<string>> getTable() const { return table; }
-	string get_text() const { return stext; }
 	JTREE getTree() const { return tree; }
 	vector<vector<string>> getVariable() const { return variable; }
 	vector<Wt::WPainterPath> get_wpPaths() const { return wpPaths; }
@@ -42,16 +43,28 @@ private:
 	eType etype;
 	string sessionID;
 
+	// Constructor for eType Catalogue.
+	DataEvent(eType et, const string& sID, const string& sy, const string& sc)
+		: etype(et), sessionID(sID), sYear(sy), sCata(sc) {}
+
 	// Constructor for eType Connect.
 	DataEvent(eType et, const string& sID) : etype(et), sessionID(sID) {}
 
-	// Constructor for eType Label.
-	DataEvent(eType et, const string& sID, const string& txt)
-		: etype(et), sessionID(sID), stext(txt) {}
+	// Constructor for eType Demographic.
+	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvs)
+		: etype(et), sessionID(sID), variable(vvs) {}
+
+	// Constructor for eTypes Differentiation.
+	DataEvent(eType et, const string& sID, const vector<string>& vsDiff)
+		: etype(et), sessionID(sID), list(vsDiff) {}
 
 	// Constructor for eType Map.
 	DataEvent(eType et, const string& sID, const vector<string>& vsRegion, const vector<vector<vector<double>>>& area, const vector<double>& rData)
 		: etype(et), sessionID(sID), list(vsRegion), areas(area), regionData(rData) {}
+
+	// Constructor for eType Parameter.
+	DataEvent(eType et, const string& sID, const vector<vector<string>>& var, const vector<vector<string>>& cata, const vector<string>& DIMIndex)
+		: etype(et), sessionID(sID), variable(var), catalogue(cata), list(DIMIndex) {}
 
 	// Constructor for eType Table.
 	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<string>& vsCol, const vector<string>& vsRow)
@@ -64,10 +77,6 @@ private:
 	// Constructor for eType Tree.
 	DataEvent(eType et, const string& sID, const JTREE& jt)
 		: etype(et), sessionID(sID), tree(jt) {}
-
-	// Constructor for eType Variable.
-	DataEvent(eType et, const string& sID, const vector<vector<string>>& var, const vector<vector<string>>& cata, const vector<string>& DIMIndex)
-		: etype(et), sessionID(sID), variable(var), catalogue(cata), list(DIMIndex) {}
 
 	friend class SCDAserver;
 };
@@ -91,6 +100,7 @@ public:
 	string binMapParent(string& tname0);
 	vector<double> binMapPosition(string& tname0);
 	double binMapScale(string& tname0);
+	vector<vector<string>> completeVariable(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed, string sYear);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init();
 	vector<vector<vector<double>>> getBorderKM(vector<string>& vsGeoCode, string sYear);
@@ -100,14 +110,17 @@ public:
 	vector<double> getDataFamily(string sYear, string sCata, vector<string> vsIndex, vector<string> vsGeoCode);
 	vector<string> getDataIndex(string sYear, string sCata, vector<vector<string>>& vvsDIM);
 	vector<string> getDIMIndex(vector<vector<string>>& vvsCata);
+	vector<vector<string>> getForWhom(vector<vector<string>>& vvsCata);
 	vector<vector<string>> getGeo(string sYear, string sCata);
 	void getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName);
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
+	vector<vector<string>> getParameter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
 	vector<string> getRowTitle(string sYear, string sCata);
 	long long getTimer();
 	vector<string> getTopicList(string sYear);
-	vector<vector<string>> getVariableCandidate(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsVariable);
+	vector<string> getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getYear(string sYear);
+	void pullDifferentiator(vector<string> prompt, vector<string> vsCata);
 	void pullMap(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTable(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTopic(vector<string> prompt);

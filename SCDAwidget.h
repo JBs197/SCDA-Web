@@ -37,6 +37,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	enum Layer { Root, Year, Description, Region, Division };
 	unordered_map<string, int> mapVarIndex;  // unique id -> var index (panel, CBs)
 	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
+	bool mobile = 0;
 	const int num_filters = 3;
 	int numPreVariable = -1;  // Number of widgets in boxConfig prior to the "variable" panels.
 	Wt::WString selectedRegion, selectedFolder;
@@ -44,6 +45,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string sessionID, mapRegion;
 	vector<int> treeActive;
 	enum treeType { Tree, Subtree };
+	vector<vector<string>> vvsDemographic;  // Form [forWhom index][forWhom, sCata0, sCata1, ...]
 	vector<vector<string>> vvsParameter;  // Form [variable index][MID0, MID1, ..., variable title].
 	const Wt::WString wsAll = Wt::WString("All");
 	const Wt::WString wsNoneSel = Wt::WString("[None selected]");
@@ -52,6 +54,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 
 	Wt::WColor colourSelectedStrong, colourSelectedWeak, colourWhite;
 	Wt::WComboBox *cbCategory, *cbColTopicTitle, *cbColTopicTable, *cbColTopicSel;
+	Wt::WComboBox* cbDemographic;
 	Wt::WComboBox *cbRowTopicSel, *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
 	Wt::WContainerWidget *boxConfig, *boxData, *boxMap, *boxTest;
 	Wt::WImage* imgMap;
@@ -67,14 +70,19 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WText* textLegend, *tableTitle, *textTable, *textList;
 	Wt::WTree* treeRegion;
 
-	vector<Wt::WComboBox*> varMID, varTitle;
-	vector<Wt::WPanel*> varPanel;
+	vector<Wt::WComboBox*> allCB, varMID, varTitle;
+	vector<Wt::WPanel*> allPanel, varPanel;
 
+	void addDemographic(vector<vector<string>>& vvsDemo);
+	void addDifferentiator(vector<string>& vsDiff);
 	void addVariable(vector<string>& vsVariable);
-	void addVariable(vector<vector<string>>& vvsCandidate);
+	void addVariable(vector<vector<string>>& vvsVariable);
+	void appendMapToHistory(string sMap);
 	void cbCategoryClicked();
 	void cbColRowSelClicked();
 	void cbColRowTitleClicked(string id);
+	void cbDemographicChanged();
+	void cbDiffTitleChanged(string id);
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<vector<string>>& vvsItem);
@@ -83,6 +91,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbVarMIDClicked(string id);
 	void cbYearClicked();
 	void connect();
+	vector<string> getDemo();
 	int getHeight();
 	Wt::WString getTextLegend();
 	vector<vector<string>> getVariable();
@@ -100,14 +109,17 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void resetTopicSel();
 	void resetTree();
 	void resetVariables();
+	void resetVariables(int plus);
 	void setTable(int geoCode, string sRegion);
 	void tableCBUpdate(int iRow, int iCol);
 	void tableClicked(int iRow, int iCol);
 	void tableDeselect(int iRow, int iCol);
 	void tableDoubleClicked(int iRow, int iCol);
 	void tableSelect(int iRow, int iCol);
-	void test();
+	void toggleMobile();
 	void treeClicked();
+	string treeSelected();
+	void widgetMobile();
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) 
@@ -115,8 +127,11 @@ public:
 		init();
 	}
 
+	void displayCata(const Wt::WKeyEvent& wKey);
+
 	Wt::WLength wlAuto = Wt::WLength::Auto;
 	Wt::WLength len5p = Wt::WLength("5px");
+	Wt::WLength len50p = Wt::WLength("50px");
 	Wt::WLength len200p = Wt::WLength("200px");
 	Wt::WLength len300p = Wt::WLength("300px");
 	Wt::WLength len600p = Wt::WLength("600px");

@@ -2,6 +2,7 @@
 
 string WTPAINT::areaClicked(int index)
 {
+	if (index == areaName.size()) { return "bgArea"; }
 	return areaName[index];
 }
 void WTPAINT::clearAreas()
@@ -119,7 +120,9 @@ vector<int> WTPAINT::getScaleValues(int numTicks)
 	vector<int> ticks(numTicks);
 	vector<int> indexMinMax = jf.minMax(areaData);
 	double min = areaData[indexMinMax[0]], dTemp;
+	if (min < 0.0) { min = 0.0; }
 	double max = areaData[indexMinMax[1]];
+	if (max < 0.0) { max = 0.0; }
 	double bandWidth = (max - min) / (double)(numTicks - 1);
 	for (int ii = 0; ii < numTicks; ii++)
 	{
@@ -137,6 +140,14 @@ void WTPAINT::makeAreas()
 		area.push_back(wpArea.get());
 		this->addArea(move(wpArea));
 	}
+	vector<Wt::WPointF> corners(4);
+	corners[0] = Wt::WPointF(0.0, 0.0);
+	corners[1] = Wt::WPointF(dWidth, 0.0);
+	corners[2] = Wt::WPointF(dWidth, dHeight);
+	corners[3] = Wt::WPointF(0.0, dHeight);
+	auto bgArea = make_unique<Wt::WPolygonArea>(corners);
+	area.push_back(bgArea.get());
+	this->addArea(move(bgArea));
 }
 void WTPAINT::initColour()
 {

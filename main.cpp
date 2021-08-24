@@ -27,6 +27,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 
 	root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
+	this->globalKeyWentUp().connect(scdaWidget, &SCDAwidget::displayCata);
 }
 
 string getConfigPath(const string& execPath)
