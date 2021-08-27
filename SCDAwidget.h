@@ -35,6 +35,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	JFUNC jf;
 	JTREE jtRegion;
 	enum Layer { Root, Year, Description, Region, Division };
+	unordered_map<string, string> mapCBPanel;  // cb id -> parent panel id
 	unordered_map<string, int> mapVarIndex;  // unique id -> var index (panel, CBs)
 	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
 	bool mobile = 0;
@@ -47,6 +48,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	enum treeType { Tree, Subtree };
 	vector<vector<string>> vvsDemographic;  // Form [forWhom index][forWhom, sCata0, sCata1, ...]
 	vector<vector<string>> vvsParameter;  // Form [variable index][MID0, MID1, ..., variable title].
+	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
 	const Wt::WString wsAll = Wt::WString("All");
 	const Wt::WString wsNoneSel = Wt::WString("[None selected]");
 
@@ -56,7 +58,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WComboBox *cbCategory, *cbColTopicTitle, *cbColTopicTable, *cbColTopicSel;
 	Wt::WComboBox* cbDemographic;
 	Wt::WComboBox *cbRowTopicSel, *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
-	Wt::WContainerWidget *boxConfig, *boxData, *boxMap, *boxTest;
+	Wt::WContainerWidget *boxConfig, *boxData, *boxMap;
 	Wt::WImage* imgMap;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
@@ -67,7 +69,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	SCDAserver& sRef;
 	Wt::WTable* tableData;
 	Wt::WTabWidget* tabData;
-	Wt::WText* textLegend, *tableTitle, *textTable, *textList;
+	Wt::WText *textCata, *textLegend, *textTable;
 	Wt::WTree* treeRegion;
 
 	vector<Wt::WComboBox*> allCB, varMID, varTitle;
@@ -83,13 +85,15 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbColRowTitleClicked(string id);
 	void cbDemographicChanged();
 	void cbDiffTitleChanged(string id);
+	void cbHighlight(Wt::WComboBox*& cb);
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<vector<string>>& vvsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem, string selItem);
+	void cbUnHighlight(Wt::WComboBox*& cb);
 	void cbVarTitleClicked(string id);
 	void cbVarMIDClicked(string id);
-	void cbYearClicked();
+	void cbYearChanged();
 	void connect();
 	vector<string> getDemo();
 	int getHeight();
@@ -103,6 +107,10 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void mapAreaDoubleClicked(int areaIndex);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
 	void processDataEvent(const DataEvent& event);
+	void processEventCategory(vector<string> vsCategory);
+	void processEventDemographic(vector<vector<string>> vvsDemo);
+	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<double> vdData);
+	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
 	void removeVariable(int varIndex);
 	void resetMap();
 	void resetTable();
@@ -119,6 +127,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void toggleMobile();
 	void treeClicked();
 	string treeSelected();
+	void updateTextCata(int numCata);
 	void widgetMobile();
 
 public:

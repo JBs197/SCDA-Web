@@ -23,17 +23,18 @@ class WTPAINT : public Wt::WPaintedWidget
 	vector<string> areaName, dataName;
 	const double barNumberHeight = 14.0;  // Unit of pixels, for a horizontal bar.
 	const double barNumberWidth = 100.0;  // Unit of pixels, for a vertical bar.
-	const double barThickness = 20.0;  // Unit of pixels.
+	const double barThickness = 14.0;  // Unit of pixels.
 	vector<vector<double>> barTLBR, imgTLBR;  // Unit of pixels.
 	vector<vector<Wt::WPointF>> border;  // Form [region index][border point index].
 	const double colourDimPercent = 0.7;
 	const string defaultLength = "200.0";
-	const double defaultParentExclusionThreshold = 0.6;  // If no child's data passes this percentage of the parent's data, exclude parent from the map's legend/colour.
 	double dHeight = -1.0, dWidth = -1.0;  // Unit of pixels.
 	vector<int> extraColour;
 	JFUNC jf;
+	bool legendBarDouble;  // If the parent region dominates all child regions, make two bars.
 	unordered_map<string, int> mapArea;  // Form "Region Name"->indexArea.
 	const int numColourBands = 5;
+	string sUnit;
 	double widgetPPKM = -1.0;
 
 public:
@@ -53,14 +54,16 @@ public:
 	vector<double> getChildTL(vector<vector<double>>& vpfBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM);
 	vector<vector<int>> getFrame(vector<Wt::WPointF>& path);
 	vector<int> getScaleValues(int numTicks);
+	vector<vector<int>> getScaleValuesDouble(int numTicks);
 	void makeAreas();
 	void paintLegendBar(Wt::WPainter& painter);
+	void paintLegendBarDouble(Wt::WPainter& painter);
 	void paintRegionAll(Wt::WPainter& painter);
 	void scaleChildToWidget(vector<vector<double>>& vpfBorder, vector<vector<double>>& vpfFrame);
 	vector<Wt::WPointF> scaleParentToWidget(vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& parentFrameKM);
 	void setDimensions(int iHeight, int iWidth);
+	void setUnit(Wt::WString wsLegend);
 	void setWColour(Wt::WColor& wColour, vector<int> rgb, double percent);
-	bool testExcludeParent();
 	void updateAreaColour();
 
 protected:

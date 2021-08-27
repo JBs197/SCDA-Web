@@ -528,36 +528,59 @@ vector<string> SCDAserver::getDataIndex(string sYear, string sCata, vector<vecto
 		vsDataIndex = { "0" };
 		return vsDataIndex;
 	}
+	
+	/*
 	else if (iSize == 2)  // No variables, only one table possible.
 	{
-		vsDataIndex = { "all" };
+		tname = "DataIndex$" + sYear + "$" + sCata;
+		search = { "DataIndex" };
+		sf.select(search, tname, vsDataIndex);
+		if (vsDataIndex.size() < 1) { jf.err("No DataIndex found-SCDAserver.getDataIndex"); }
 		return vsDataIndex;
 	}
+	*/
 	
 	search = { "MID" };
 	if (vvsDIM.size() >= vsDIMTitle.size()) { jf.err("Invalid vvsDIM-SCDAserver.getDataIndex"); }
 	int iSearch = max(vsDIMTitle.size() - 2, vvsDIM.size());
-	for (int ii = 0; ii < iSearch; ii++)
+	if (iSearch > 0)
 	{
-		for (int jj = 0; jj < vvsDIM.size(); jj++)
+		for (int ii = 0; ii < iSearch; ii++)
 		{
-			if (vvsDIM[jj][0] == vsDIMTitle[ii])
+			for (int jj = 0; jj < vvsDIM.size(); jj++)
 			{
-				temp.clear();
-				conditions = { "DIM LIKE " + vvsDIM[jj][1] };
-				tname = "Census$" + sYear + "$" + sCata + "$DIM$" + to_string(ii);
-				iSize = sf.select(search, tname, temp, conditions);
-				if (iSize < 1) { jf.err("MID not found-SCDAserver.getDataIndex"); }
-				inum = stoi(temp);
-				inum--;
-				vsMID.push_back(to_string(inum));
-				break;
-			}
-			else if (jj == vvsDIM.size() - 1)
-			{
-				jf.err("Unresolved DIM-SCDAserver.getDataIndex");
+				if (vvsDIM[jj][0] == vsDIMTitle[ii])
+				{
+					temp.clear();
+					conditions = { "DIM LIKE " + vvsDIM[jj][1] };
+					tname = "Census$" + sYear + "$" + sCata + "$DIM$" + to_string(ii);
+					iSize = sf.select(search, tname, temp, conditions);
+					if (iSize < 1) { jf.err("MID not found-SCDAserver.getDataIndex"); }
+					inum = stoi(temp);
+					inum--;
+					vsMID.push_back(to_string(inum));
+					break;
+				}
+				else if (jj == vvsDIM.size() - 1)
+				{
+					jf.err("Unresolved DIM-SCDAserver.getDataIndex");
+				}
 			}
 		}
+	}
+	else
+	{
+		tname = "Census$" + sYear + "$" + sCata + "$DIM$0";
+		iSize = sf.select(search, tname, vsMID);
+		if (iSize < 1) { jf.err("MID not found-SCDAserver.getDataIndex"); }
+		vsDataIndex.resize(iSize);
+		for (int ii = 0; ii < iSize; ii++)
+		{
+			inum = stoi(vsMID[ii]);
+			inum--;
+			vsDataIndex[ii] = to_string(inum);
+		}
+		return vsDataIndex;
 	}
 
 	search = { "DataIndex" };
@@ -689,7 +712,7 @@ vector<vector<string>> SCDAserver::getParameter(vector<vector<string>>& vvsCata,
 			}
 		}
 	}
-	if (vvsVariable.size() < 1) { jf.err("Zero variables remain-SCDAserver.getVariable"); }
+	//if (vvsVariable.size() < 1) { jf.err("Zero variables remain-SCDAserver.getVariable"); }
 	return vvsVariable;
 }
 vector<string> SCDAserver::getRowTitle(string sYear, string sCata)
@@ -715,15 +738,14 @@ long long SCDAserver::getTimer()
 {
 	return jf.timerStop();
 }
-vector<string> SCDAserver::getTopicList(string sYear)
+vector<string> SCDAserver::getTopicList(vector<string> vsYear)
 {
 	// Returns an alphabetically-sorted list of topical categories for the 
-	// given external year.
+	// given internal year(s).
 	vector<string> vsTopic;
 	string tname;
 	set<string> setTopic;
 	vector<string> search = { "Topic" };
-	vector<string> vsYear = getYear(sYear);
 	lock_guard<mutex> lg(m_server);
 	for (int ii = 0; ii < vsYear.size(); ii++)
 	{
@@ -878,6 +900,20 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 		}
 	}
 }
+void SCDAserver::pullCategory(vector<string> prompt)
+{
+	// Prompt has form [id, visible year].
+	vector<string> vsYear = getYear(prompt[1]);
+	vector<string> vsTopic = getTopicList(vsYear);
+	int numCata = 0;
+	string tname;
+	for (int ii = 0; ii < vsYear.size(); ii++)
+	{
+		tname = "Census$" + vsYear[ii];
+		numCata += sf.getNumRows(tname);
+	}
+	postDataEvent(DataEvent(DataEvent::Category, prompt[0], numCata, vsTopic), prompt[0]);
+}
 void SCDAserver::pullDifferentiator(vector<string> prompt, vector<string> vsCata)
 {
 	// Creates a "variable" event from the given "ForWhom" description.
@@ -911,7 +947,12 @@ void SCDAserver::pullDifferentiator(vector<string> prompt, vector<string> vsCata
 	vector<string> vsVariable = getVariable(vvsCata, prompt);
 	if (vsVariable.size() > 0) 
 	{ 
-		postDataEvent(DataEvent(DataEvent::Differentiation, sID, vsVariable), sID);
+		int numCata = 0;
+		for (int ii = 0; ii < vvsCata.size(); ii++)
+		{
+			numCata += vvsCata[ii].size() - 1;
+		}
+		postDataEvent(DataEvent(DataEvent::Differentiation, sID, numCata, vsVariable), sID);
 	}
 	else if (vvsCata.size() < 1)
 	{
@@ -1085,7 +1126,7 @@ void SCDAserver::pullTopic(vector<string> prompt)
 	{ 
 		vsColTopic.push_back("Value");
 	}
-	postDataEvent(DataEvent(DataEvent::Topic, sID, vsColTopic, vsRowTopic), sID);
+	postDataEvent(DataEvent(DataEvent::Topic, sID, numCata, vsColTopic, vsRowTopic), sID);
 }
 void SCDAserver::pullTree(vector<string> prompt)
 {
@@ -1134,25 +1175,23 @@ void SCDAserver::pullVariable(vector<string> prompt, vector<vector<string>> vvsF
 	{
 		vvsVariable = getParameter(vvsCata, vvsFixed);
 		vector<string> DIMIndex = getDIMIndex(vvsCata);
-		postDataEvent(DataEvent(DataEvent::Parameter, sID, vvsVariable, vvsCata, DIMIndex), sID);
+		postDataEvent(DataEvent(DataEvent::Parameter, sID, numCata, vvsVariable, vvsCata, DIMIndex), sID);
 	}
 	else
 	{
-		if (vvsFixed.size() < 1)  // First differentiation: Demographic
+		if (vvsFixed.size() < 1)  // First differentiation, try Demographic.
 		{
 			vvsVariable = getForWhom(vvsCata);
-			postDataEvent(DataEvent(DataEvent::Demographic, sID, vvsVariable), sID);
+			postDataEvent(DataEvent(DataEvent::Demographic, sID, numCata, vvsVariable), sID);
+			return;
 		}
-		else  // Later differentiation: Differentiation
+		vector<string> vsFixed(vvsFixed.size());
+		for (int ii = 0; ii < vvsFixed.size(); ii++)
 		{
-			vector<string> vsFixed(vvsFixed.size());
-			for (int ii = 0; ii < vvsFixed.size(); ii++)
-			{
-				vsFixed[ii] = vvsFixed[ii][0];
-			}
-			vector<string> vsVariable = getVariable(vvsCata, vsFixed);
-			if (vsVariable.size() < 1) { jf.err("Failed to differentiate between catalogues-SCDAserver.pullDifferentiator"); }
-			postDataEvent(DataEvent(DataEvent::Differentiation, sID, vsVariable), sID);
+			vsFixed[ii] = vvsFixed[ii][0];
 		}
+		vector<string> vsVariable = getVariable(vvsCata, vsFixed);
+		if (vsVariable.size() < 1) { jf.err("Failed to differentiate between catalogues-SCDAserver.pullDifferentiator"); }
+		postDataEvent(DataEvent(DataEvent::Differentiation, sID, numCata, vsVariable), sID);
 	}	
 }

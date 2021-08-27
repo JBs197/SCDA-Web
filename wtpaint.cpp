@@ -58,6 +58,11 @@ void WTPAINT::displaceParentToWidget(vector<vector<vector<double>>>& vvvdBorder,
 vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdBorder, vector<string>& vsRegion, vector<double>& vdData)
 {
 	if (vvvdBorder.size() < 2 || vsRegion.size() < 2 || vdData.size() < 2) { jf.err("Less than two regions given-wtpaint.drawMap"); }
+	if (sUnit.size() < 1) { jf.err("No unit initialized-wtpaint.paintLegendBar"); }
+	
+	if (vsRegion.size() > 2 && sUnit.size() > 1) { legendBarDouble = 1; }
+	else { legendBarDouble = 0; }
+
 	vector<vector<double>> parentFrameKM, childFrameKM;
 	displaceParentToWidget(vvvdBorder, parentFrameKM);
 	vector<Wt::WPointF> borderParent = scaleParentToWidget(vvvdBorder, parentFrameKM);
@@ -119,16 +124,253 @@ vector<int> WTPAINT::getScaleValues(int numTicks)
 {
 	vector<int> ticks(numTicks);
 	vector<int> indexMinMax = jf.minMax(areaData);
-	double min = areaData[indexMinMax[0]], dTemp;
-	if (min < 0.0) { min = 0.0; }
-	double max = areaData[indexMinMax[1]];
-	if (max < 0.0) { max = 0.0; }
-	double bandWidth = (max - min) / (double)(numTicks - 1);
-	for (int ii = 0; ii < numTicks; ii++)
+	int iMinScale, iMaxScale, minDivisor, divisor, quotient, remainder, iScaleWidth;
+
+	if (sUnit == "%")
 	{
-		dTemp = (double)ii * bandWidth;
-		ticks[ii] = int(round(min + dTemp));
+		ticks[0] = 0;
+		ticks[numTicks - 1] = 100;
+		iScaleWidth = 100 / (numTicks - 1);
+		for (int ii = 1; ii < numTicks - 1; ii++)
+		{
+			ticks[ii] = ii * iScaleWidth;
+		}
+		return ticks;
 	}
+
+	double dMin = areaData[indexMinMax[0]];
+	if (dMin < 0.0) { dMin = 0.0; }
+	double dMax = areaData[indexMinMax[1]];
+	if (dMax < 0.0) { dMax = 0.0; }
+	int iMin = floor(dMin);
+	int iMax = ceil(dMax);
+
+	int iNum = iMin;
+	int minDigits = 1;
+	while (1)
+	{
+		iNum /= 10;
+		if (iNum > 0) { minDigits++; }
+		else { break; }
+	}
+	iNum = iMax;
+	int maxDigits = 1;
+	while (1)
+	{
+		iNum /= 10;
+		if (iNum > 0) { maxDigits++; }
+		else { break; }
+	}
+
+	string sMin = "1";
+	for (int ii = 0; ii < minDigits - 1; ii++)
+	{
+		sMin += "0";
+	}
+	minDivisor = stoi(sMin);
+	quotient = iMin / minDivisor;
+	iMinScale = quotient * minDivisor;
+
+	string sMax = "1";
+	for (int ii = 0; ii < maxDigits - 1; ii++)
+	{
+		sMax += "0";
+	}
+	divisor = stoi(sMax);
+	quotient = iMax / divisor;
+	quotient++;
+	iMaxScale = quotient * divisor;
+
+	if (maxDigits > minDigits + 1) { iMinScale = 0; }
+	ticks[0] = iMinScale;
+	ticks[numTicks - 1] = iMaxScale;
+
+	int iBandWidth = (iMaxScale - iMinScale) / (numTicks - 1);	
+	if (iMinScale == 0)
+	{
+		iNum = iBandWidth;
+		int bwDigits = 1;
+		while (1)
+		{
+			iNum /= 10;
+			if (iNum > 0) { bwDigits++; }
+			else { break; }
+		}
+		string sBandWidth = "1";
+		for (int ii = 0; ii < bwDigits - 1; ii++)
+		{
+			sBandWidth += "0";
+		}
+		divisor = stoi(sBandWidth);
+		quotient = iBandWidth / divisor;
+		remainder = iBandWidth % divisor;
+		if (divisor - remainder < divisor / 2) { quotient++; }
+		iScaleWidth = quotient * divisor;
+		for (int ii = 1; ii < numTicks - 1; ii++)
+		{
+			ticks[ii] = ii * iScaleWidth;
+		}
+	}
+	else if (iBandWidth > iMinScale)
+	{
+		iNum = iBandWidth / iMinScale;
+		int lowScale = iNum * iMinScale;
+		int highScale = (iNum + 1) * iMinScale;
+		if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) { iScaleWidth = lowScale; }
+		else { iScaleWidth = highScale; }
+		for (int ii = 1; ii < numTicks - 1; ii++)
+		{
+			ticks[ii] = (ii * iScaleWidth) + iMinScale;
+		}
+	}
+	else
+	{
+		int iMinnierScale = iMinScale;
+		while (iBandWidth < iMinnierScale) { iMinnierScale /= 10; }
+		iNum = iBandWidth / iMinnierScale;
+		int lowScale = iNum * iMinnierScale;
+		int highScale = (iNum + 1) * iMinnierScale;
+		if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) { iScaleWidth = lowScale; }
+		else { iScaleWidth = highScale; }
+		for (int ii = 1; ii < numTicks - 1; ii++)
+		{
+			ticks[ii] = (ii * iScaleWidth) + iMinScale;
+		}
+	}
+	return ticks;
+}
+vector<vector<int>> WTPAINT::getScaleValuesDouble(int numTicks)
+{
+	vector<vector<int>> ticks(2, vector<int>());  // Form [child bar, parent bar][ticks].
+	ticks[0].resize(numTicks);
+	ticks[1].resize(4);  // Form [child bar min, child bar max, parent, parent bar max].
+	vector<int> indexMinMax = jf.minMax(areaDataChildren);
+	int iMinScale, iMaxScale, minDivisor, divisor, quotient, remainder, iScaleWidth;
+
+	double dMin = areaDataChildren[indexMinMax[0]];
+	if (dMin < 0.0) { dMin = 0.0; }
+	double dMax = areaDataChildren[indexMinMax[1]];
+	if (dMax < 0.0) { dMax = 0.0; }
+	int iMin = floor(dMin);
+	int iMax = ceil(dMax);
+
+	int iNum = iMin;
+	int minDigits = 1;
+	while (1)
+	{
+		iNum /= 10;
+		if (iNum > 0) { minDigits++; }
+		else { break; }
+	}
+	iNum = iMax;
+	int maxDigits = 1;
+	while (1)
+	{
+		iNum /= 10;
+		if (iNum > 0) { maxDigits++; }
+		else { break; }
+	}
+
+	string sMin = "1";
+	for (int ii = 0; ii < minDigits - 1; ii++)
+	{
+		sMin += "0";
+	}
+	minDivisor = stoi(sMin);
+	quotient = iMin / minDivisor;
+	iMinScale = quotient * minDivisor;
+
+	string sMax = "1";
+	for (int ii = 0; ii < maxDigits - 1; ii++)
+	{
+		sMax += "0";
+	}
+	divisor = stoi(sMax);
+	quotient = iMax / divisor;
+	quotient++;
+	iMaxScale = quotient * divisor;
+
+	if (maxDigits > minDigits + 1) { iMinScale = 0; }
+	ticks[0][0] = iMinScale;
+	ticks[0][numTicks - 1] = iMaxScale;
+
+	int iBandWidth = (iMaxScale - iMinScale) / (numTicks - 1);
+	if (iMinScale == 0)
+	{
+		iNum = iBandWidth;
+		int bwDigits = 1;
+		while (1)
+		{
+			iNum /= 10;
+			if (iNum > 0) { bwDigits++; }
+			else { break; }
+		}
+		string sBandWidth = "1";
+		for (int ii = 0; ii < bwDigits - 1; ii++)
+		{
+			sBandWidth += "0";
+		}
+		divisor = stoi(sBandWidth);
+		quotient = iBandWidth / divisor;
+		remainder = iBandWidth % divisor;
+		if (divisor - remainder < divisor / 2) { quotient++; }
+		iScaleWidth = quotient * divisor;
+		for (int ii = 1; ii < numTicks - 1; ii++)
+		{
+			ticks[0][ii] = ii * iScaleWidth;
+		}
+	}
+	else if (iBandWidth > iMinScale)
+	{
+		iNum = iBandWidth / iMinScale;
+		int lowScale = iNum * iMinScale;
+		int highScale = (iNum + 1) * iMinScale;
+		if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) { iScaleWidth = lowScale; }
+		else { iScaleWidth = highScale; }
+		for (int ii = 1; ii < numTicks - 1; ii++)
+		{
+			ticks[0][ii] = (ii * iScaleWidth) + iMinScale;
+		}
+	}
+	else
+	{
+		int iMinnierScale = iMinScale;
+		while (iBandWidth < iMinnierScale) { iMinnierScale /= 10; }
+		iNum = iBandWidth / iMinnierScale;
+		int lowScale = iNum * iMinnierScale;
+		int highScale = (iNum + 1) * iMinnierScale;
+		if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) { iScaleWidth = lowScale; }
+		else { iScaleWidth = highScale; }
+		for (int ii = 1; ii < numTicks - 1; ii++)
+		{
+			ticks[0][ii] = (ii * iScaleWidth) + iMinScale;
+		}
+	}
+
+	ticks[1][0] = ticks[0][0];
+	ticks[1][1] = ticks[0][numTicks - 1];
+
+	double dMaxParent = areaData[areaData.size() - 1];
+	ticks[1][2] = ceil(dMaxParent);
+	iNum = ticks[1][2];
+	maxDigits = 1;
+	while (1)
+	{
+		iNum /= 10;
+		if (iNum > 0) { maxDigits++; }
+		else { break; }
+	}
+
+	string sMaxParent = "1";
+	for (int ii = 0; ii < maxDigits - 1; ii++)
+	{
+		sMaxParent += "0";
+	}
+	divisor = stoi(sMaxParent);
+	quotient = ticks[1][2] / divisor;
+	quotient++;
+	ticks[1][3] = quotient * divisor;
+
 	return ticks;
 }
 void WTPAINT::makeAreas()
@@ -169,11 +411,13 @@ void WTPAINT::paintEvent(Wt::WPaintDevice* paintDevice)
 	painter.setPen(pen);
 	if (area.size() < 1) { return; }
 	paintRegionAll(painter);
-	paintLegendBar(painter);
+	if (legendBarDouble) { paintLegendBarDouble(painter); }
+	else { paintLegendBar(painter); }
 	resize(barTLBR[1][0] + 1.0, barTLBR[1][1] + 1.0);
 }
 void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 {
+	if (sUnit.size() < 1) { jf.err("No unit initialized-wtpaint.paintLegendBar"); }
 	int numColour = numColourBands + 1;
 	if (keyColour.size() != numColour) { initColour(); }
 	double width = barTLBR[1][0] - barTLBR[0][0];
@@ -182,13 +426,17 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	if (height <= 0.0) { jf.err("Invalid barTLBR height-wtpaint.paintLegendBar"); }
 	bool barVertical = 0;
 	if (height > width) { barVertical = 1; }
+	string temp, personUnit;
+	bool oneLine = 0;
+	if (sUnit == "$" || sUnit == "%") { oneLine = 1; }
+	else { personUnit = "(" + sUnit + ")"; }
 
 	double dLen, wGradX0, wGradX1, wGradY0, wGradY1, tickX, tickY, dTemp, xCoord, yCoord;
 	Wt::WRectF rectColour; 
 	Wt::WGradient wGrad;
 	Wt::WColor wColour;
-	Wt::WString wsTemp;
-	string temp;
+	Wt::WString wsValue, wsUnit, wsTemp;
+	int widthDiff;
 	vector<int> scaleValues = getScaleValues(numColour);
 	if (barVertical)
 	{
@@ -218,38 +466,406 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	{
 		dTemp = (double)ii * bandWidth;
 		wColour.setRgb(keyColour[ii][0], keyColour[ii][1], keyColour[ii][2]);
-		wGrad.addColorStop(dTemp, wColour);
-		temp = to_string(scaleValues[ii]);
-		wsTemp = Wt::WString::fromUTF8(temp);
+		wGrad.addColorStop(dTemp, wColour);		
 		if (barVertical) 
 		{ 
 			tickY = wGradY0 - (dTemp * dLen) + 1.0; 
 			painter.drawLine(tickX, tickY, tickX - (barThickness / 2.0), tickY);
-			if (ii == 0) { yCoord = min(tickY - (barNumberHeight / 2.0), barTLBR[1][1] - barNumberHeight); }
-			else if (ii == numColour - 1) { yCoord = max(tickY - (barNumberHeight / 2.0), 0.0); }
-			else { yCoord = tickY - (barNumberHeight / 2.0); }
-			painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsTemp);
+			if (oneLine)
+			{
+				temp = to_string(scaleValues[ii]) + " (" + sUnit + ")";
+				wsValue = Wt::WString::fromUTF8(temp);
+				if (ii == 0) { yCoord = min(tickY - (barNumberHeight / 2.0), barTLBR[1][1] - barNumberHeight); }
+				else if (ii == numColour - 1) { yCoord = max(tickY - (barNumberHeight / 2.0), 0.0); }
+				else { yCoord = tickY - (barNumberHeight / 2.0); }
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsValue);
+			}
+			else
+			{
+				temp = to_string(scaleValues[ii]);
+				widthDiff = abs((int)personUnit.size() - (int)temp.size());
+				widthDiff /= 2;
+				wsValue = Wt::WString::fromUTF8(temp);
+				wsUnit = Wt::WString::fromUTF8(personUnit);
+				if (temp.size() < personUnit.size())
+				{
+					for (int jj = 0; jj < widthDiff; jj++)
+					{
+						wsValue += " ";
+					}
+				}
+				else
+				{
+					for (int jj = 0; jj < widthDiff; jj++)
+					{
+						wsUnit += " ";
+					}
+				}
+
+				if (ii == 0) { yCoord = min(tickY - barNumberHeight, barTLBR[1][1] - (2.0 * barNumberHeight)); }
+				else if (ii == numColour - 1) { yCoord = max(tickY - barNumberHeight, 0.0); }
+				else { yCoord = tickY - barNumberHeight; }
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsValue);
+				yCoord += barNumberHeight;
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsUnit);
+			}
 		}
 		else 
 		{ 
 			tickX = wGradX0 + (dTemp * dLen) - 1.0; 
 			painter.drawLine(tickX, tickY, tickX, tickY - (barThickness / 2.0));
-			if (ii == 0) 
-			{ 
-				xCoord = 0.0; 
-				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsTemp);
+
+			if (oneLine)
+			{
+				temp = to_string(scaleValues[ii]) + " (" + sUnit + ")";
+				wsValue = Wt::WString::fromUTF8(temp);
+				if (ii == 0)
+				{
+					xCoord = 0.0;
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsValue);
+				}
+				else if (ii == numColour - 1)
+				{
+					xCoord = barTLBR[1][0] - barNumberWidth;
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsValue);
+				}
+				else
+				{
+					xCoord = tickX - (barNumberWidth / 2.0);
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsValue);
+				}
 			}
-			else if (ii == numColour - 1) 
-			{ 
-				xCoord = barTLBR[1][0] - barNumberWidth; 
-				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsTemp);
-			}
-			else 
-			{ 
-				xCoord = tickX - (barNumberWidth / 2.0);
-				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsTemp);
+			else
+			{
+				temp = to_string(scaleValues[ii]);
+				widthDiff = abs((int)personUnit.size() - (int)temp.size());
+				widthDiff /= 2;
+				wsValue = Wt::WString::fromUTF8(temp);
+				wsUnit = Wt::WString::fromUTF8(personUnit);
+				if (ii == 0)
+				{
+					wsTemp = "";
+					for (int jj = 0; jj < widthDiff; jj++)
+					{
+						wsTemp += " ";
+					}
+					if (temp.size() < personUnit.size())
+					{
+						wsValue = wsTemp + wsValue;
+					}
+					else
+					{
+						wsUnit = wsTemp + wsUnit;
+					}
+					xCoord = 0.0;
+					yCoord = barTLBR[0][1];
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsValue);
+					yCoord += barNumberHeight;
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsUnit);
+				}
+				else if (ii == numColour - 1)
+				{
+					wsTemp = "";
+					for (int jj = 0; jj < widthDiff; jj++)
+					{
+						wsTemp += " ";
+					}
+					if (temp.size() < personUnit.size())
+					{
+						wsValue += wsTemp;
+					}
+					else
+					{
+						wsUnit += wsTemp;
+					}
+					xCoord = barTLBR[1][0] - barNumberWidth;
+					yCoord = barTLBR[0][1];
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsValue);
+					yCoord += barNumberHeight;
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsUnit);
+				}
+				else
+				{
+					xCoord = tickX - (barNumberWidth / 2.0);
+					yCoord = barTLBR[0][1];
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsValue);
+					yCoord += barNumberHeight;
+					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsUnit);
+				}
 			}
 		}		
+	}
+	Wt::WBrush wBrush(wGrad);
+	painter.setBrush(wBrush);
+	painter.drawRect(rectColour);
+}
+void WTPAINT::paintLegendBarDouble(Wt::WPainter& painter)
+{
+	if (sUnit.size() < 1) { jf.err("No unit initialized-wtpaint.paintLegendBar"); }
+	int numColour = numColourBands + 1;
+	if (keyColour.size() != numColour) { initColour(); }
+	double width = barTLBR[1][0] - barTLBR[0][0];
+	if (width <= 0.0) { jf.err("Invalid barTLBR width-wtpaint.paintLegendBar"); }
+	double height = barTLBR[1][1] - barTLBR[0][1];
+	if (height <= 0.0) { jf.err("Invalid barTLBR height-wtpaint.paintLegendBar"); }
+	bool barVertical = 0;
+	if (height > width) { barVertical = 1; }
+	string temp, personUnit;
+	bool oneLine = 0;
+	personUnit = "(" + sUnit + ")";
+
+	double dLen, dLenParent, wGradX0, wGradX1, wGradY0, wGradY1, tickX, tickY; 
+	double dTemp, wGradX0P, wGradX1P, wGradY0P, wGradY1P, xCoord, yCoord, tickXP, tickYP;
+	Wt::WRectF rectColour, rectColourParent;
+	Wt::WGradient wGrad, wGradParent;
+	Wt::WColor wColour;
+	Wt::WString wsValue, wsUnit, wsTemp;
+	int widthDiff;
+	vector<vector<int>> scaleValues = getScaleValuesDouble(numColour);  // Form [child bar, parent bar][ticks].
+	if (barVertical)
+	{
+		dLen = dHeight - (2.0 * barThickness);
+		dTemp = (double)(scaleValues[1][1] - scaleValues[1][0]) / (double)(scaleValues[1][2] - scaleValues[1][0]);
+		dLenParent = dTemp * dLen;
+		rectColour = Wt::WRectF(barTLBR[1][0] - (1.5 * barThickness), barThickness, barThickness, dLen);
+		rectColourParent = Wt::WRectF(barThickness, barTLBR[1][1] - (2.0 * barNumberHeight) - (1.5 * barThickness), dLenParent, barThickness);
+		
+		wGradX0 = 1.5 * barThickness;
+		wGradX1 = wGradX0;
+		wGradY0 = dLen + barThickness - 1.0;
+		wGradY1 = barThickness + 1.0;
+		tickX = barTLBR[0][0] + barNumberWidth;
+		xCoord = barTLBR[0][0] - 2.0;
+
+		wGradX0P = 1.5 * barThickness;
+		wGradX1P = wGradX0P;
+		wGradY0P = dLen + barThickness - 1.0;
+		wGradY1P = wGradY0P - dLenParent;
+		tickXP = barTLBR[1][0] - barNumberWidth;
+	}
+	else
+	{
+		dLen = dWidth - (2.0 * barThickness);
+		dTemp = (double)(scaleValues[1][1] - scaleValues[1][0]) / (double)(scaleValues[1][2] - scaleValues[1][0]);
+		dLenParent = dTemp * dLen;
+		rectColour = Wt::WRectF(barThickness, barTLBR[0][1] + (2.0 * barNumberHeight) + (0.5 * barThickness), dLen, barThickness);
+		rectColourParent = Wt::WRectF(barThickness, barTLBR[1][1] - (2.0 * barNumberHeight) - (1.5 * barThickness), dLenParent, barThickness);
+		
+		wGradX0 = barThickness + 1.0;
+		wGradX1 = dLen + barThickness - 1.0;
+		wGradY0 = 1.5 * barThickness;
+		wGradY1 = wGradY0;
+		tickY = barTLBR[0][1] + (2.0 * barNumberHeight) + (0.5 * barThickness);
+
+		wGradX0P = barThickness + 1.0;
+		wGradX1P = wGradX0P + dLenParent - 1.0;
+		wGradY0P = 1.5 * barThickness;
+		wGradY1P = wGradY0P;
+		tickYP = barTLBR[1][1] - (2.0 * barNumberHeight) - (0.5 * barThickness);
+	}
+	wGrad.setLinearGradient(wGradX0, wGradY0, wGradX1, wGradY1);
+	wGradParent.setLinearGradient(wGradX0P, wGradY0P, wGradX1P, wGradY1P);
+	double bandWidth = 1.0 / (double)(numColourBands);
+	for (int ii = 0; ii < numColour; ii++)  // Child bar only.
+	{
+		dTemp = (double)ii * bandWidth;
+		wColour.setRgb(keyColour[ii][0], keyColour[ii][1], keyColour[ii][2]);
+		wGrad.addColorStop(dTemp, wColour);
+		if (barVertical)
+		{
+			tickY = wGradY0 - (dTemp * dLen) + 1.0;
+			painter.drawLine(tickX, tickY, tickX + (barThickness / 2.0), tickY);
+			temp = to_string(scaleValues[0][ii]);
+			widthDiff = abs((int)personUnit.size() - (int)temp.size());
+			widthDiff /= 2;
+			wsValue = Wt::WString::fromUTF8(temp);
+			wsUnit = Wt::WString::fromUTF8(personUnit);
+			if (temp.size() < personUnit.size())
+			{
+				for (int jj = 0; jj < widthDiff; jj++)
+				{
+					wsValue += " ";
+				}
+			}
+			else
+			{
+				for (int jj = 0; jj < widthDiff; jj++)
+				{
+					wsUnit += " ";
+				}
+			}
+
+			if (ii == 0) { yCoord = min(tickY - barNumberHeight, barTLBR[1][1] - (2.0 * barNumberHeight)); }
+			else if (ii == numColour - 1) { yCoord = max(tickY - barNumberHeight, 0.0); }
+			else { yCoord = tickY - barNumberHeight; }
+			painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsValue);
+			yCoord += barNumberHeight;
+			painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsUnit);
+		}
+		else
+		{
+			tickX = wGradX0 + (dTemp * dLen) - 1.0;
+			painter.drawLine(tickX, tickY, tickX, tickY - (barThickness / 2.0));
+			temp = to_string(scaleValues[0][ii]);
+			widthDiff = abs((int)personUnit.size() - (int)temp.size());
+			widthDiff /= 2;
+			wsValue = Wt::WString::fromUTF8(temp);
+			wsUnit = Wt::WString::fromUTF8(personUnit);
+			if (ii == 0)
+			{
+				wsTemp = "";
+				for (int jj = 0; jj < widthDiff; jj++)
+				{
+					wsTemp += " ";
+				}
+				if (temp.size() < personUnit.size())
+				{
+					wsValue = wsTemp + wsValue;
+				}
+				else
+				{
+					wsUnit = wsTemp + wsUnit;
+				}
+				xCoord = 0.0;
+				yCoord = barTLBR[0][1];
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsValue);
+				yCoord += barNumberHeight;
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsUnit);
+			}
+			else if (ii == numColour - 1)
+			{
+				wsTemp = "";
+				for (int jj = 0; jj < widthDiff; jj++)
+				{
+					wsTemp += " ";
+				}
+				if (temp.size() < personUnit.size())
+				{
+					wsValue += wsTemp;
+				}
+				else
+				{
+					wsUnit += wsTemp;
+				}
+				xCoord = barTLBR[1][0] - barNumberWidth;
+				yCoord = barTLBR[0][1];
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsValue);
+				yCoord += barNumberHeight;
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsUnit);
+			}
+			else
+			{
+				xCoord = tickX - (barNumberWidth / 2.0);
+				yCoord = barTLBR[0][1];
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsValue);
+				yCoord += barNumberHeight;
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsUnit);
+			}
+		}
+	}
+	for (int ii = 0; ii < 4; ii++)  // For parent bar only.
+	{
+		if (ii == 0)
+		{
+			wColour.setRgb(keyColour[0][0], keyColour[0][1], keyColour[0][2]);
+			wGradParent.addColorStop(0.0, wColour);
+		}
+		if (ii == 1)
+		{
+			wColour.setRgb(keyColour[numColour - 1][0], keyColour[numColour - 1][1], keyColour[numColour - 1][2]);
+			wGradParent.addColorStop(1.0, wColour);
+		}
+		dTemp = (double)(scaleValues[1][ii] - scaleValues[1][0]) / (double)(scaleValues[1][3] - scaleValues[1][0]);
+		if (barVertical)
+		{
+			tickYP = wGradY0P - (dTemp * dLen) + 1.0;
+			painter.drawLine(tickXP, tickYP, tickXP - (barThickness / 2.0), tickYP);
+			temp = to_string(scaleValues[0][ii]);
+			widthDiff = abs((int)personUnit.size() - (int)temp.size());
+			widthDiff /= 2;
+			wsValue = Wt::WString::fromUTF8(temp);
+			wsUnit = Wt::WString::fromUTF8(personUnit);
+			wsTemp = "";
+			for (int jj = 0; jj < widthDiff; jj++)
+			{
+				wsTemp += " ";
+			}
+			if (temp.size() < personUnit.size())
+			{
+				wsValue = wsTemp + wsValue;
+			}
+			else
+			{
+				wsUnit = wsTemp + wsUnit;
+			}
+
+			if (ii == 0) { yCoord = min(tickY - barNumberHeight, barTLBR[1][1] - (2.0 * barNumberHeight)); }
+			else if (ii == numColour - 1) { yCoord = max(tickY - barNumberHeight, 0.0); }
+			else { yCoord = tickY - barNumberHeight; }
+			painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsValue);
+			yCoord += barNumberHeight;
+			painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsUnit);
+		}
+		else
+		{
+			tickXP = wGradX0P + (dTemp * dLen) - 1.0;
+			painter.drawLine(tickXP, tickYP, tickXP, tickYP + (barThickness / 2.0));
+			temp = to_string(scaleValues[1][ii]);
+			widthDiff = abs((int)personUnit.size() - (int)temp.size());
+			widthDiff /= 2;
+			wsValue = Wt::WString::fromUTF8(temp);
+			wsUnit = Wt::WString::fromUTF8(personUnit);
+			if (ii == 0)
+			{
+				wsTemp = "";
+				for (int jj = 0; jj < widthDiff; jj++)
+				{
+					wsTemp += " ";
+				}
+				if (temp.size() < personUnit.size())
+				{
+					wsValue = wsTemp + wsValue;
+				}
+				else
+				{
+					wsUnit = wsTemp + wsUnit;
+				}
+				xCoord = 0.0;
+				yCoord = barTLBR[1][1] - (2.0 * barNumberHeight);
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsValue);
+				yCoord += barNumberHeight;
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsUnit);
+			}
+			else if (ii == numColour - 1)
+			{
+				wsTemp = "";
+				for (int jj = 0; jj < widthDiff; jj++)
+				{
+					wsTemp += " ";
+				}
+				if (temp.size() < personUnit.size())
+				{
+					wsValue += wsTemp;
+				}
+				else
+				{
+					wsUnit += wsTemp;
+				}
+				xCoord = barTLBR[1][0] - barNumberWidth;
+				yCoord = barTLBR[1][1] - (2.0 * barNumberHeight);
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsValue);
+				yCoord += barNumberHeight;
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Right, wsUnit);
+			}
+			else
+			{
+				xCoord = tickX - (barNumberWidth / 2.0);
+				yCoord = barTLBR[1][1] - (2.0 * barNumberHeight);
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsValue);
+				yCoord += barNumberHeight;
+				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsUnit);
+			}
+		}
 	}
 	Wt::WBrush wBrush(wGrad);
 	painter.setBrush(wBrush);
@@ -293,14 +909,28 @@ vector<Wt::WPointF> WTPAINT::scaleParentToWidget(vector<vector<vector<double>>>&
 {
 	// Returns the parent region's border (in pixels), scaled to the widget.
 	if (dHeight < 0.0 || dWidth < 0.0) { jf.err("No widget dimensions-wtpaint.scaleParentToWidget"); }
+	if (sUnit.size() < 1) { jf.err("No unit initialized-wtpaint.scaleParentToWidget"); }
 	vector<Wt::WPointF> parentBorder(vvvdBorder[0].size());
 	barTLBR.clear();
 	barTLBR.resize(2, vector<double>(2));
 	imgTLBR.clear();
 	imgTLBR.resize(2, vector<double>(2));
 	imgTLBR[0] = { 0.0, 0.0 };
+	double barSpaceVertical;
+	if (sUnit == "$" || sUnit == "%")
+	{
+		barSpaceVertical = barNumberHeight + (2.0 * barThickness);
+	}
+	else
+	{
+		barSpaceVertical = (2.0 * barNumberHeight) + (2.0 * barThickness);
+	}
 	double barSpaceHorizontal = barNumberWidth + (2.0 * barThickness);
-	double barSpaceVertical = barNumberHeight + (2.0 * barThickness);
+	if (legendBarDouble)
+	{
+		barSpaceVertical *= 2;
+		barSpaceHorizontal *= 2;
+	}
 	double imgWidthKM = parentFrameKM[1][0] - parentFrameKM[0][0];
 	double imgHeightKM = parentFrameKM[1][1] - parentFrameKM[0][1];
 	double xRatio = imgWidthKM / (dWidth - barSpaceHorizontal);  // km per pixel
@@ -342,19 +972,18 @@ void WTPAINT::setDimensions(int iHeight, int iWidth)
 	dHeight = (double)iHeight;
 	resize(dWidth, dHeight);
 }
+void WTPAINT::setUnit(Wt::WString wsLegend)
+{
+	string sLegend = wsLegend.toUTF8();
+	size_t pos1 = sLegend.rfind('(') + 1;
+	if (pos1 > sLegend.size()) { jf.err("Failed to determine unit-wtpaint.setUnit"); }
+	size_t pos2 = sLegend.find(')', pos1);
+	sUnit = sLegend.substr(pos1, pos2 - pos1);	
+}
 void WTPAINT::setWColour(Wt::WColor& wColour, vector<int> rgb, double percent)
 {
 	double dTemp = 255.0 * percent;
 	wColour.setRgb(rgb[0], rgb[1], rgb[2], int(dTemp));
-}
-bool WTPAINT::testExcludeParent()
-{
-	areaDataChildren.assign(areaData.begin(), areaData.end() - 1);
-	if (areaName.back() == "Canada") { return 1; }
-	vector<int> minMaxIndex = jf.minMax(areaDataChildren);
-	double percent = areaDataChildren[minMaxIndex[1]] / areaData[0];
-	if (percent < defaultParentExclusionThreshold) { return 1; }
-	return 0;
 }
 void WTPAINT::updateAreaColour()
 {
@@ -365,8 +994,10 @@ void WTPAINT::updateAreaColour()
 	double percentage, dR, dG, dB, remains, dMin, dMax;
 	int floor, indexEnd;
 	vector<int> indexMinMax;
-	if (testExcludeParent())
+	if (legendBarDouble)
 	{
+		areaDataChildren = areaData;
+		areaDataChildren.pop_back();
 		indexMinMax = jf.minMax(areaDataChildren);
 		dMin = areaDataChildren[indexMinMax[0]];
 		dMax = areaDataChildren[indexMinMax[1]];

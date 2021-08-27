@@ -14,6 +14,7 @@ class DataEvent
 {
 public:
 	const JTREE tree;
+	const int numCata;
 	const vector<string> list, listCol, listRow;
 	const vector<vector<string>> catalogue, table, variable;
 	const vector<string> ancestry;
@@ -22,7 +23,7 @@ public:
 	const vector<vector<vector<double>>> areas;
 	const vector<double> regionData;
 
-	enum eType { Catalogue, Connect, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree };
+	enum eType { Catalogue, Category, Connect, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<vector<vector<double>>> get_areas() const { return areas; }
@@ -30,6 +31,7 @@ public:
 	vector<string> get_list() const { return list; }
 	vector<string> getListCol() const { return listCol; }
 	vector<string> getListRow() const { return listRow; }
+	int getNumCata() const { return numCata; }
 	vector<double> get_regionData() const { return regionData; }
 	string getSCata() const { return sCata; }
 	string getSYear() const { return sYear; }
@@ -45,38 +47,39 @@ private:
 
 	// Constructor for eType Catalogue.
 	DataEvent(eType et, const string& sID, const string& sy, const string& sc)
-		: etype(et), sessionID(sID), sYear(sy), sCata(sc) {}
+		: etype(et), sessionID(sID), numCata(1), sYear(sy), sCata(sc) {}
 
 	// Constructor for eType Connect.
-	DataEvent(eType et, const string& sID) : etype(et), sessionID(sID) {}
+	DataEvent(eType et, const string& sID, const int& nC) 
+		: etype(et), sessionID(sID), numCata(nC) {}
 
 	// Constructor for eType Demographic.
-	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvs)
-		: etype(et), sessionID(sID), variable(vvs) {}
+	DataEvent(eType et, const string& sID, const int& nC, const vector<vector<string>>& vvs)
+		: etype(et), sessionID(sID), numCata(nC), variable(vvs) {}
 
-	// Constructor for eTypes Differentiation.
-	DataEvent(eType et, const string& sID, const vector<string>& vsDiff)
-		: etype(et), sessionID(sID), list(vsDiff) {}
+	// Constructor for eTypes Category and Differentiation.
+	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsList)
+		: etype(et), sessionID(sID), numCata(nC), list(vsList) {}
 
 	// Constructor for eType Map.
 	DataEvent(eType et, const string& sID, const vector<string>& vsRegion, const vector<vector<vector<double>>>& area, const vector<double>& rData)
-		: etype(et), sessionID(sID), list(vsRegion), areas(area), regionData(rData) {}
+		: etype(et), sessionID(sID), list(vsRegion), areas(area), regionData(rData), numCata(1) {}
 
 	// Constructor for eType Parameter.
-	DataEvent(eType et, const string& sID, const vector<vector<string>>& var, const vector<vector<string>>& cata, const vector<string>& DIMIndex)
-		: etype(et), sessionID(sID), variable(var), catalogue(cata), list(DIMIndex) {}
+	DataEvent(eType et, const string& sID, const int& nC, const vector<vector<string>>& var, const vector<vector<string>>& cata, const vector<string>& DIMIndex)
+		: etype(et), sessionID(sID), numCata(nC), variable(var), catalogue(cata), list(DIMIndex) {}
 
 	// Constructor for eType Table.
 	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<string>& vsCol, const vector<string>& vsRow)
-		: etype(et), sessionID(sID), table(vvsTable), listCol(vsCol), listRow(vsRow) {}
+		: etype(et), sessionID(sID), table(vvsTable), listCol(vsCol), listRow(vsRow), numCata(1) {}
 
 	// Constructor for eType Topic.
-	DataEvent(eType et, const string& sID, const vector<string>& vsCol, const vector<string>& vsRow)
-		: etype(et), sessionID(sID), listCol(vsCol), listRow(vsRow) {}
+	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsCol, const vector<string>& vsRow)
+		: etype(et), sessionID(sID), numCata(nC), listCol(vsCol), listRow(vsRow) {}
 
 	// Constructor for eType Tree.
 	DataEvent(eType et, const string& sID, const JTREE& jt)
-		: etype(et), sessionID(sID), tree(jt) {}
+		: etype(et), sessionID(sID), numCata(1), tree(jt) {}
 
 	friend class SCDAserver;
 };
@@ -117,9 +120,10 @@ public:
 	vector<vector<string>> getParameter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
 	vector<string> getRowTitle(string sYear, string sCata);
 	long long getTimer();
-	vector<string> getTopicList(string sYear);
+	vector<string> getTopicList(vector<string> vsYear);
 	vector<string> getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getYear(string sYear);
+	void pullCategory(vector<string> prompt);
 	void pullDifferentiator(vector<string> prompt, vector<string> vsCata);
 	void pullMap(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTable(vector<string> prompt, vector<vector<string>> vvsDIM);
