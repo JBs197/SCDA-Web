@@ -33,6 +33,7 @@ class WTPAINT : public Wt::WPaintedWidget
 	JFUNC jf;
 	bool legendBarDouble;  // If the parent region dominates all child regions, make two bars.
 	unordered_map<string, int> mapArea;  // Form "Region Name"->indexArea.
+	unordered_map<string, Wt::WString> mapTooltip;
 	const int numColourBands = 5;
 	string sUnit;
 	double widgetPPKM = -1.0;

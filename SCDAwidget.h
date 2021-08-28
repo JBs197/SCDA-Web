@@ -38,6 +38,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	unordered_map<string, string> mapCBPanel;  // cb id -> parent panel id
 	unordered_map<string, int> mapVarIndex;  // unique id -> var index (panel, CBs)
 	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
+	unordered_map<int, string> mapTimeWord;  // word index -> word  (shown in init).
 	bool mobile = 0;
 	const int num_filters = 3;
 	int numPreVariable = -1;  // Number of widgets in boxConfig prior to the "variable" panels.
@@ -76,7 +77,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	vector<Wt::WPanel*> allPanel, varPanel;
 
 	void addDemographic(vector<vector<string>>& vvsDemo);
-	void addDifferentiator(vector<string>& vsDiff);
+	void addDifferentiator(vector<string> vsDiff);
 	void addVariable(vector<string>& vsVariable);
 	void addVariable(vector<vector<string>>& vvsVariable);
 	void appendMapToHistory(string sMap);
@@ -107,10 +108,14 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void mapAreaDoubleClicked(int areaIndex);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
 	void processDataEvent(const DataEvent& event);
+	void processEventCatalogue(string sYear, string sCata);
 	void processEventCategory(vector<string> vsCategory);
 	void processEventDemographic(vector<vector<string>> vvsDemo);
 	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<double> vdData);
+	void processEventParameter(vector<vector<string>> vvsVariable, vector<vector<string>> vvsCata, vector<string> vsDIMIndex);
+	void processEventTable(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
+	void processEventTree(JTREE jt);
 	void removeVariable(int varIndex);
 	void resetMap();
 	void resetTable();
