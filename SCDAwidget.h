@@ -12,15 +12,17 @@
 #include <Wt/WStandardItem.h>
 #include <Wt/WTable.h>
 #include <Wt/WTableCell.h>
+#include <Wt/WSlider.h>
 #include <Wt/WPanel.h>
 #include <Wt/WPushButton.h>
+#include <Wt/WPopupMenu.h>
 #include <Wt/WLineEdit.h>
 #include <Wt/WLength.h>
 #include <Wt/WTabWidget.h>
 #include <Wt/WMenuItem.h>
 #include <Wt/WImage.h>
 #include <Wt/WEvent.h>
-#include <Wt/WString.h>
+#include <Wt/WJavaScript.h>
 #include "SCDAserver.h"
 
 using namespace std;
@@ -39,12 +41,14 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	unordered_map<string, int> mapVarIndex;  // unique id -> var index (panel, CBs)
 	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
 	unordered_map<int, string> mapTimeWord;  // word index -> word  (shown in init).
+	unordered_map<string, Wt::WString> mapTooltip;  // widget -> tooltip
 	bool mobile = 0;
 	const int num_filters = 3;
 	int numPreVariable = -1;  // Number of widgets in boxConfig prior to the "variable" panels.
 	Wt::WString selectedRegion, selectedFolder;
 	int selectedCol = -1, selectedRow = -1;
 	string sessionID, mapRegion;
+	int tableXMax;
 	vector<int> treeActive;
 	enum treeType { Tree, Subtree };
 	vector<vector<string>> vvsDemographic;  // Form [forWhom index][forWhom, sCata0, sCata1, ...]
@@ -59,18 +63,20 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WComboBox *cbCategory, *cbColTopicTitle, *cbColTopicTable, *cbColTopicSel;
 	Wt::WComboBox* cbDemographic;
 	Wt::WComboBox *cbRowTopicSel, *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
-	Wt::WContainerWidget *boxConfig, *boxData, *boxMap;
+	Wt::WContainerWidget *boxConfig, *boxData, *boxMap, *boxMapOption, *boxTable;
 	Wt::WImage* imgMap;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
 	Wt::WPanel *panelCategory, *panelColTopic, *panelRowTopic, *panelYear;
-	Wt::WPushButton *pbColTopic, *pbMobile, *pbRowTopic;
+	Wt::WPopupMenu *popupUnit;
+	Wt::WPushButton *pbMobile, *pbUnit;
 	Wt::WSelectionBox* sbList;
+	Wt::WSlider* sliderTable;
 	Wt::WSpinBox* spinBoxMapX, *spinBoxMapY, *spinBoxMapRot;
 	SCDAserver& sRef;
 	Wt::WTable* tableData;
 	Wt::WTabWidget* tabData;
-	Wt::WText *textCata, *textLegend, *textTable;
+	Wt::WText *textCata, *textLegend, *textTable, *textUnit;
 	Wt::WTree* treeRegion;
 
 	vector<Wt::WComboBox*> allCB, varMID, varTitle;
@@ -99,6 +105,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	vector<string> getDemo();
 	int getHeight();
 	Wt::WString getTextLegend();
+	string getUnit();
+	string getUnitParser(string header);
 	vector<vector<string>> getVariable();
 	int getWidth();
 	void init();
@@ -111,7 +119,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventCatalogue(string sYear, string sCata);
 	void processEventCategory(vector<string> vsCategory);
 	void processEventDemographic(vector<vector<string>> vvsDemo);
-	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<double> vdData);
+	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData);
 	void processEventParameter(vector<vector<string>> vvsVariable, vector<vector<string>> vvsCata, vector<string> vsDIMIndex);
 	void processEventTable(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
@@ -128,20 +136,31 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void tableClicked(int iRow, int iCol);
 	void tableDeselect(int iRow, int iCol);
 	void tableDoubleClicked(int iRow, int iCol);
+	vector<string> tableGetCol(int colIndex);
+	int tableGetColIndex(string header);
+	int tableGetMaxScroll();
+	vector<string> tableGetRow(int rowIndex);
+	int tableGetRowIndex(string header);
 	void tableSelect(int iRow, int iCol);
 	void toggleMobile();
 	void treeClicked();
 	string treeSelected();
 	void updateTextCata(int numCata);
+	void updateUnit(string sUnit);
 	void widgetMobile();
 
 public:
-	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver) 
+	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver), jsXMax(this, "jsXMax", 1)
 	{ 
+		this->setId("SCDAwidget");
+		this->setInline(0);
 		init();
 	}
 
 	void displayCata(const Wt::WKeyEvent& wKey);
+	void tableReceiveSignal(const int& xMax);
+
+	Wt::JSignal<int> jsXMax;
 
 	Wt::WLength wlAuto = Wt::WLength::Auto;
 	Wt::WLength len5p = Wt::WLength("5px");

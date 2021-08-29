@@ -11,6 +11,7 @@ class SCDAapp : public Wt::WApplication
 
 public:
 	SCDAapp(const Wt::WEnvironment&, SCDAserver&);
+
 };
 SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(env), serverRef(serv), envRef(env)
 {
@@ -61,7 +62,7 @@ vector<string> make_wrun_args(string exec_dir)
 		proj_dir[pos1] = '/';
 		pos1 = proj_dir.find('\\', pos1 + 1);
 	}
-	string default_http_addr = "0.0.0.0";
+	string default_http_addr = "192.168.0.25";
 	string default_http_port = "8181";
 	vector<string> args(5);
 	args[0] = "--http-address=" + default_http_addr;
@@ -71,7 +72,6 @@ vector<string> make_wrun_args(string exec_dir)
 	args[4] = "-c" + proj_dir + "/html/wt_config.xml";
 	return args;
 }
-
 
 int main()
 {

@@ -153,6 +153,136 @@ void SCDAserver::init()
 	auto uniqueWtf = make_unique<WTPAINT>();
 	wtf = uniqueWtf.get();
 }
+void SCDAserver::initPopulation()
+{
+	// Populate the object's map connecting sYear to its general population catalogue.
+	vector<vector<string>> vvsCata;
+	vector<string> vsYear, conditions;
+	string temp, sMID;
+	vector<string> search = { "Year" };
+	string tname = "Census";
+	sf.select(search, tname, vsYear);
+	if (vsYear.size() < 1) { jf.err("No years found-SCDAserver.initPopulation"); }
+
+	temp = "Age and sex";
+	for (int ii = 0; ii < vsYear.size(); ii++)
+	{
+		vvsCata.push_back({ vsYear[ii] });
+		tname = "Census$" + vsYear[ii];
+		search = { "Catalogue" };
+		conditions = { "Topic LIKE " + temp };
+		sf.select(search, tname, vvsCata[ii], conditions);
+	}
+
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		if (vvsCata[ii].size() > 2) { jf.err("Multiple population catalogues-SCDAserver.initPopulation"); }
+		if (vvsCata[ii].size() == 2)
+		{
+			temp = vvsCata[ii][0] + "$" + vvsCata[ii][1];
+			mapPopCata.emplace(vvsCata[ii][0], temp);
+		}
+	}
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		if (vvsCata[ii].size() == 1)
+		{
+			vsYear = getYear(vvsCata[ii][0]);
+			for (int jj = 0; jj < vsYear.size(); jj++)
+			{
+				if (vsYear[jj] == vvsCata[ii][0]) { continue; }
+				if (mapPopCata.count(vsYear[jj]))
+				{
+					temp = mapPopCata.at(vsYear[jj]);
+					mapPopCata.emplace(vvsCata[ii][0], temp);
+				}
+			}			
+		}
+	}
+
+	// Populate the object's map connecting sCata to its DataIndex numbers for general population.
+	vector<vector<string>> vvsDIMIndex, vvsDIM;
+	vector<string> vsResult, vsDim, dataIndex;
+	size_t pos1, pos2;
+	search = { "DIMIndex", "DIM" };
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		if (vvsCata[ii].size() == 2)
+		{
+			tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][1] + "$DIMIndex";
+			sf.select(search, tname, vvsDIMIndex);
+			if (vvsDIMIndex.size() < 1) { jf.err("No DIMIndex found-SCDAserver.initPopulation"); }
+			vvsDIM.resize(vvsDIMIndex.size(), vector<string>(2));
+			for (int jj = 0; jj < vvsDIM.size(); jj++)
+			{
+				vvsDIM[jj][0] = vvsDIMIndex[jj][1];
+				if (jj < vvsDIM.size() - 1)
+				{
+					tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][1] + "$DIM$" + vvsDIMIndex[jj][0];
+					search = { "DIM" };
+				}
+				else
+				{
+					tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][1] + "$Dim";
+					search = { "Dim" };
+				}
+				vsResult.clear();
+				sf.select(search, tname, vsResult);
+				if (vsResult.size() < 1) { jf.err("No DIM found-SCDAserver.initPopulation"); }
+				
+				for (int kk = 0; kk < vsResult.size(); kk++)
+				{
+					pos1 = vsResult[kk].find("Total - ");
+					if (pos1 < vsResult[kk].size())
+					{
+						vvsDIM[jj][1] = vsResult[kk];
+						break;
+					}
+					else if (kk == vsResult.size() - 1)  // Initial failure.
+					{
+						pos1 = vvsDIM[jj][0].find(" year");
+						pos2 = vvsDIM[jj][0].find("Year");
+						if (pos1 < vvsDIM[jj][0].size() || pos2 < vvsDIM[jj][0].size())
+						{
+							for (int ll = 0; ll < vsResult.size(); ll++)
+							{
+								if (vsResult[ll] == vvsCata[ii][0])
+								{
+									vvsDIM[jj][1] = vsResult[ll];
+									break;
+								}
+								else if (ll == vsResult.size() - 1)
+								{
+									jf.err("Unknown Year-SCDAserver.initPopulation");
+								}
+							}
+						}
+						else
+						{
+							jf.err("Unknown DIM-SCDAserver.initPopulation");
+						}
+					}
+				}
+			}
+
+			vsDim = vvsDIM[vvsDIM.size() - 1];
+			vvsDIM.pop_back();
+			dataIndex = getDataIndex(vvsCata[ii][0], vvsCata[ii][1], vvsDIM);
+			if (dataIndex.size() != 1) { jf.err("Incorrect dataIndex-SCDAserver.initPopulation"); }
+
+			tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][1] + "$Dim";
+			search = { "MID" };
+			conditions = { "Dim LIKE " + vsDim[1] };
+			sMID.clear();
+			sf.select(search, tname, sMID, conditions);
+			if (sMID.size() < 1) { jf.err("MID not found-SCDAserver.initPopulation"); }
+
+			temp = dataIndex[0] + "$" + sMID;
+			mapPopDI.emplace(vvsCata[ii][1], temp);
+		}
+	}
+	int bbq = 1;
+}
 vector<vector<vector<double>>> SCDAserver::getBorderKM(vector<string>& vsGeoCode, string sYear)
 {
 	// Return form [region index][border point index][xCoord, yCoord].
@@ -433,13 +563,14 @@ vector<vector<string>> SCDAserver::getForWhom(vector<vector<string>>& vvsCata)
 	}
 	return vvsForWhom;
 }
-void SCDAserver::getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName)
+int SCDAserver::getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName)
 {
 	// vsGeoCode return form [sGeoCodeParent, sGeoCodeChild0, ...].
 	// vsRegionName return form [sRegionNameParent, sRegionNameChild0, ...].
 	// If sRegionNameParent is not a parent, then find its own parent, and that region
 	// will serve as sRegionNameParent instead. 
 	if (geo.size() < 1 || vsGeoCode.size() < 1 || vsRegionName.size() < 1) { jf.err("Missing input-SCDAserver.getGeoFamily"); }
+	int oldParentIndex = 0;
 	for (int ii = 0; ii < geo.size(); ii++)
 	{
 		if (geo[ii].back() == vsGeoCode[0])
@@ -467,6 +598,7 @@ void SCDAserver::getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeo
 			{
 				vsGeoCode.push_back(geo[ii][0]);
 				vsRegionName.push_back(geo[ii][1]);
+				if (geo[ii][0] == oldGeoCode) { oldParentIndex = vsGeoCode.size() - 1; }
 			}
 			else if (geo[ii][0] == vsGeoCode[0])
 			{
@@ -475,6 +607,7 @@ void SCDAserver::getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeo
 		}
 		if (vsGeoCode.size() < 2) { jf.err("Failed to find any child regions-SCDAserver.getGeoFamily"); }
 	}
+	return oldParentIndex;
 }
 vector<string> SCDAserver::getColTitle(string sYear, string sCata)
 {
@@ -715,6 +848,33 @@ vector<vector<string>> SCDAserver::getParameter(vector<vector<string>>& vvsCata,
 	//if (vvsVariable.size() < 1) { jf.err("Zero variables remain-SCDAserver.getVariable"); }
 	return vvsVariable;
 }
+vector<double> SCDAserver::getPopulationFamily(string extYear, vector<string>& vsGeoCode)
+{
+	// For the list of geoCodes, return each corresponding region's total population.
+	string temp = mapPopCata.at(extYear);
+	size_t pos1 = temp.find('$');
+	string sYear = temp.substr(0, pos1);
+	string sCata = temp.substr(pos1 + 1);
+
+	temp = mapPopDI.at(sCata);
+	pos1 = temp.find('$');
+	string dataIndex = temp.substr(0, pos1);
+	string sDim = "dim" + temp.substr(pos1 + 1);
+
+	vector<double> vdPop(vsGeoCode.size());
+	string tname, result;
+	vector<string> search = { sDim };
+	vector<string> conditions = { "DataIndex = " + dataIndex };
+	for (int ii = 0; ii < vdPop.size(); ii++)
+	{
+		tname = "Data$" + sYear + "$" + sCata + "$" + vsGeoCode[ii];
+		result.clear();
+		sf.select(search, tname, result, conditions);
+		if (result.size() < 1) { jf.err("Result not found-SCDAserver.getPopulationFamily"); }
+		vdPop[ii] = stod(result);
+	}
+	return vdPop;
+}
 vector<string> SCDAserver::getRowTitle(string sYear, string sCata)
 {
 	vector<string> vsResult;
@@ -763,6 +923,28 @@ vector<string> SCDAserver::getTopicList(vector<string> vsYear)
 	}
 	sort(vsTopic.begin(), vsTopic.end());
 	return vsTopic;
+}
+string SCDAserver::getUnit(string sMID)
+{
+	// For a chosen column/row header, return its stated unit (if it has one).
+	string unit;
+	size_t pos2 = sMID.size() - 1;
+	if (sMID[pos2] != ')') { return unit; }  // Nothing found.
+	size_t pos1 = sMID.rfind('(') + 1;
+	unit = sMID.substr(pos1, pos2 - pos1);
+	return unit;
+}
+string SCDAserver::getUnit(string sYear, string sCata, string sDimMID)
+{
+	// This variant gets the column header from the database and checks it for a unit.
+	string result, unit;
+	string tname = "Census$" + sYear + "$" + sCata + "$Dim";
+	vector<string> search = { "Dim" };
+	vector<string> conditions = { "MID = " + sDimMID };
+	sf.select(search, tname, result, conditions);
+	if (result.size() < 1) { jf.err("No MID found-SCDAserver.getUnit"); }
+	unit = getUnit(result);
+	return unit;
 }
 vector<string> SCDAserver::getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed)
 {
@@ -881,8 +1063,8 @@ vector<string> SCDAserver::getYear(string sYear)
 {
 	// Returns a list of internal years represented by a single external year. 
 	vector<string> vsYear;
-	if (sYear == "2016") { vsYear = { "2016", "2017" }; }
-	else if (sYear == "2011") { vsYear = { "2011", "2013" }; }
+	if (sYear == "2016" || sYear == "2017") { vsYear = { "2016", "2017" }; }
+	else if (sYear == "2011" || sYear == "2013") { vsYear = { "2011", "2013" }; }
 	else { vsYear = { sYear }; }
 	return vsYear;
 }
@@ -903,6 +1085,7 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 void SCDAserver::pullCategory(vector<string> prompt)
 {
 	// Prompt has form [id, visible year].
+	if (mapPopDI.size() < 1) { initPopulation(); }
 	vector<string> vsYear = getYear(prompt[1]);
 	vector<string> vsTopic = getTopicList(vsYear);
 	int numCata = 0;
@@ -981,21 +1164,38 @@ void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 	vector<string> vsRegionName = { prompt[3] };
 	vector<vector<string>> geo = getGeo(prompt[1], prompt[2]);
 	jf.removeBlanks(geo);
-	getGeoFamily(geo, vsGeoCode, vsRegionName);
+	int index = getGeoFamily(geo, vsGeoCode, vsRegionName);  // Note which region was relegated to child status.
 
 	// Get all the border coordinates, form [region index][border point index][xCoord, yCoord].
 	vector<vector<vector<double>>> areas = getBorderKM(vsGeoCode, prompt[1]);
 	addFrameKM(areas, vsGeoCode, prompt[1]);  // Final two coordinates (for the parent region) are the frame TLBR.
 
-	// Retrieve the unique DataIndex needed for this row of data. 
+	// Determine the data's unit.
 	vector<string> vsDim = vvsDIM.back();  // Form [column DIMIndex title, dimIndex(1, ...)].
 	vvsDIM.pop_back();
+	string sUnit = getUnit(vvsDIM[vvsDIM.size() - 1][1]);  // Firstly, check the row header.
+	if (sUnit.size() < 1)  // Secondly, check the column header. 
+	{
+		sUnit = getUnit(prompt[1], prompt[2], vsDim[1]);
+	}
+
+	// Retrieve the unique DataIndex needed for this row of data. 
 	vector<string> vsDataIndex = getDataIndex(prompt[1], prompt[2], vvsDIM);
 	if (vsDataIndex.size() != 1) { jf.err("Failed to return one DataIndex-SCDAserver.pullMap"); }
 	vsDataIndex.push_back("dim" + vsDim[1]);  // Now has form [dataIndex, dimTitle].
 
-	// Get all the table data cells, form [region index][numeric value].
-	vector<double> data = getDataFamily(prompt[1], prompt[2], vsDataIndex, vsGeoCode);
+	// Get all the table data cells. If unit is "persons" then also return region's 
+	// population. 
+	vector<vector<double>> data(1, vector<double>());
+	data[0] = getDataFamily(prompt[1], prompt[2], vsDataIndex, vsGeoCode);
+	if (sUnit.size() < 1)
+	{
+		data.push_back(vector<double>());
+		data[1] = getPopulationFamily(prompt[1], vsGeoCode);
+	}
+
+	// If the originally-specified region had no children, mark that region with an exclamation mark.
+	if (index != 0) { vsRegionName[index] += "!"; }
 
 	postDataEvent(DataEvent(DataEvent::Map, prompt[0], vsRegionName, areas, data), prompt[0]);
 }

@@ -21,7 +21,7 @@ public:
 	const string sYear, sCata;
 	const vector<Wt::WPainterPath> wpPaths;
 	const vector<vector<vector<double>>> areas;
-	const vector<double> regionData;
+	const vector<vector<double>> regionData;
 
 	enum eType { Catalogue, Category, Connect, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree };
 	string getSessionID() { return sessionID; }
@@ -32,7 +32,7 @@ public:
 	vector<string> getListCol() const { return listCol; }
 	vector<string> getListRow() const { return listRow; }
 	int getNumCata() const { return numCata; }
-	vector<double> get_regionData() const { return regionData; }
+	vector<vector<double>> getRegionData() const { return regionData; }
 	string getSCata() const { return sCata; }
 	string getSYear() const { return sYear; }
 	vector<vector<string>> getTable() const { return table; }
@@ -62,7 +62,7 @@ private:
 		: etype(et), sessionID(sID), numCata(nC), list(vsList) {}
 
 	// Constructor for eType Map.
-	DataEvent(eType et, const string& sID, const vector<string>& vsRegion, const vector<vector<vector<double>>>& area, const vector<double>& rData)
+	DataEvent(eType et, const string& sID, const vector<string>& vsRegion, const vector<vector<vector<double>>>& area, const vector<vector<double>>& rData)
 		: etype(et), sessionID(sID), list(vsRegion), areas(area), regionData(rData), numCata(1) {}
 
 	// Constructor for eType Parameter.
@@ -106,6 +106,7 @@ public:
 	vector<vector<string>> completeVariable(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed, string sYear);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void init();
+	void initPopulation();
 	vector<vector<vector<double>>> getBorderKM(vector<string>& vsGeoCode, string sYear);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt, vector<vector<string>>& vvsVariable);
@@ -115,12 +116,15 @@ public:
 	vector<string> getDIMIndex(vector<vector<string>>& vvsCata);
 	vector<vector<string>> getForWhom(vector<vector<string>>& vvsCata);
 	vector<vector<string>> getGeo(string sYear, string sCata);
-	void getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName);
+	int getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName);
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
 	vector<vector<string>> getParameter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
+	vector<double> getPopulationFamily(string sYear, vector<string>& vsGeoCode);
 	vector<string> getRowTitle(string sYear, string sCata);
 	long long getTimer();
 	vector<string> getTopicList(vector<string> vsYear);
+	string getUnit(string sMID);
+	string getUnit(string sYear, string sCata, string sDimMID);
 	vector<string> getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getYear(string sYear);
 	void pullCategory(vector<string> prompt);
@@ -144,8 +148,8 @@ private:
 
 	unordered_map<string, int> cataMap;  // Cata desc -> gidTree index.
 	const string db_path;
-	vector<vector<vector<int>>> gidTreeSt;  // Form [gidTree index][node index][ancestry, node, children]
-	vector<vector<int>> gidTreePl;  // Form [gidTree index][node index] GID.
+	unordered_map<string, string> mapPopCata;  // externalYear -> internalYear$sCata (general population)
+	unordered_map<string, string> mapPopDI;  // sCata -> dataIndex$dimIndex (general population)
 	Wt::WServer& serverRef;
 	typedef map<User*, UserInfo> userMap;
 	userMap users;
