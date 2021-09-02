@@ -4,6 +4,7 @@
 #include "jtree.h"
 #include "sqlfunc.h"
 #include "winfunc.h"
+#include "wjtable.h"
 #include "wtpaint.h"
 
 using namespace std;
@@ -137,6 +138,7 @@ public:
 
 private:
 	JFUNC jf;
+	JTREE jt;
 	SQLFUNC sf;
 	vector<string> vsTemp;
 	WTPAINT *wtf;

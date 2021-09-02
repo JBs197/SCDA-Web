@@ -7,6 +7,7 @@ void SCDAwidget::addDemographic(vector<vector<string>>& vvsDemo)
 	// form [forWhom index][forWhom, sYear@sCata0, sYear@sCata1, ...].
 	auto demoPanelUnique = make_unique<Wt::WPanel>();
 	demoPanelUnique->setTitle("Demographic Group");
+	demoPanelUnique->setMaximumSize(wlAuto, len150p);
 	auto cbDemoUnique = make_unique<Wt::WComboBox>();
 	cbDemographic = cbDemoUnique.get();
 	cbDemographic->addItem(wsNoneSel);
@@ -132,6 +133,7 @@ void SCDAwidget::addVariable(vector<string>& vsVariable)
 	varMID[index]->changed().connect(fnVarMID);
 
 	varPanel[index]->setTitle("Parameter");
+	varPanel[index]->setMaximumSize(wlAuto, len200p);
 	cbRenew(varTitle[index], vsTitle);
 	varTitle[index]->setCurrentIndex(titleIndex);
 	cbRenew(varMID[index], vsMID);
@@ -240,8 +242,8 @@ void SCDAwidget::cbColRowSelClicked()
 	}
 	else if (iRowSel > 0 || iColSel > 0)
 	{
-		tableDeselect(selectedRow, selectedCol);
-		tableSelect(iRowSel, iColSel);
+		tableData->cellDeselect();
+		tableData->cellSelect(iRowSel, iColSel);
 	}
 }
 void SCDAwidget::cbColRowTitleClicked(string id)
@@ -523,7 +525,11 @@ void SCDAwidget::connect()
 	{
 		Wt::WApplication::instance()->enableUpdates(1);
 		sessionID = Wt::WApplication::instance()->sessionId();
-		this->jsXMax.connect(this, std::bind(&SCDAwidget::tableReceiveSignal, this, std::placeholders::_1));
+		if (jsEnabled)
+		{
+			this->jsTWidth.connect(this, std::bind(&SCDAwidget::tableReceiveDouble, this, std::placeholders::_1));
+			this->jsInfo.connect(this, std::bind(&SCDAwidget::tableReceiveString, this, std::placeholders::_1));
+		}
 	}
 }
 void SCDAwidget::displayCata(const Wt::WKeyEvent& wKey)
@@ -626,75 +632,40 @@ Wt::WString SCDAwidget::getTextLegend()
 }
 string SCDAwidget::getUnit()
 {
+	// Return a unit, using the col/row combobox selections. 
 	if (activeCata.size() < 1) { return ""; }
 	string unit;
-	vector<string> vsColRow;
-	Wt::WString wTemp = cbColTopicSel->currentText();
-	string topicSel = wTemp.toUTF8();
 	size_t pos1, pos2;
-	int index;
-	bool success;
-	if (topicSel[topicSel.size() - 1] == ')')
+
+	// Look for a unit easily defined within the column header.
+	Wt::WString wTemp = cbColTopicSel->currentText();
+	string topicSelCol = wTemp.toUTF8();
+	if (topicSelCol[topicSelCol.size() - 1] == ')')
 	{
-		pos2 = topicSel.size() - 1;
-		pos1 = topicSel.rfind('(') + 1;
-		unit = topicSel.substr(pos1, pos2 - pos1);
+		pos2 = topicSelCol.size() - 1;
+		pos1 = topicSelCol.rfind('(') + 1;
+		unit = topicSelCol.substr(pos1, pos2 - pos1);
 		return unit;
 	}
-	else
-	{
-		unit = getUnitParser(topicSel);
-		if (unit == "%")
-		{
-			index = tableGetColIndex(topicSel);
-			if (index > 0)
-			{
-				vsColRow = tableGetCol(index);
-				vsColRow.erase(vsColRow.begin());
-				success = jf.checkPercent(vsColRow);
-				if (success) { return unit; }
-			}
-		}
-	}
 
+	// Look for a unit easily defined within the row header.
 	wTemp = cbRowTopicSel->currentText();
-	topicSel = wTemp.toUTF8();
-	if (topicSel[topicSel.size() - 1] == ')')
+	string topicSelRow = wTemp.toUTF8();
+	if (topicSelRow[topicSelRow.size() - 1] == ')')
 	{
-		pos2 = topicSel.size() - 1;
-		pos1 = topicSel.rfind('(') + 1;
-		unit = topicSel.substr(pos1, pos2 - pos1);
+		pos2 = topicSelRow.size() - 1;
+		pos1 = topicSelRow.rfind('(') + 1;
+		unit = topicSelRow.substr(pos1, pos2 - pos1);
 		return unit;
 	}
-	else
-	{
-		unit = getUnitParser(topicSel);
-		if (unit == "%")
-		{
-			index = tableGetRowIndex(topicSel);
-			if (index > 0)
-			{
-				vsColRow = tableGetRow(index);
-				vsColRow.erase(vsColRow.begin());
-				success = jf.checkPercent(vsColRow);
-				if (success) { return unit; }
-			}
-		}
-	}
 
+	// Look for a unit subtly defined within the data table.
+	unit = tableData->getUnit();
+	if (unit.size() > 0) { return unit; }
+
+	// No unit found, so assign the default unit.
 	unit = "# of persons";
 	return unit;
-}
-string SCDAwidget::getUnitParser(string header)
-{
-	size_t pos1;
-	vector<string> vsPercent = { "Percentage", "percentage" };
-	for (int ii = 0; ii < vsPercent.size(); ii++)
-	{
-		pos1 = header.find(vsPercent[ii]);
-		if (pos1 < header.size()) { return "%"; }
-	}
-	return "";
 }
 vector<vector<string>> SCDAwidget::getVariable()
 {
@@ -724,6 +695,9 @@ int SCDAwidget::getWidth()
 
 void SCDAwidget::init()
 {
+	auto app = Wt::WApplication::instance();
+	jtWidget.init(this->id(), app->appRoot());
+
 	connect();
 	makeUI();
 	initUI();
@@ -739,17 +713,10 @@ void SCDAwidget::init()
 	Wt::WString wsTooltip = "Single-click a table cell to highlight it.\nDouble-click a table cell to load a new map using that column and row.";
 	mapTooltip.emplace("table", wsTooltip);
 
-	const string boxTableJS = boxTable->jsRef();
-	cout << "boxTableJS: " << boxTableJS << endl;
-	const string getXMax = "function getXMax() { var tableElement = \""
-		+ boxTableJS + "\"; var xMax = tableElement.scrollWidth; " +
-		"Wt.emit('SCDAwidget', 'jsXMax', xMax); }";
-	auto app = Wt::WApplication::instance();
-	app->declareJavaScriptFunction("getXMax", getXMax);
-
-	const string forceBlock = "function forceBlock() { var tableElement = \""
-		+ boxTableJS + "\"; tableElement.style.display = 'block'; }";
-	app->declareJavaScriptFunction("forceBlock", forceBlock);
+	//string getInfoJS = jsMakeFunctionTableWidth(boxTable, "tableData");
+	//app->declareJavaScriptFunction("getInfo", getInfoJS);
+	//string scrollToJS = jsMakeFunctionTableScrollTo(boxTable);
+	//app->declareJavaScriptFunction("scrollTo", scrollToJS);
 
 	int iWidth = getWidth();
 	int iHeight = getHeight();
@@ -773,14 +740,16 @@ void SCDAwidget::initUI()
 	boxConfig->setObjectName("boxConfig");
 	boxData->setObjectName("boxData");
 
-	// Initial values for widget sizes.
+	// Initial values for box sizes.
 	boxConfig->setMaximumSize(len200p, wlAuto);
 	boxConfig->setMinimumSize(len300p, wlAuto);
 	boxData->setMaximumSize(len800p, wlAuto);
 
+
 	// Initial values for cbYear.
 	activeYear = "2016";  // Default for now, as it is the only possibility.
 	panelYear->setTitle("Census Year");
+	panelYear->setMaximumSize(wlAuto, len150p);
 	cbYear->addItem(activeYear);
 	cbYear->setCurrentIndex(0);
 	cbYear->setEnabled(0);
@@ -794,6 +763,7 @@ void SCDAwidget::initUI()
 
 	// Initial values for the category panel.
 	panelCategory->setTitle("Topical Category");
+	panelCategory->setMaximumSize(wlAuto, len150p);
 	panelCategory->setHidden(1);
 
 	// Initial values for the row panel.
@@ -801,6 +771,7 @@ void SCDAwidget::initUI()
 	temp = "panelRow";
 	function<void()> fnRowTopicTitle = bind(&SCDAwidget::cbColRowTitleClicked, this, temp);
 	cbRowTopicTitle->changed().connect(fnRowTopicTitle);
+	panelRowTopic->setMaximumSize(wlAuto, len200p);
 	panelRowTopic->setHidden(1);
 	cbRowTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelClicked);
 
@@ -809,6 +780,7 @@ void SCDAwidget::initUI()
 	temp = "panelCol";
 	function<void()> fnColTopicTitle = bind(&SCDAwidget::cbColRowTitleClicked, this, temp);
 	cbColTopicTitle->changed().connect(fnColTopicTitle);
+	panelColTopic->setMaximumSize(wlAuto, len200p);
 	panelColTopic->setHidden(1);
 	cbColTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelClicked);
 
@@ -822,11 +794,11 @@ void SCDAwidget::initUI()
 	treeRegion->itemSelectionChanged().connect(this, &SCDAwidget::treeClicked);
 
 	// Initial values for the table tab.
-	sliderTable->valueChanged().connect([=] {
-		int xPos = boxTable->scrollTop();
-		int yPos = boxTable->scrollLeft();
-		//doJavaScript(sliderTable->jsRef() + ".scrollTo()")
-		});
+	if (jsEnabled)
+	{
+		sliderTable->sliderMoved().connect(this, std::bind(&SCDAwidget::sliderToScroll, this, std::placeholders::_1));
+		boxTable->scrolled().connect(this, std::bind(&SCDAwidget::scrollToSlider, this, std::placeholders::_1));
+	}
 
 	// Initial values for the map tab.
 	textUnit->setTextAlignment(Wt::AlignmentFlag::Middle);
@@ -836,8 +808,65 @@ void SCDAwidget::initUI()
 
 	// Initial values for the buttons.
 	pbMobile->setEnabled(1);
+	pbMobile->setMaximumSize(wlAuto, len50p);
 	pbMobile->clicked().connect(this, &SCDAwidget::toggleMobile);
 
+}
+string SCDAwidget::jsMakeFunctionTableScrollTo(Wt::WContainerWidget*& boxTable)
+{
+	// Given a number of pixels displaced from the left, scroll to that position.
+	string sID = boxTable->id();
+	vector<string> vsID = { sID };
+	int treeIndex = jtWidget.getIndex(sID);
+	vector<int> viAncestor = jtWidget.treeSTanc[treeIndex];
+	for (int ii = viAncestor.size() - 1; ii >= 0; ii--)
+	{
+		sID = jtWidget.treePL[viAncestor[ii]];
+		vsID.push_back(sID);
+	}
+	string sII;
+	int numID = vsID.size();
+	string scrollTo = "function scrollTo(fromLeft) { var start = document.getElementById(\"";
+	scrollTo += vsID.back() + "\"); var coll" + to_string(numID - 1) + " = start.children; ";
+	for (int ii = numID - 2; ii >= 0; ii--)
+	{
+		sII = to_string(ii);
+		scrollTo += "var node" + sII + " = coll" + to_string(ii + 1);
+		scrollTo += ".namedItem(\"" + vsID[ii] + "\"); ";
+		scrollTo += "var coll" + sII + " = node" + sII + ".children; ";
+	}
+	scrollTo += "node0.scrollLeft = fromLeft; }";
+	return scrollTo;
+}
+string SCDAwidget::jsMakeFunctionTableWidth(Wt::WContainerWidget*& boxTable, string tableID)
+{
+	// Given the sID of a table (and its immediate parent), return a string that 
+	// defines a JavaScript function to return that table's width in pixels. 
+	string sID = boxTable->id();
+	vector<string> vsID = { tableID, sID };
+	int treeIndex = jtWidget.getIndex(sID);
+	vector<int> viAncestor = jtWidget.treeSTanc[treeIndex];
+	for (int ii = viAncestor.size() - 1; ii >= 0; ii--)
+	{
+		sID = jtWidget.treePL[viAncestor[ii]];
+		vsID.push_back(sID);
+	}
+	
+	string sII;
+	int numID = vsID.size();
+	string getInfo = "function getInfo() { var sInfo = \"\"; var start = document.getElementById(\"";
+	getInfo += vsID.back() + "\"); var coll" + to_string(numID - 1) + " = start.children; ";
+	for (int ii = numID - 2; ii >= 0; ii--)
+	{
+		sII = to_string(ii);
+		getInfo += "var node" + sII + " = coll" + to_string(ii + 1);
+		getInfo += ".namedItem(\"" + vsID[ii] + "\"); ";
+		getInfo += "var coll" + sII + " = node" + sII + ".children; ";
+	}	
+	getInfo += "let tableRect = node0.getBoundingClientRect(); ";
+	getInfo += "var tableWidth = tableRect.width; ";
+	getInfo += "Wt.emit('SCDAwidget', 'jsTWidth', tableWidth); }";
+	return getInfo;
 }
 void SCDAwidget::makeUI()
 {
@@ -847,86 +876,127 @@ void SCDAwidget::makeUI()
 	string panelID, cbID;
 	auto boxConfigUnique = make_unique<Wt::WContainerWidget>();
 	boxConfig = boxConfigUnique.get();
+	jtWidget.addChild(boxConfig->id(), -2, -1);
 	auto vLayoutConfig = make_unique<Wt::WVBoxLayout>();
 	layoutConfig = vLayoutConfig.get();
+
 	auto pbMobileUnique = make_unique<Wt::WPushButton>("Toggle Mobile Version");
 	pbMobile = pbMobileUnique.get();
+	jtWidget.addChild(pbMobile->id(), -2, boxConfig->id());
 	auto textCataUnique = make_unique<Wt::WText>();
 	textCata = textCataUnique.get();
+	jtWidget.addChild(textCata->id(), -2, boxConfig->id());
+
 	auto panelYearUnique = make_unique<Wt::WPanel>();
 	panelYear = panelYearUnique.get();
 	allPanel.push_back(panelYear);
 	panelID = panelYear->id();
+	jtWidget.addChild(panelID, -2, boxConfig->id());
 	auto boxCBYearUnique = make_unique<Wt::WContainerWidget>();
+	jtWidget.addChild(boxCBYearUnique->id(), -2, panelID);
 	auto cbYearUnique = make_unique<Wt::WComboBox>();
 	cbYear = cbYearUnique.get();
 	allCB.push_back(cbYear);
 	cbID = cbYear->id();
 	mapCBPanel.emplace(cbID, panelID);
+	jtWidget.addChild(cbID, -2, boxCBYearUnique->id());
+
 	auto panelCategoryUnique = make_unique<Wt::WPanel>();
 	panelCategory = panelCategoryUnique.get();
 	allPanel.push_back(panelCategory);
 	panelID = panelCategory->id();
+	jtWidget.addChild(panelID, -2, boxConfig->id());
 	auto boxCBCategoryUnique = make_unique<Wt::WContainerWidget>();
+	jtWidget.addChild(boxCBCategoryUnique->id(), -2, panelID);
 	auto cbCategoryUnique = make_unique<Wt::WComboBox>();
 	cbCategory = cbCategoryUnique.get();
 	allCB.push_back(cbCategory);
 	cbID = cbCategory->id();
 	mapCBPanel.emplace(cbID, panelID);
-	auto panelRowTopicUnique = make_unique<Wt::WPanel>();
-	panelRowTopic = panelRowTopicUnique.get();
-	allPanel.push_back(panelRowTopic);
-	panelID = panelRowTopic->id();
-	auto boxRowTopicUnique = make_unique<Wt::WContainerWidget>();
-	auto cbRowTopicTitleUnique = make_unique<Wt::WComboBox>();
-	cbRowTopicTitle = cbRowTopicTitleUnique.get();
-	allCB.push_back(cbRowTopicTitle);
-	cbID = cbRowTopicTitle->id();
-	mapCBPanel.emplace(cbID, panelID);
-	auto cbRowTopicSelUnique = make_unique<Wt::WComboBox>();
-	cbRowTopicSel = cbRowTopicSelUnique.get();
-	allCB.push_back(cbRowTopicSel);
-	cbID = cbRowTopicSel->id();
-	mapCBPanel.emplace(cbID, panelID);
+	jtWidget.addChild(cbID, -2, boxCBCategoryUnique->id());
+
 	auto panelColTopicUnique = make_unique<Wt::WPanel>();
 	panelColTopic = panelColTopicUnique.get();
 	allPanel.push_back(panelColTopic);
 	panelID = panelColTopic->id();
+	jtWidget.addChild(panelID, -2, boxConfig->id());
 	auto boxColTopicUnique = make_unique<Wt::WContainerWidget>();
+	jtWidget.addChild(boxColTopicUnique->id(), -2, panelID);
 	auto cbColTopicTitleUnique = make_unique<Wt::WComboBox>();
 	cbColTopicTitle = cbColTopicTitleUnique.get();
 	allCB.push_back(cbColTopicTitle);
 	cbID = cbColTopicTitle->id();
 	mapCBPanel.emplace(cbID, panelID);
+	jtWidget.addChild(cbID, -2, boxColTopicUnique->id());
 	auto cbColTopicSelUnique = make_unique<Wt::WComboBox>();
 	cbColTopicSel = cbColTopicSelUnique.get();
 	allCB.push_back(cbColTopicSel);
 	cbID = cbColTopicSel->id();
 	mapCBPanel.emplace(cbID, panelID);
+	jtWidget.addChild(cbID, -2, boxColTopicUnique->id());
+
+	auto panelRowTopicUnique = make_unique<Wt::WPanel>();
+	panelRowTopic = panelRowTopicUnique.get();
+	allPanel.push_back(panelRowTopic);
+	panelID = panelRowTopic->id();
+	jtWidget.addChild(panelID, -2, boxConfig->id());
+	auto boxRowTopicUnique = make_unique<Wt::WContainerWidget>();
+	jtWidget.addChild(boxRowTopicUnique->id(), -2, panelID);
+	auto cbRowTopicTitleUnique = make_unique<Wt::WComboBox>();
+	cbRowTopicTitle = cbRowTopicTitleUnique.get();
+	allCB.push_back(cbRowTopicTitle);
+	cbID = cbRowTopicTitle->id();
+	mapCBPanel.emplace(cbID, panelID);
+	jtWidget.addChild(cbID, -2, boxRowTopicUnique->id());
+	auto cbRowTopicSelUnique = make_unique<Wt::WComboBox>();
+	cbRowTopicSel = cbRowTopicSelUnique.get();
+	allCB.push_back(cbRowTopicSel);
+	cbID = cbRowTopicSel->id();
+	mapCBPanel.emplace(cbID, panelID);
+	jtWidget.addChild(cbID, -2, boxRowTopicUnique->id());
 
 	auto boxDataUnique = make_unique<Wt::WContainerWidget>();
+	boxDataUnique->setObjectName("boxData");
 	boxData = boxDataUnique.get();
+	jtWidget.addChild(boxData->id(), -2, -1);
 	auto tabDataUnique = make_unique<Wt::WTabWidget>();
+	tabDataUnique->setObjectName("tabData");
 	tabData = tabDataUnique.get();
+	jtWidget.addChild(tabData->id(), -2, boxData->id());
+	stackedTabData = tabData->contentsStack();
+	jtWidget.addChild(stackedTabData->id(), -2, tabData->id());
+
 	auto treeRegionUnique = make_unique<Wt::WTree>();
 	treeRegion = treeRegionUnique.get();
+	jtWidget.addChild(treeRegion->id(), -2, stackedTabData->id());
+	tabDataUnique->addTab(move(treeRegionUnique), "Geographic Region", Wt::ContentLoading::Eager);
 
 	auto boxTableSliderUnique = make_unique<Wt::WContainerWidget>();
-	auto vLayoutTable = make_unique<Wt::WVBoxLayout>();
+	boxTableSliderUnique->setObjectName("boxTableSlider");
+	boxTableSlider = boxTableSliderUnique.get();
 	auto sliderTableUnique = make_unique<Wt::WSlider>(Wt::Orientation::Horizontal);
-	sliderTable = sliderTableUnique.get();
+	if (jsEnabled) { sliderTable = sliderTableUnique.get(); }
 	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
-	boxTableUnique->setInline(0);
 	boxTableUnique->setOverflow(Wt::Overflow::Auto);
+	boxTableUnique->setObjectName("boxTable");
 	boxTable = boxTableUnique.get();
-	auto tableDataUnique = make_unique<Wt::WTable>();
-	tableData = tableDataUnique.get();
+
+	auto vLayoutTable = make_unique<Wt::WVBoxLayout>();
+	if (jsEnabled) { vLayoutTable->addWidget(move(sliderTableUnique)); }
+	vLayoutTable->addWidget(move(boxTableUnique));
+	boxTableSliderUnique->setLayout(move(vLayoutTable));
+	tabDataUnique->addTab(move(boxTableSliderUnique), "Data Table");
+
+	auto phantom1 = stackedTabData->widget(1);
+	jtWidget.addChild(phantom1->id(), -2, stackedTabData->id());
+	jtWidget.addChild(boxTableSlider->id(), -2, phantom1->id());
+	if (jsEnabled) { jtWidget.addChild(sliderTable->id(), -2, boxTableSlider->id()); }
+	jtWidget.addChild(boxTable->id(), -2, boxTableSlider->id());
 
 	auto boxMapAllUnique = make_unique<Wt::WContainerWidget>();
-	auto vLayoutMap = make_unique<Wt::WVBoxLayout>();
+	boxMapAll = boxMapAllUnique.get();
 	auto boxMapOptionUnique = make_unique<Wt::WContainerWidget>();
 	boxMapOption = boxMapOptionUnique.get();
-	auto hLayoutMap = make_unique<Wt::WHBoxLayout>();
 	auto textUnitUnique = make_unique<Wt::WText>();
 	textUnit = textUnitUnique.get();
 	auto pbUnitUnique = make_unique<Wt::WPushButton>();
@@ -937,6 +1007,30 @@ void SCDAwidget::makeUI()
 	boxMap = boxMapUnique.get();
 	auto textLegendUnique = make_unique<Wt::WText>();
 	textLegend = textLegendUnique.get();
+
+	auto hLayoutMap = make_unique<Wt::WHBoxLayout>();
+	pbUnitUnique->setMenu(move(popupUnitUnique));
+	hLayoutMap->addWidget(move(textUnitUnique));
+	hLayoutMap->addWidget(move(pbUnitUnique));
+	hLayoutMap->addStretch(1);
+	boxMapOptionUnique->setLayout(move(hLayoutMap));
+
+	auto vLayoutMap = make_unique<Wt::WVBoxLayout>();
+	vLayoutMap->addWidget(move(boxMapOptionUnique));
+	vLayoutMap->addWidget(move(boxMapUnique));
+	vLayoutMap->addWidget(move(textLegendUnique));
+	boxMapAllUnique->setLayout(move(vLayoutMap));
+	tabDataUnique->addTab(move(boxMapAllUnique), "Data Map");
+
+	auto phantom2 = stackedTabData->widget(2);
+	jtWidget.addChild(phantom2->id(), -2, stackedTabData->id());
+	jtWidget.addChild(boxMapAll->id(), -2, phantom2->id());
+	jtWidget.addChild(boxMapOption->id(), -2, boxMapAll->id());
+	jtWidget.addChild(textUnit->id(), -2, boxMapOption->id());
+	jtWidget.addChild(pbUnit->id(), -2, boxMapOption->id());
+	jtWidget.addChild(popupUnit->id(), -2, pbUnit->id());
+	jtWidget.addChild(boxMap->id(), -2, boxMapAll->id());
+	jtWidget.addChild(textLegend->id(), -2, boxMapAll->id());
 
 	boxCBYearUnique->addWidget(move(cbYearUnique));
 	panelYearUnique->setCentralWidget(move(boxCBYearUnique));
@@ -961,25 +1055,6 @@ void SCDAwidget::makeUI()
 	numPreVariable = vLayoutConfig->count();
 	boxConfigUnique->setLayout(move(vLayoutConfig));
 
-	boxTableUnique->addWidget(move(tableDataUnique));
-	vLayoutTable->addWidget(move(sliderTableUnique));
-	vLayoutTable->addWidget(move(boxTableUnique));
-	boxTableSliderUnique->setLayout(move(vLayoutTable));
-
-	pbUnitUnique->setMenu(move(popupUnitUnique));
-	hLayoutMap->addWidget(move(textUnitUnique));
-	hLayoutMap->addWidget(move(pbUnitUnique));
-	hLayoutMap->addStretch(1);
-	boxMapOptionUnique->setLayout(move(hLayoutMap));
-
-	vLayoutMap->addWidget(move(boxMapOptionUnique));
-	vLayoutMap->addWidget(move(boxMapUnique));
-	vLayoutMap->addWidget(move(textLegendUnique));
-	boxMapAllUnique->setLayout(move(vLayoutMap));
-
-	tabDataUnique->addTab(move(treeRegionUnique), "Geographic Region");
-	tabDataUnique->addTab(move(boxTableSliderUnique), "Data Table");
-	tabDataUnique->addTab(move(boxMapAllUnique), "Data Map");
 	boxDataUnique->addWidget(move(tabDataUnique));
 
 	hLayout->addWidget(move(boxConfigUnique), 1);
@@ -1120,11 +1195,6 @@ void SCDAwidget::processEventDemographic(vector<vector<string>> vvsDemo)
 }
 void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData)
 {
-	// Experimental...
-	//auto app = Wt::WApplication::instance();
-	//app->doJavaScript(app->javaScriptClass() + ".getXMax();");
-
-
 	boxMap->clear();
 	auto popupItems = popupUnit->items();
 	for (int ii = 0; ii < popupItems.size(); ii++)
@@ -1231,7 +1301,6 @@ void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vecto
 			vsTemp[1] = vvsVariable[ii][0];  // Default MID.
 			addVariable(vsTemp);
 		}
-
 		for (int ii = 0; ii < varTitle.size(); ii++)
 		{
 			varTitle[ii]->setEnabled(0);
@@ -1262,61 +1331,67 @@ void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vecto
 }
 void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow)
 {
-	activeTableColTitle = vsCol.back();
-	vsCol.pop_back();
-	activeTableRowTitle = vsRow.back();
-	vsRow.pop_back();
-
-	bool addTopicSel = 0;
-	if (cbRowTopicSel->isHidden() || cbColTopicSel->isHidden())
-	{
-		cbRowTopicSel->setHidden(0);
-		cbColTopicSel->setHidden(0);
-		addTopicSel = 1;
-	}
-
-	Wt::WBorder wbTitle = Wt::WBorder(Wt::BorderStyle::Solid, Wt::BorderWidth::Thin, Wt::WColor(0, 0, 0));
-	Wt::WLength cellPadding = Wt::WLength(3.0, Wt::LengthUnit::Pixel);
-	Wt::WLength rowTitle = Wt::WLength(200.0, Wt::LengthUnit::Pixel);
-
-	tableData->clear();
-	//auto app = Wt::WApplication::instance();
-	//app->doJavaScript(app->javaScriptClass() + ".forceBlock();");
-
-	Wt::WString wTemp;
-	wTemp = mapTooltip.at("table");
-	tableData->setToolTip(wTemp);
+	boxTable->clear();
+	auto tableDataUnique = make_unique<WJTABLE>();
+	tableData = boxTable->addWidget(move(tableDataUnique));
 	tableData->setHeaderCount(1, Wt::Orientation::Horizontal);
 	tableData->setHeaderCount(1, Wt::Orientation::Vertical);
-	for (int ii = 0; ii < vsCol.size(); ii++)
+
+	tableData->initColHeader(vsCol);
+	tableData->initRowHeader(vsRow);
+	tableData->initData(vvsTable);
+
+	// Connect table cell signals/slots.
+	for (int ii = 1; ii <= vsRow.size(); ii++)
 	{
-		auto wtCell = make_unique<Wt::WText>(vsCol[ii]);
-		tableData->elementAt(0, ii)->addWidget(move(wtCell));
-		tableData->elementAt(0, ii)->setPadding(cellPadding);
-		if (addTopicSel && ii > 0) { cbColTopicSel->addItem(vsCol[ii]); }
-	}
-	for (int ii = 0; ii < vvsTable.size(); ii++)
-	{
-		tableData->elementAt(ii + 1, 0)->addNew<Wt::WText>(vsRow[ii]);
-		tableData->elementAt(ii + 1, 0)->setPadding(cellPadding);
-		tableData->elementAt(ii + 1, 0)->setMinimumSize(rowTitle, wlAuto);
-		if (addTopicSel) { cbRowTopicSel->addItem(vsRow[ii]); }
-		for (int jj = 0; jj < vvsTable[ii].size(); jj++)
+		for (int jj = 1; jj < vsCol.size(); jj++)
 		{
-			auto textUnique = make_unique<Wt::WText>(vvsTable[ii][jj]);
-			function<void()> fnSingle = bind(&SCDAwidget::tableClicked, this, ii + 1, jj + 1);
-			textUnique->clicked().connect(fnSingle);
-			function<void()> fnDouble = bind(&SCDAwidget::tableDoubleClicked, this, ii + 1, jj + 1);
-			textUnique->doubleClicked().connect(fnDouble);
-			tableData->elementAt(ii + 1, jj + 1)->addWidget(move(textUnique));
-			tableData->elementAt(ii + 1, jj + 1)->setPadding(cellPadding);
+			function<void()> fnSingle = bind(&SCDAwidget::tableClicked, this, ii, jj);
+			tableData->elementAt(ii, jj)->clicked().connect(fnSingle);
+			function<void()> fnDouble = bind(&SCDAwidget::tableDoubleClicked, this, ii, jj);
+			tableData->elementAt(ii, jj)->doubleClicked().connect(fnDouble);
 		}
 	}
+
+	// Populate cbColTopicSel and cbRowTopicSel if necessary.
+	if (cbRowTopicSel->isHidden() || cbColTopicSel->isHidden())
+	{
+		cbColTopicSel->setHidden(0);
+		cbColTopicSel->clear();
+		for (int ii = 1; ii < vsCol.size(); ii++)
+		{
+			cbColTopicSel->addItem(vsCol[ii]);
+		}
+
+		cbRowTopicSel->setHidden(0);
+		cbRowTopicSel->clear();
+		for (int ii = 0; ii < vsRow.size(); ii++)
+		{
+			cbRowTopicSel->addItem(vsRow[ii]);
+		}
+	}
+
+	// Add a tooltip to the table.
+	Wt::WString wTemp = mapTooltip.at("table");
+	tableData->setToolTip(wTemp);
+
+	// Experimental...
+	/*
+	auto app = Wt::WApplication::instance();
+	app->doJavaScript(app->javaScriptClass() + ".getInfo();");
+	double dBoxTableWidth = boxData->maximumWidth().value();
+	dBoxTableWidth += boxTableSlider->padding(Wt::Side::Left).value() + boxTableSlider->padding(Wt::Side::Right).value();
+	boxTableWidth = int(ceil(dBoxTableWidth));
+	app->doJavaScript(app->javaScriptClass() + ".scrollTo(0);");
+	app->triggerUpdate();
+	*/
+
 	tabData->setTabEnabled(1, 1);
 	string temp = "Data Table (" + vsCol[0] + ")";
 	wTemp = Wt::WString::fromUTF8(temp);
 	auto tab = tabData->itemAt(1);
 	tab->setText(wTemp);
+	tabData->setCurrentIndex(1);
 	cbColRowSelClicked();
 }
 void SCDAwidget::processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic)
@@ -1425,6 +1500,7 @@ void SCDAwidget::resetMap()
 }
 void SCDAwidget::resetTable()
 {
+	if (tableData == nullptr) { return; }
 	tableData->clear();
 	Wt::WString wTemp("Data Table");
 	auto tab = tabData->itemAt(1);
@@ -1476,6 +1552,11 @@ void SCDAwidget::resetVariables(int plus)
 	app->processEvents();
 }
 
+void SCDAwidget::scrollToSlider(const Wt::WScrollEvent& wsEvent)
+{
+	int fromLeft = wsEvent.scrollX();
+	sliderTable->setValue(fromLeft);
+}
 void SCDAwidget::setTable(int geoCode, string sRegion)
 {
 	// This variant loads a table using a selected region from the tree. 
@@ -1489,6 +1570,12 @@ void SCDAwidget::setTable(int geoCode, string sRegion)
 	vector<vector<string>> variable = getVariable();
 	sRef.pullTable(prompt, variable);
 	tabData->setTabEnabled(1, 1);
+}
+void SCDAwidget::sliderToScroll(const int& fromLeft)
+{
+	string sFromLeft = to_string(fromLeft);
+	auto app = Wt::WApplication::instance();
+	app->doJavaScript(app->javaScriptClass() + ".scrollTo('" + sFromLeft + "');");
 }
 void SCDAwidget::tableCBUpdate(int iRow, int iCol)
 {
@@ -1531,55 +1618,25 @@ void SCDAwidget::tableCBUpdate(int iRow, int iCol)
 void SCDAwidget::tableClicked(int iRow, int iCol)
 {
 	if (iRow <= 0 || iCol <= 0) { return; }
-	tableDeselect(selectedRow, selectedCol);
-	tableSelect(iRow, iCol);
+	tableData->cellDeselect();
+	tableData->cellSelect(iRow, iCol);
+
 	tableCBUpdate(iRow, iCol);
-}
-void SCDAwidget::tableDeselect(int iRow, int iCol)
-{
-	// Remove highlighting from the given row and column. 
-	if (iRow >= 0)
-	{
-		int numCol = tableData->columnCount();
-		for (int ii = 0; ii < numCol; ii++)
-		{
-			tableData->elementAt(iRow, ii)->decorationStyle().setBackgroundColor(colourWhite);
-		}
-		selectedRow = -1;
-	}
-	if (iCol >= 0)
-	{
-		int numRow = tableData->rowCount();
-		for (int ii = 0; ii < numRow; ii++)
-		{
-			tableData->elementAt(ii, iCol)->decorationStyle().setBackgroundColor(colourWhite);
-		}
-		selectedCol = -1;
-	}
-	if (iRow >= 0 && iCol >= 0)
-	{
-		Wt::WBorder border = Wt::WBorder();
-		tableData->elementAt(iRow, iCol)->decorationStyle().setBorder(border);
-	}
 }
 void SCDAwidget::tableDoubleClicked(int iRow, int iCol)
 {
 	tableClicked(iRow, iCol);  // Highlight.
-	Wt::WText* cell = (Wt::WText*)tableData->elementAt(0, 0)->widget(0);
-	Wt::WString wTemp = cell->text();
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt(4);
 	prompt[0] = app->sessionId();
 	prompt[1] = activeYear;
 	prompt[2] = activeCata;
-	prompt[3] = wTemp.toUTF8();  // Parent region name. 
+	prompt[3] = tableData->getRegion();  // Parent region name. 
 
 	vector<vector<string>> variable = getVariable();
-	cell = (Wt::WText*)tableData->elementAt(iRow, 0)->widget(0);
-	wTemp = cell->text();
-	string temp = wTemp.toUTF8();
-	variable.push_back({ activeTableRowTitle, temp });
-	variable.push_back({ activeTableColTitle, to_string(iCol) });
+	string temp = tableData->getRowHeader(iRow);
+	variable.push_back({ activeRowTopic, temp });
+	variable.push_back({ activeColTopic, to_string(iCol) });
 	sRef.pullMap(prompt, variable);
 }
 vector<string> SCDAwidget::tableGetCol(int colIndex)
@@ -1611,15 +1668,6 @@ int SCDAwidget::tableGetColIndex(string header)
 	}
 	return -1;
 }
-int SCDAwidget::tableGetMaxScroll()
-{
-	// Scroll the table to its rightmost, save the number of pixels, and then scroll back left.
-	doJavaScript("var xMax = " + boxTable->jsRef() + ".scrollWidth; "
-		+ "Wt.emit('SCDAwidget', 'jsXMax', xMax);");
-	
-	int xMax = 1;
-	return xMax;
-}
 vector<string> SCDAwidget::tableGetRow(int rowIndex)
 {
 	Wt::WText* cell;
@@ -1649,41 +1697,24 @@ int SCDAwidget::tableGetRowIndex(string header)
 	}
 	return -1;
 }
-void SCDAwidget::tableReceiveSignal(const int& xMax)
+void SCDAwidget::tableReceiveDouble(const double& width)
 {
-	cout << "tableReceiveSignal: " << to_string(xMax) << endl;
-	tableXMax = xMax;
+	//cout << "tableReceiveDouble: " << to_string(width) << endl;
+	tableWidth = int(ceil(width));
+	if (tableWidth <= boxTableWidth) 
+	{ 
+		sliderTable->setHidden(1);
+		return;
+	}
+	sliderTable->setHidden(0);
+	sliderTable->setRange(0, tableWidth - boxTableWidth + 40);
+	sliderTable->valueChanged().connect(this, bind(&SCDAwidget::sliderToScroll, this, placeholders::_1));
 }
-void SCDAwidget::tableSelect(int iRow, int iCol)
+void SCDAwidget::tableReceiveString(const string& sInfo)
 {
-	// Experimental.
-	auto app = Wt::WApplication::instance();
-	this->doJavaScript(app->javaScriptClass() + ".getXMax();");
-
-	// Highlight the given row and column. 
-	if (iRow >= 0)
-	{
-		int numCol = tableData->columnCount();
-		for (int ii = 0; ii < numCol; ii++)
-		{
-			tableData->elementAt(iRow, ii)->decorationStyle().setBackgroundColor(colourSelectedWeak);
-		}
-		selectedRow = iRow;
-	}
-	if (iCol >= 0)
-	{
-		int numRow = tableData->rowCount();
-		for (int ii = 0; ii < numRow; ii++)
-		{
-			tableData->elementAt(ii, iCol)->decorationStyle().setBackgroundColor(colourSelectedWeak);
-		}
-		selectedCol = iCol;
-	}
-	if (iRow >= 0 && iCol >= 0)
-	{
-		Wt::WBorder border = Wt::WBorder(Wt::BorderStyle::Inset, Wt::BorderWidth::Medium, colourSelectedStrong);
-		tableData->elementAt(iRow, iCol)->decorationStyle().setBorder(border);
-	}
+	cout << "tableReceiveString: " << sInfo << endl;
+	auto phantom = this->findById(sInfo);
+	int bbq = 1;
 }
 
 void SCDAwidget::toggleMobile()
