@@ -1,5 +1,16 @@
 #include "SCDAwidget.h"
 
+void SCDAwidget::addCBLayer(Wt::WPanel*& wPanel)
+{
+	// Determine the panel's currently shown MID, then add a new combobox 
+	// underneath if the MID has children. 
+	Wt::WComboBox* wCB = nullptr;
+	Wt::WContainerWidget* wBox = (Wt::WContainerWidget*)wPanel->centralWidget();
+	int numCB = wBox->count();
+	if (numCB < 2) { jf.err("CB panel is missing widgets-SCDAwidget.addCBLayer"); }
+	wCB = (Wt::WComboBox*)wBox->widget(numCB - 1);
+
+}
 void SCDAwidget::addDemographic(vector<vector<string>>& vvsDemo)
 {
 	// Create a "Demographic" panel from which the user must choose an option,
@@ -8,6 +19,8 @@ void SCDAwidget::addDemographic(vector<vector<string>>& vvsDemo)
 	auto demoPanelUnique = make_unique<Wt::WPanel>();
 	demoPanelUnique->setTitle("Demographic Group");
 	demoPanelUnique->setMaximumSize(wlAuto, len150p);
+	panelDemographic = demoPanelUnique.get();
+
 	auto cbDemoUnique = make_unique<Wt::WComboBox>();
 	cbDemographic = cbDemoUnique.get();
 	cbDemographic->addItem(wsNoneSel);
@@ -112,7 +125,6 @@ void SCDAwidget::addVariable(vector<string>& vsVariable)
 	temp = varPanelUnique->id();
 	mapVarIndex.emplace(temp, index);
 	auto varBoxUnique = make_unique<Wt::WContainerWidget>();
-	auto varVLayoutUnique = make_unique<Wt::WVBoxLayout>();
 
 	int indexTest = varTitle.size();
 	if (indexTest != index) { jf.err("varTitle size mismatch-SCDAwidget.addVariable"); }
@@ -129,19 +141,22 @@ void SCDAwidget::addVariable(vector<string>& vsVariable)
 	varMID.push_back(varCBMIDUnique.get());
 	temp = varCBMIDUnique->id();
 	mapVarIndex.emplace(temp, index);
-	function<void()> fnVarMID = bind(&SCDAwidget::cbVarMIDClicked, this, temp);
-	varMID[index]->changed().connect(fnVarMID);
 
 	varPanel[index]->setTitle("Parameter");
-	varPanel[index]->setMaximumSize(wlAuto, len200p);
+	varPanel[index]->setMaximumSize(wlAuto, len200p); 
 	cbRenew(varTitle[index], vsTitle);
 	varTitle[index]->setCurrentIndex(titleIndex);
 	cbRenew(varMID[index], vsMID);
 	varMID[index]->setCurrentIndex(MIDIndex);
+	//varMID[index]->setHidden(1);
 
-	varVLayoutUnique->addWidget(move(varCBTitleUnique));
-	varVLayoutUnique->addWidget(move(varCBMIDUnique));
-	varBoxUnique->setLayout(move(varVLayoutUnique));
+	auto varMIDUnique = make_unique<Wt::WComboBox>();
+	function<void()> fnVarMID = bind(&SCDAwidget::cbVarMIDClicked, this, temp);
+	varMIDUnique->changed().connect(fnVarMID);
+
+	varBoxUnique->addWidget(move(varCBTitleUnique));
+	varBoxUnique->addWidget(move(varCBMIDUnique));
+
 	varPanelUnique->setCentralWidget(move(varBoxUnique));
 	layoutConfig->addWidget(move(varPanelUnique));
 	widgetMobile();
@@ -238,6 +253,7 @@ void SCDAwidget::cbColRowSelClicked()
 
 	if (iRowSel > 0 && iColSel > 0)
 	{
+		loadingStart();
 		tableDoubleClicked(iRowSel, iColSel);
 	}
 	else if (iRowSel > 0 || iColSel > 0)
@@ -519,6 +535,15 @@ void SCDAwidget::cbYearChanged()
 	sRef.pullCategory(prompt);
 }
 
+void SCDAwidget::cleanUnit(string& unit)
+{
+	string temp;
+	if (mapUnit.count(unit))
+	{
+		temp = mapUnit.at(unit);
+		unit = temp;
+	}
+}
 void SCDAwidget::connect()
 {
 	if (sRef.connect(this, bind(&SCDAwidget::processDataEvent, this, placeholders::_1)))
@@ -582,11 +607,26 @@ int SCDAwidget::getHeight()
 	if (iHeight < 0) { jf.err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
 	return iHeight;
 }
-Wt::WString SCDAwidget::getTextLegend()
+vector<string> SCDAwidget::getNextCBLayer(Wt::WComboBox*& wCB)
 {
-	Wt::WString wsLegend = cbColTopicTitle->currentText();
+	// Return a list of the selected item's immediate children, with the parent on top.
+	int parentIndex = wCB->currentIndex();
+	Wt::WString wsTemp = wCB->currentText();
+	vector<string> vsLayer = { wsTemp.toUTF8() };
+	int indent = 0;
+	while (vsLayer[0][0] == ' ') { vsLayer[0].erase(vsLayer[0].begin()); }
+	//
+	return vsLayer;
+}
+Wt::WString SCDAwidget::getTextLegend(Wt::WPanel*& wPanel)
+{
+	Wt::WContainerWidget* wBox = (Wt::WContainerWidget*)wPanel->centralWidget();
+	Wt::WComboBox* cbTitle = (Wt::WComboBox*)wBox->widget(0);
+	Wt::WComboBox* cbSel = (Wt::WComboBox*)wBox->widget(1);
+
+	Wt::WString wsLegend = cbTitle->currentText();
 	string sLegend = wsLegend.toUTF8();
-	Wt::WString wsTemp = cbColTopicSel->currentText();
+	Wt::WString wsTemp = cbSel->currentText();
 	string temp = wsLegend.toUTF8();
 	vector<string> vsSel = { wsTemp.toUTF8() };
 	size_t sizeMID = vsSel[0].size();
@@ -599,11 +639,11 @@ Wt::WString SCDAwidget::getTextLegend()
 		vsSel[0].erase(vsSel[0].begin());
 	}
 	countLast--;
-	index = cbColTopicSel->currentIndex();
+	index = cbSel->currentIndex();
 	while (countLast > 0)
 	{
 		index--;
-		wsTemp = cbColTopicSel->itemText(index);
+		wsTemp = cbSel->itemText(index);
 		temp = wsTemp.toUTF8();
 		countTemp = 0;
 		while (temp[0] == '+')
@@ -619,15 +659,13 @@ Wt::WString SCDAwidget::getTextLegend()
 	}
 
 	size_t pos1 = vsSel[0].find("Total "); 
-	size_t pos2 = vsSel[0].find(temp);
-	
+	size_t pos2 = vsSel[0].find(temp);	
 	if (pos1 == 0 && pos2 < sizeMID) { vsSel[0] = "Total"; }
 
 	for (int ii = vsSel.size() - 1; ii >= 0; ii--)
 	{
 		wsLegend += " | " + Wt::WString::fromUTF8(vsSel[ii]);
 	}
-
 	return wsLegend;
 }
 string SCDAwidget::getUnit()
@@ -645,7 +683,12 @@ string SCDAwidget::getUnit()
 		pos2 = topicSelCol.size() - 1;
 		pos1 = topicSelCol.rfind('(') + 1;
 		unit = topicSelCol.substr(pos1, pos2 - pos1);
-		return unit;
+		pos1 = unit.find(' ');
+		if (pos1 > unit.size()) 
+		{ 
+			cleanUnit(unit);
+			return unit; 
+		}	
 	}
 
 	// Look for a unit easily defined within the row header.
@@ -656,12 +699,21 @@ string SCDAwidget::getUnit()
 		pos2 = topicSelRow.size() - 1;
 		pos1 = topicSelRow.rfind('(') + 1;
 		unit = topicSelRow.substr(pos1, pos2 - pos1);
-		return unit;
+		pos1 = unit.find(' ');
+		if (pos1 > unit.size()) 
+		{ 
+			cleanUnit(unit);
+			return unit; 
+		}
 	}
 
 	// Look for a unit subtly defined within the data table.
 	unit = tableData->getUnit();
-	if (unit.size() > 0) { return unit; }
+	if (unit.size() > 0) 
+	{ 
+		cleanUnit(unit);
+		return unit; 
+	}
 
 	// No unit found, so assign the default unit.
 	unit = "# of persons";
@@ -713,10 +765,16 @@ void SCDAwidget::init()
 	Wt::WString wsTooltip = "Single-click a table cell to highlight it.\nDouble-click a table cell to load a new map using that column and row.";
 	mapTooltip.emplace("table", wsTooltip);
 
-	//string getInfoJS = jsMakeFunctionTableWidth(boxTable, "tableData");
-	//app->declareJavaScriptFunction("getInfo", getInfoJS);
-	//string scrollToJS = jsMakeFunctionTableScrollTo(boxTable);
-	//app->declareJavaScriptFunction("scrollTo", scrollToJS);
+	mapUnit.emplace("percentage", "%");
+	mapUnit.emplace("number", "#");
+
+	if (jsEnabled)
+	{
+		string getInfoJS = jsMakeFunctionTableWidth(boxTable, "tableData");
+		app->declareJavaScriptFunction("getInfo", getInfoJS);
+		string scrollToJS = jsMakeFunctionTableScrollTo(boxTable);
+		app->declareJavaScriptFunction("scrollTo", scrollToJS);
+	}
 
 	int iWidth = getWidth();
 	int iHeight = getHeight();
@@ -744,7 +802,6 @@ void SCDAwidget::initUI()
 	boxConfig->setMaximumSize(len200p, wlAuto);
 	boxConfig->setMinimumSize(len300p, wlAuto);
 	boxData->setMaximumSize(len800p, wlAuto);
-
 
 	// Initial values for cbYear.
 	activeYear = "2016";  // Default for now, as it is the only possibility.
@@ -788,6 +845,7 @@ void SCDAwidget::initUI()
 	tabData->setTabEnabled(0, 0);
 	tabData->setTabEnabled(1, 0);
 	tabData->setTabEnabled(2, 0);
+	tabData->setTabEnabled(3, 0);
 	tabData->setCurrentIndex(0);
 
 	// Initial values for the region tree widget.
@@ -803,10 +861,11 @@ void SCDAwidget::initUI()
 	// Initial values for the map tab.
 	textUnit->setTextAlignment(Wt::AlignmentFlag::Middle);
 	boxMap->setContentAlignment(Wt::AlignmentFlag::Center);
-	textLegend->setTextAlignment(Wt::AlignmentFlag::Center);
-	textLegend->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
 
-	// Initial values for the buttons.
+	// Initial values for the download tab.
+	pbDownloadPDF->clicked().connect()
+
+	// Initial values for the miscellaneous buttons.
 	pbMobile->setEnabled(1);
 	pbMobile->setMaximumSize(wlAuto, len50p);
 	pbMobile->clicked().connect(this, &SCDAwidget::toggleMobile);
@@ -867,6 +926,16 @@ string SCDAwidget::jsMakeFunctionTableWidth(Wt::WContainerWidget*& boxTable, str
 	getInfo += "var tableWidth = tableRect.width; ";
 	getInfo += "Wt.emit('SCDAwidget', 'jsTWidth', tableWidth); }";
 	return getInfo;
+}
+void SCDAwidget::loadingStart()
+{
+	// Block the user from inputting new commands. 
+	
+}
+void SCDAwidget::loadingStop()
+{
+	// Resume normal user access. 
+
 }
 void SCDAwidget::makeUI()
 {
@@ -1005,8 +1074,8 @@ void SCDAwidget::makeUI()
 	popupUnit = popupUnitUnique.get();
 	auto boxMapUnique = make_unique<Wt::WContainerWidget>();
 	boxMap = boxMapUnique.get();
-	auto textLegendUnique = make_unique<Wt::WText>();
-	textLegend = textLegendUnique.get();
+	auto boxTextLegendUnique = make_unique<Wt::WContainerWidget>();
+	boxTextLegend = boxTextLegendUnique.get();
 
 	auto hLayoutMap = make_unique<Wt::WHBoxLayout>();
 	pbUnitUnique->setMenu(move(popupUnitUnique));
@@ -1018,7 +1087,7 @@ void SCDAwidget::makeUI()
 	auto vLayoutMap = make_unique<Wt::WVBoxLayout>();
 	vLayoutMap->addWidget(move(boxMapOptionUnique));
 	vLayoutMap->addWidget(move(boxMapUnique));
-	vLayoutMap->addWidget(move(textLegendUnique));
+	vLayoutMap->addWidget(move(boxTextLegendUnique));
 	boxMapAllUnique->setLayout(move(vLayoutMap));
 	tabDataUnique->addTab(move(boxMapAllUnique), "Data Map");
 
@@ -1030,7 +1099,14 @@ void SCDAwidget::makeUI()
 	jtWidget.addChild(pbUnit->id(), -2, boxMapOption->id());
 	jtWidget.addChild(popupUnit->id(), -2, pbUnit->id());
 	jtWidget.addChild(boxMap->id(), -2, boxMapAll->id());
-	jtWidget.addChild(textLegend->id(), -2, boxMapAll->id());
+	jtWidget.addChild(boxTextLegend->id(), -2, boxMapAll->id());
+
+	auto boxDownloadUnique = make_unique<Wt::WContainerWidget>();
+	boxDownload = boxDownloadUnique.get();
+	auto pbDownloadPDFUnique = make_unique<Wt::WPushButton>("PDF");
+	pbDownloadPDF = pbDownloadPDFUnique.get();
+	boxDownloadUnique->addWidget(move(pbDownloadPDFUnique));
+	tabDataUnique->addTab(move(boxDownloadUnique), "Download");
 
 	boxCBYearUnique->addWidget(move(cbYearUnique));
 	panelYearUnique->setCentralWidget(move(boxCBYearUnique));
@@ -1079,6 +1155,70 @@ void SCDAwidget::mapAreaClicked(int areaIndex)
 	Wt::WTreeNode* nodeSel = (Wt::WTreeNode*)treeRegion->findById(sID);
 	if (!treeRegion->isSelected(nodeSel)) { treeRegion->select(nodeSel); }
 	treeClicked();
+}
+void SCDAwidget::populateTextLegend(Wt::WContainerWidget*& boxTextLegend)
+{
+	// Read the topic and parameter panels, and make a list of the selected options. 
+	boxTextLegend->clear();
+	auto vLayout = make_unique<Wt::WVBoxLayout>();
+	Wt::WColor wGrey = Wt::WColor(210, 210, 210);
+	bool grey = 0;
+
+	Wt::WString wsTemp = panelColTopic->title() + ":  " + getTextLegend(panelColTopic);
+	auto wText = make_unique<Wt::WText>(wsTemp);
+	wText->setTextAlignment(Wt::AlignmentFlag::Left);
+	wText->decorationStyle().font().setSize(Wt::FontSize::Large);
+	if (grey)
+	{
+		wText->decorationStyle().setBackgroundColor(wGrey);
+		grey = 0;
+	}
+	else { grey = 1; }
+	vLayout->addWidget(move(wText));
+
+	wsTemp = panelRowTopic->title() + ":  " + getTextLegend(panelRowTopic);
+	wText = make_unique<Wt::WText>(wsTemp);
+	wText->setTextAlignment(Wt::AlignmentFlag::Left);
+	wText->decorationStyle().font().setSize(Wt::FontSize::Large);
+	if (grey)
+	{
+		wText->decorationStyle().setBackgroundColor(wGrey);
+		grey = 0;
+	}
+	else { grey = 1; }
+	vLayout->addWidget(move(wText));
+
+	if (panelDemographic != nullptr)
+	{
+		wsTemp = panelDemographic->title() + ":  " + getTextLegend(panelDemographic);
+		wText = make_unique<Wt::WText>(wsTemp);
+		wText->setTextAlignment(Wt::AlignmentFlag::Left);
+		wText->decorationStyle().font().setSize(Wt::FontSize::Large);
+		if (grey)
+		{
+			wText->decorationStyle().setBackgroundColor(wGrey);
+			grey = 0;
+		}
+		else { grey = 1; }
+		vLayout->addWidget(move(wText));
+	}
+
+	for (int ii = 0; ii < varPanel.size(); ii++)
+	{
+		wsTemp = varPanel[ii]->title() + ":  " + getTextLegend(varPanel[ii]);
+		wText = make_unique<Wt::WText>(wsTemp);
+		wText->setTextAlignment(Wt::AlignmentFlag::Left);
+		wText->decorationStyle().font().setSize(Wt::FontSize::Large);
+		if (grey)
+		{
+			wText->decorationStyle().setBackgroundColor(wGrey);
+			grey = 0;
+		}
+		else { grey = 1; }
+		vLayout->addWidget(move(wText));
+	}
+
+	boxTextLegend->setLayout(move(vLayout));
 }
 void SCDAwidget::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 {
@@ -1203,8 +1343,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	}
 	auto wtMapUnique = make_unique<WTPAINT>();
 	wtMap = boxMap->addWidget(move(wtMapUnique));
-	Wt::WString wsLegend = getTextLegend();
-	textLegend->setText(wsLegend);
+	populateTextLegend(boxTextLegend);
 
 	Wt::WString wsUnit;
 	Wt::WString wsUnitOld = textUnit->text();
@@ -1248,8 +1387,10 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		area[ii]->clicked().connect(fnArea);
 	}
 	tabData->setTabEnabled(2, 1);
+	tabData->setTabEnabled(3, 1);
 	tabData->setCurrentIndex(2);
 	widgetMobile();
+	loadingStop();
 }
 void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vector<vector<string>> vvsCata, vector<string> vsDIMIndex)
 {
@@ -1457,7 +1598,7 @@ void SCDAwidget::processEventTree(JTREE jt)
 	treeRoot = treeRegion->treeRoot();
 	treeRoot->expand();
 	treeRegion->select(treeRoot);
-	panelColTopic->setTitle("Table Column Topic (on display)");
+	panelColTopic->setTitle("Table Column Topic");
 }
 
 void SCDAwidget::removeVariable(int varIndex)
@@ -1496,6 +1637,7 @@ void SCDAwidget::resetMap()
 {
 	boxMap->clear();
 	tabData->setTabEnabled(2, 0);
+	tabData->setTabEnabled(3, 0);
 	tabData->setCurrentIndex(0);
 }
 void SCDAwidget::resetTable()

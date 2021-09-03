@@ -33,9 +33,11 @@ class WTPAINT : public Wt::WPaintedWidget
 	const string defaultLength = "200.0";
 	double dHeight = -1.0, dWidth = -1.0;  // Unit of pixels.
 	vector<int> displayData;
-	vector<int> extraColour;
+	vector<int> extraColour, unknownColour;
 	JFUNC jf;
 	int legendBarDouble = -1;  // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
+	const double legendIdleThreshold = 0.4;  // Minimum percentage of bar unused, to trigger action.
+	double legendMin = -1.0, legendMax = -1.0;
 	int legendTickLines = -1;  // How many lines of text are needed at each tick mark on the bar.
 	unordered_map<string, int> mapArea;  // Form "Region Name"->indexArea.
 	unordered_map<string, Wt::WString> mapTooltip;
@@ -63,10 +65,12 @@ public:
 	vector<double> getChildTL(vector<vector<double>>& vpfBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM);
 	vector<vector<int>> getFrame(vector<Wt::WPointF>& path);
 	vector<vector<double>> getParentFrameKM(vector<vector<vector<double>>>& vvvdBorder);
-	vector<vector<int>> getScaleValues(int numTicks);
+	vector<vector<double>> getScaleValues(int numTicks);
 	void makeAreas();
 	void paintLegendBar(Wt::WPainter& painter);
 	void paintRegionAll(Wt::WPainter& painter);
+	void prepareActiveData();
+	void prepareActiveData(vector<int> viIndex);
 	vector<double> processPercent(vector<int> viIndex);
 	void scaleChildToWidget(vector<vector<double>>& vpfBorder, vector<vector<double>>& vpfFrame);
 	void scaleImgBar();
@@ -76,7 +80,6 @@ public:
 	void setUnit(string unit, vector<int> viIndex);
 	void setWColour(Wt::WColor& wColour, vector<int> rgb, double percent);
 	void updateAreaColour();
-	void updateAreaColour(vector<int> viIndex);
 	void updateDisplay(vector<int> viIndex);
 
 protected:

@@ -124,7 +124,6 @@ public:
 	vector<string> getRowTitle(string sYear, string sCata);
 	long long getTimer();
 	vector<string> getTopicList(vector<string> vsYear);
-	string getUnit(string sMID);
 	string getUnit(string sYear, string sCata, string sDimMID);
 	vector<string> getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getYear(string sYear);
@@ -141,6 +140,7 @@ private:
 	JTREE jt;
 	SQLFUNC sf;
 	vector<string> vsTemp;
+	WJTABLE wjtable;
 	WTPAINT *wtf;
 	struct UserInfo
 	{

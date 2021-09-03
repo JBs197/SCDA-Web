@@ -150,7 +150,6 @@ vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdB
 
 	initColour();
 	makeAreas();
-	updateAreaColour();
 	update();
 	return area;
 }
@@ -193,12 +192,13 @@ vector<vector<double>> WTPAINT::getParentFrameKM(vector<vector<vector<double>>>&
 	vvvdBorder[0].resize(vvvdBorder[0].size() - 2);
 	return parentFrameKM;
 }
-vector<vector<int>> WTPAINT::getScaleValues(int numTicks)
+vector<vector<double>> WTPAINT::getScaleValues(int numTicks)
 {
-	vector<vector<int>> ticks(1, vector<int>(numTicks));  
+	// Despite returning doubles, this function tries to return whole numbers if possible.
+	vector<vector<double>> ticks(1, vector<double>(numTicks));  
 	vector<int> indexMinMax;
 	int iMinScale, iMaxScale, minDivisor, divisor, quotient, remainder, iScaleWidth;
-	double dMin, dMax;
+	double dMin = -1.0, dMax = -1.0;
 	if (legendBarDouble == 0)
 	{
 		indexMinMax = jf.minMax(activeData);
@@ -227,12 +227,12 @@ vector<vector<int>> WTPAINT::getScaleValues(int numTicks)
 
 	if (sUnit == "%")  // Only possible when the raw table data is already a percentage.
 	{
-		ticks[0][0] = 0;
-		ticks[0][numTicks - 1] = 100;
-		iScaleWidth = 100 / (numTicks - 1);
+		ticks[0][0] = 0.0;
+		ticks[0][numTicks - 1] = 100.0;
+		iScaleWidth = 100.0 / ((double)numTicks - 1.0);
 		for (int ii = 1; ii < numTicks - 1; ii++)
 		{
-			ticks[0][ii] = ii * iScaleWidth;
+			ticks[0][ii] = round((double)ii * iScaleWidth);
 		}
 		return ticks;
 	}
@@ -260,51 +260,132 @@ vector<vector<int>> WTPAINT::getScaleValues(int numTicks)
 		sMin += "0";
 	}
 	minDivisor = stoi(sMin);
-	quotient = iMin / minDivisor;
-	iMinScale = quotient * minDivisor;
-
 	string sMax = "1";
 	for (int ii = 0; ii < maxDigits - 1; ii++)
 	{
 		sMax += "0";
 	}
 	divisor = stoi(sMax);
-	quotient = iMax / divisor;
-	if (iMax != divisor) { quotient++; }
-	iMaxScale = quotient * divisor;
 
+	double idle = 1.0;
+	do
+	{
+		quotient = iMin / minDivisor;
+		iMinScale = quotient * minDivisor;
+
+		quotient = iMax / divisor;
+		remainder = iMax % divisor;
+		if (remainder != 0) { quotient++; }
+		iMaxScale = quotient * divisor;
+
+		idle = 1.0 - ((double)(iMax - iMin) / (double)(iMaxScale - iMinScale));
+		if (minDivisor <= 2 && divisor <= 2)
+		{
+			iMaxScale = iMax;
+			iMinScale = iMin;
+			break;
+		}
+		else if (minDivisor > 2) { minDivisor /= 2; }
+		else if (divisor > 2) { divisor /= 2; }
+	} while (idle > legendIdleThreshold);
+	
 	if (maxDigits > minDigits + 1) { iMinScale = 0; }
-	ticks[0][0] = iMinScale;
-	ticks[0][numTicks - 1] = iMaxScale;
 
 	int iBandWidth = (iMaxScale - iMinScale) / (numTicks - 1);
-	if (iMinScale == 0)
+	int remainderAsIs = iMaxScale - ((numTicks - 1) * iBandWidth) - iMinScale;
+	if (iBandWidth == 0)
 	{
+		double dBandWidth = (double)(iMaxScale - iMinScale) / (double)(numTicks - 1);
 		for (int ii = 1; ii < numTicks - 1; ii++)
 		{
-			ticks[0][ii] = ii * iBandWidth;
+			ticks[0][ii] = ((double)ii * dBandWidth) + (double)iMinScale;
 		}
 	}
-	else if (iBandWidth > iMinScale)
+	else if (iMinScale == 0)
 	{
-		iNum = iBandWidth / iMinScale;
-		int lowScale = iNum * iMinScale;
-		int highScale = (iNum + 1) * iMinScale;
-		if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) { iScaleWidth = lowScale; }
-		else { iScaleWidth = highScale; }
+		iMaxScale -= remainderAsIs;
 		for (int ii = 1; ii < numTicks - 1; ii++)
 		{
-			ticks[0][ii] = (ii * iScaleWidth) + iMinScale;
+			ticks[0][ii] = (double)(ii * iBandWidth);
 		}
 	}
 	else
 	{
+		if (iBandWidth > iMinScale)
+		{
+			iNum = iBandWidth / iMinScale;
+			int lowScale = iNum * iMinScale;
+			int highScale = (iNum + 1) * iMinScale;
+			if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) { iScaleWidth = lowScale; }
+			else { iScaleWidth = highScale; }
+		}
+		else { iScaleWidth = iBandWidth; }
+		int maxDist, minDist;
+		remainderAsIs = iMaxScale - ((numTicks - 1) * iScaleWidth) - iMinScale;
+		if (remainderAsIs > 0)  // Scale bar is too long.
+		{
+			maxDist = iMaxScale - iMax;
+			minDist = iMin - iMinScale;
+			while (maxDist > minDist && remainderAsIs > 0)
+			{
+				iMaxScale--;
+				remainderAsIs--;
+				maxDist--;
+			}
+			while (maxDist < minDist && remainderAsIs > 0)
+			{
+				iMinScale++;
+				remainderAsIs--;
+				minDist--;
+			}
+			if (remainderAsIs > 0)
+			{
+				iMinScale += remainderAsIs / 2;
+				iMaxScale -= remainderAsIs / 2;
+				iMaxScale -= remainderAsIs % 2;
+			}
+		}
+		else if (remainderAsIs < 0)  // Scale bar is too short.
+		{
+			if (iMinScale == 0) { iMaxScale -= remainderAsIs; }
+			else if (iMaxScale == 100) { iMinScale += remainderAsIs; }
+			else
+			{
+				maxDist = iMaxScale - iMax;
+				minDist = iMin - iMinScale;
+				while (maxDist > minDist && remainderAsIs < 0)
+				{
+					iMinScale--;
+					remainderAsIs++;
+					minDist++;
+				}
+				while (maxDist < minDist && remainderAsIs < 0)
+				{
+					iMaxScale++;
+					remainderAsIs++;
+					maxDist++;
+				}
+				if (remainderAsIs < 0)
+				{
+					iMinScale -= remainderAsIs / 2;
+					iMaxScale += remainderAsIs / 2;
+					iMaxScale += remainderAsIs % 2;
+				}
+			}
+
+			if (iMinScale < 0)
+			{
+				iMaxScale -= iMinScale;
+				iMinScale = 0;
+			}
+		}
 		for (int ii = 1; ii < numTicks - 1; ii++)
 		{
-			ticks[0][ii] = iMinScale + (ii * iBandWidth);
+			ticks[0][ii] = (double)((ii * iScaleWidth) + iMinScale);
 		}
 	}
-
+	ticks[0][0] = (double)iMinScale;
+	ticks[0][numTicks - 1] = (double)iMaxScale;
 	if (legendBarDouble == 0 || legendBarDouble == 2) { return ticks; }
 
 	ticks[1][0] = ticks[0][0];
@@ -312,7 +393,7 @@ vector<vector<int>> WTPAINT::getScaleValues(int numTicks)
 
 	double dMaxParent = activeData->at(activeData->size() - 1);
 	ticks[1][2] = ceil(dMaxParent);
-	iNum = ticks[1][2];
+	iNum = (int)ticks[1][2];
 	maxDigits = 1;
 	while (1)
 	{
@@ -327,18 +408,21 @@ vector<vector<int>> WTPAINT::getScaleValues(int numTicks)
 		sMaxParent += "0";
 	}
 	divisor = stoi(sMaxParent);
-	quotient = ticks[1][2] / divisor;
+	quotient = (int)ticks[1][2] / divisor;
 	quotient++;
-	ticks[1][3] = quotient * divisor;
+	ticks[1][3] = (double)(quotient * divisor);
 
 	return ticks;
 }
 void WTPAINT::makeAreas()
 {
+	Wt::WString wTemp;
 	clearAreas();
 	for (int ii = 0; ii < border.size(); ii++)
 	{
 		auto wpArea = make_unique<Wt::WPolygonArea>(border[ii]);
+		wTemp = Wt::WString::fromUTF8(areaName[ii]);
+		wpArea->setToolTip(wTemp);
 		area.push_back(wpArea.get());
 		this->addArea(move(wpArea));
 	}
@@ -348,7 +432,7 @@ void WTPAINT::makeAreas()
 	corners[2] = Wt::WPointF(dWidth, dHeight);
 	corners[3] = Wt::WPointF(0.0, dHeight);
 	auto bgArea = make_unique<Wt::WPolygonArea>(corners);
-	Wt::WString wTemp = mapTooltip.at("grandparent");
+	wTemp = mapTooltip.at("grandparent");
 	bgArea->setToolTip(wTemp);
 	area.push_back(bgArea.get());
 	this->addArea(move(bgArea));
@@ -363,8 +447,10 @@ void WTPAINT::initColour()
 	keyColour[4] = { 0, 0, 255 };  // Blue
 	keyColour[5] = { 127, 0, 255 };  // Violet
 	extraColour = { 255, 0, 127 };  // Pink
+	unknownColour = { 180, 180, 180 };  // Grey
 
 	mapTooltip.emplace("grey", "A grey region indicates missing source data.");
+	mapTooltip.emplace("pink", "A pink region indicates that all regions are displaying the same data value.");
 	mapTooltip.emplace("grandparent", "Clicking outside the parent region's border will load that region's parent, if it is available");
 }
 void WTPAINT::paintEvent(Wt::WPaintDevice* paintDevice)
@@ -375,10 +461,12 @@ void WTPAINT::paintEvent(Wt::WPaintDevice* paintDevice)
 	pen.setWidth(penWidth);
 	painter.setPen(pen);
 	if (area.size() < 1) { return; }
+	prepareActiveData();
 	painter.save();
-	paintRegionAll(painter);
-	painter.restore();
 	paintLegendBar(painter);
+	painter.restore();
+	updateAreaColour();
+	paintRegionAll(painter);
 	resize(barTLBR[1][0] + 1.0, barTLBR[1][1] + 1.0);
 }
 void WTPAINT::paintLegendBar(Wt::WPainter& painter)
@@ -392,6 +480,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	if (height <= 0.0) { jf.err("Invalid barTLBR height-wtpaint.paintLegendBar"); }
 	bool barVertical = 0;
 	if (height > width) { barVertical = 1; }
+	bool gameOn = 1;
 
 	double dLen, dLenParent, wGradX0, wGradX1, wGradY0, wGradY1, tickX, tickY, tickXP, tickYP;
 	double dTemp, wGradX0P, wGradX1P, wGradY0P, wGradY1P, xCoord, yCoord, coordMin, coordMax;
@@ -402,11 +491,11 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	string temp, displayUnit, suffix;
 	int widthDiff;
 
-	vector<vector<int>> scaleValues = getScaleValues(numColour);  // Form [child bar, parent bar][ticks].
-	if (legendTickLines == 1) 
-	{ 
-		suffix = " (" + sUnit + ")";
-	}
+	vector<vector<double>> scaleValues = getScaleValues(numColour);  // Form [child bar, parent bar][ticks].
+	legendMin = scaleValues[0][0];
+	legendMax = scaleValues[0].back();
+
+	if (legendTickLines == 1)  {  suffix = " (" + sUnit + ")"; }
 	else
 	{
 		if (displayData.size() == 1) { displayUnit = "(" + sUnit + ")"; }  // # of persons
@@ -468,7 +557,10 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 			tickYP = barTLBR[1][1] - (2.0 * barNumberHeight) - (0.5 * barThickness);
 		}
 	}
+
 	wGrad.setLinearGradient(wGradX0, wGradY0, wGradX1, wGradY1);
+	vector<string> vsVal = jf.doubleToCommaString(scaleValues[0], 1);
+
 	double bandWidth = 1.0 / (double)(numColourBands);
 	for (int ii = 0; ii < numColour; ii++)  // Child bar only.
 	{
@@ -479,8 +571,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 		{
 			tickY = wGradY0 - (dTemp * dLen) + 1.0;
 			painter.drawLine(tickX, tickY, tickX + (barThickness / 2.0), tickY);
-			temp = jf.intToCommaString(scaleValues[0][ii]);
-			temp += suffix;
+			temp = vsVal[ii] + suffix;
 			wsValue = Wt::WString::fromUTF8(temp);
 			if (legendTickLines > 1)
 			{
@@ -514,8 +605,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 		{
 			tickX = wGradX0 + (dTemp * dLen) - 1.0;
 			painter.drawLine(tickX, tickY, tickX, tickY + (barThickness / 2.0));
-			temp = jf.intToCommaString(scaleValues[0][ii]);
-			temp += suffix;
+			temp = vsVal[ii] + suffix;
 			wsValue = Wt::WString::fromUTF8(temp);
 			if (legendTickLines > 1)
 			{
@@ -577,20 +667,30 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	
 	if (legendBarDouble == 1)
 	{
-		int keyIndex;
 		double colourFraction;
 		wGradParent.setLinearGradient(wGradX0P, wGradY0P, wGradX1P, wGradY1P);
+		for (int ii = 0; ii < keyColour.size(); ii++)
+		{
+			colourFraction = (double)ii / (double)(keyColour.size() - 1);
+			wColour.setRgb(keyColour[ii][0], keyColour[ii][1], keyColour[ii][2]);
+			wGradParent.addColorStop(colourFraction, wColour);
+		}
+
+		int coord1;  // Representing the problematic dimension of ii = 1.
+		vsVal = jf.doubleToCommaString(scaleValues[1], 1);
+		vsVal[2] = areaName[areaName.size() - 1];
 		for (int ii = 0; ii < 4; ii++)  // For parent bar only.
 		{
-			dTemp = (double)(scaleValues[1][ii] - scaleValues[1][0]) / (double)(scaleValues[1][3] - scaleValues[1][0]);
-			colourFraction = (double)ii / 3.0;
-			keyIndex = int(round((double)(numColour - 1) * colourFraction));
-			wColour.setRgb(keyColour[keyIndex][0], keyColour[keyIndex][1], keyColour[keyIndex][2]);
-			wGradParent.addColorStop(colourFraction, wColour);
-
-			if (ii != 2) { temp = jf.intToCommaString(scaleValues[1][ii]); }
-			else { temp = areaName[areaName.size() - 1]; }
-			temp += suffix;
+			if (ii == 1)  // If a parent region is dwarfed by one of its child regions,
+			{             // then do not display that child region on the parent bar. 
+				if (scaleValues[1][1] >= scaleValues[1][2] || scaleValues[1][1] >= scaleValues[1][3])
+				{
+					continue;
+				}
+			}
+			dTemp = (double)(scaleValues[1][ii] - scaleValues[1][0]) / (double)(scaleValues[1][3] - scaleValues[1][0]);			
+			
+			temp = vsVal[ii] + suffix;
 			wsValue = Wt::WString::fromUTF8(temp);
 			if (legendTickLines > 1)
 			{
@@ -634,28 +734,28 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 				else if (ii == 1)
 				{
 					tickYP = wGradY0P - (dTemp * dLen) + 1.0;
-					yCoord = tickYP - barNumberHeight;
+					coord1 = tickYP - barNumberHeight;
 					coordMax = wGradY0P - (3.0 * barNumberHeight);
-					if (yCoord > coordMax) { yCoord = coordMax; }
+					if (coord1 > coordMax) { coord1 = coordMax; }
 					coordMin = 4.0 * barNumberHeight;
-					if (yCoord < coordMin) { yCoord = coordMin; }
+					if (coord1 < coordMin) { coord1 = coordMin; }
 
 					xCoord = barTLBR[1][0] - barNumberWidth;
-					painter.drawText(xCoord, yCoord, barNumberWidth, barNumberHeight, Wt::AlignmentFlag::Left, wsValue);
+					painter.drawText(xCoord, coord1, barNumberWidth, barNumberHeight, Wt::AlignmentFlag::Left, wsValue);
 					if (legendTickLines > 1)
 					{
-						yCoord += barNumberHeight;
-						painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsUnit);
+						coord1 += barNumberHeight;
+						painter.drawText(xCoord, coord1, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsUnit);
 					}
 
-					if (yCoord == tickYP)
+					if (coord1 == tickYP - barNumberHeight)
 					{
 						painter.drawLine(tickXP, tickYP, tickXP - (1.0 * barThickness), tickYP);
 					}
 					else
 					{
-						painter.drawLine(tickXP, yCoord + (0.5 * barNumberHeight), tickXP - (0.5 * barThickness), yCoord + (0.5 * barNumberHeight));
-						painter.drawLine(tickXP - (0.5 * barThickness), yCoord + (0.5 * barNumberHeight), tickXP - (0.5 * barThickness), tickYP);
+						painter.drawLine(tickXP, coord1 + (0.5 * barNumberHeight), tickXP - (0.5 * barThickness), coord1 + (0.5 * barNumberHeight));
+						painter.drawLine(tickXP - (0.5 * barThickness), coord1 + (0.5 * barNumberHeight), tickXP - (0.5 * barThickness), tickYP);
 						painter.drawLine(tickXP - (0.5 * barThickness), tickYP, tickXP - (1.0 * barThickness), tickYP);
 					}
 				}
@@ -663,7 +763,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 				{
 					tickYP = wGradY0P - (dTemp * dLen) + 1.0;
 					yCoord = tickYP - barNumberHeight;
-					coordMax = wGradY0P - (5.0 * barNumberHeight);
+					coordMax = coord1 - (2.0 * barNumberHeight);
 					if (yCoord > coordMax) { yCoord = coordMax; }
 					coordMin = 2.0 * barNumberHeight;
 					if (yCoord < coordMin) { yCoord = coordMin; }
@@ -734,36 +834,36 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 				else if (ii == 1)
 				{
 					tickXP = barThickness + (dTemp * dLen);
-					xCoord = tickXP - (barNumberWidth / 2.0);
+					coord1 = tickXP - (barNumberWidth / 2.0);
 					coordMin = barNumberWidth;  // To avoid overlap with first or last entry.
-					if (xCoord < coordMin) { xCoord = coordMin; }
+					if (coord1 < coordMin) { coord1 = coordMin; }
 					coordMax = barTLBR[1][0] - (3.0 * barNumberWidth);
-					if (xCoord > coordMax) { xCoord = coordMax; }
+					if (coord1 > coordMax) { coord1 = coordMax; }
 
 					yCoord = barTLBR[1][1] - (2.0 * barNumberHeight);
-					painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsValue);
+					painter.drawText(coord1, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsValue);
 					if (legendTickLines > 1)
 					{
 						yCoord += barNumberHeight;
-						painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsUnit);
+						painter.drawText(coord1, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsUnit);
 					}
 
-					if (xCoord == tickXP - (barNumberWidth / 2.0))
+					if (coord1 == tickXP - (barNumberWidth / 2.0))
 					{
 						painter.drawLine(tickXP, tickYP, tickXP, tickYP - (0.75 * barThickness));
 					}
 					else
 					{
 						painter.drawLine(tickXP, tickYP, tickXP, tickYP - (0.5 * barThickness));
-						painter.drawLine(tickXP, tickYP, xCoord + (0.5 * barNumberWidth), tickYP);
-						painter.drawLine(xCoord + (0.5 * barNumberWidth), tickYP, xCoord + (0.5 * barNumberWidth), tickYP + (0.4 * barThickness));
+						painter.drawLine(tickXP, tickYP, coord1 + (0.5 * barNumberWidth), tickYP);
+						painter.drawLine(coord1 + (0.5 * barNumberWidth), tickYP, coord1 + (0.5 * barNumberWidth), tickYP + (0.4 * barThickness));
 					}
 				}
 				else if (ii == 2)
 				{
 					tickXP = barThickness + (dTemp * dLen);
 					xCoord = tickXP - (barNumberWidth / 2.0);
-					coordMin = 2.0 * barNumberWidth;  // To avoid overlap with first or last entry.
+					coordMin = coord1 + barNumberWidth;  // To avoid overlap with other entries.
 					if (xCoord < coordMin) { xCoord = coordMin; }
 					coordMax = barTLBR[1][0] - (2.0 * barNumberWidth);
 					if (xCoord > coordMax) { xCoord = coordMax; }
@@ -854,8 +954,9 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 
 		double parentValue = activeData->at(activeData->size() - 1);
 		dTemp = (parentValue - (double)scaleValues[0][0]) / (double)(scaleValues[0][scaleValues[0].size() - 1] - scaleValues[0][0]);
+		if (parentValue < 0.0) { gameOn = 0; }
 
-		if (barVertical)
+		if (barVertical && gameOn)
 		{
 			if (legendTickLines > 1)
 			{
@@ -885,7 +986,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 			double dRadius = (barThickness - 6.0) / 2.0;
 			rectDot = Wt::WRectF(tickXP - (0.5 * barThickness) - dRadius, tickYP - dRadius, 2.0 * dRadius, 2.0 * dRadius);
 		}
-		else
+		else if (gameOn)
 		{
 			tickXP = wGradX0 + (dTemp * dLen);
 			tickYP = barTLBR[0][1] + ((double)legendTickLines * barNumberHeight) + (1.5 * barThickness);
@@ -934,6 +1035,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	}
 	else if (legendBarDouble == 2)
 	{
+		if (!gameOn) { return; }
 		Wt::WBrush wBrushBlack(Wt::StandardColor::Black);
 		painter.setBrush(wBrushBlack);
 		painter.drawEllipse(rectDot);
@@ -983,6 +1085,50 @@ void WTPAINT::paintRegionAll(Wt::WPainter& painter)
 		wpPath.closeSubPath();
 		painter.drawPath(wpPath);
 		painter.restore();
+	}
+}
+void WTPAINT::prepareActiveData()
+{
+	if (displayData.size() > 0) { prepareActiveData(displayData); }
+	else { prepareActiveData({ 0 }); }
+}
+void WTPAINT::prepareActiveData(vector<int> viIndex)
+{
+	size_t numArea = areaName.size();
+	if (numArea != areaData[0].size()) { jf.err("Area size mismatch-wtpaint.prepareActiveData"); }
+	bool processed = 0;
+	if (viIndex.size() > 1)
+	{
+		areaDataProcessed = processPercent(viIndex);
+		activeData = &areaDataProcessed;
+		processed = 1;
+	}
+	else { activeData = &areaData[0]; }
+
+	double dMin, dMax;
+	vector<int> indexMinMax;
+	if (legendBarDouble == 1)
+	{
+		if (processed)
+		{
+			areaDataProcessedChildren = areaDataProcessed;
+			areaDataProcessedChildren.pop_back();
+			activeDataChildren = &areaDataProcessedChildren;
+		}
+		else
+		{
+			areaDataChildren = areaData;
+			for (int ii = 0; ii < areaDataChildren.size(); ii++)
+			{
+				areaDataChildren[ii].pop_back();
+			}
+			activeDataChildren = &areaDataChildren[0];
+		}
+	}
+	else
+	{
+		if (processed) { activeData = &areaDataProcessed; }
+		else { activeData = &areaData[0]; }
 	}
 }
 vector<double> WTPAINT::processPercent(vector<int> viIndex)
@@ -1120,98 +1266,56 @@ void WTPAINT::setWColour(Wt::WColor& wColour, vector<int> rgb, double percent)
 }
 void WTPAINT::updateAreaColour()
 {
-	if (displayData.size() > 0) { updateAreaColour(displayData); }
-	else { updateAreaColour({ 0 }); }
-}
-void WTPAINT::updateAreaColour(vector<int> viIndex)
-{
-	size_t numArea = areaName.size();
-	if (numArea != areaData[0].size()) { jf.err("Area size mismatch-wtf.updateAreaColour"); }
+	if (legendMin < 0.0 || legendMax < 0.0) { jf.err("Missing legend minMax-wtpaint.updateAreaColour"); }
 	if (keyColour.size() != numColourBands + 1) { initColour(); }
+	size_t numArea = areaName.size();
 	areaColour.resize(numArea, vector<int>(3));
-
-	bool processed = 0;
-	if (viIndex.size() > 1) 
-	{ 
-		areaDataProcessed = processPercent(viIndex); 
-		activeData = &areaDataProcessed;
-		processed = 1;
-	}
-	else { activeData = &areaData[0]; }
 
 	double percentage, dR, dG, dB, remains, dMin, dMax, dVal;
 	int floor, indexEnd;
-	vector<int> indexMinMax;
+
 	if (legendBarDouble == 1)
 	{
-		if (processed)
-		{
-			areaDataProcessedChildren = areaDataProcessed;
-			areaDataProcessedChildren.pop_back();
-			indexMinMax = jf.minMax(areaDataProcessedChildren);
-			dMin = areaDataProcessedChildren[indexMinMax[0]];
-			dMax = areaDataProcessedChildren[indexMinMax[1]];
-			areaColour[areaColour.size() - 1] = { 255, 255, 255 };  // Parent.
-			indexEnd = numArea - 1;
-			activeDataChildren = &areaDataProcessedChildren;
-		}
-		else
-		{
-			areaDataChildren = areaData;
-			for (int ii = 0; ii < areaDataChildren.size(); ii++)
-			{
-				areaDataChildren[ii].pop_back();
-			}
-			indexMinMax = jf.minMax(areaDataChildren[0]);
-			dMin = areaDataChildren[0][indexMinMax[0]];
-			dMax = areaDataChildren[0][indexMinMax[1]];
-			areaColour[areaColour.size() - 1] = { 255, 255, 255 };  // Parent.
-			indexEnd = numArea - 1;
-			activeDataChildren = &areaDataChildren[0];
-		}
+		areaColour[areaColour.size() - 1] = { 255, 255, 255 };  // Parent.
+		indexEnd = numArea - 1;
 	}
-	else
-	{
-		if (processed)
-		{
-			indexMinMax = jf.minMax(areaDataProcessed);
-			dMin = areaDataProcessed[indexMinMax[0]];
-			dMax = areaDataProcessed[indexMinMax[1]];
-			indexEnd = numArea;
-			activeData = &areaDataProcessed;
-		}
-		else
-		{
-			indexMinMax = jf.minMax(areaData[0]);
-			dMin = areaData[0][indexMinMax[0]];
-			dMax = areaData[0][indexMinMax[1]];
-			indexEnd = numArea;
-			activeData = &areaData[0];
-		}
-	}
+	else { indexEnd = numArea; }
 	
-	if (dMin == dMax)  // Every data point is identical ! 
+	Wt::WString wTemp;
+	if (legendMin == legendMax)  // Every data point is identical ! 
 	{
-		for (int ii = 0; ii < indexEnd; ii++)
+		dVal = activeData->at(0);
+		if (dVal == -1.0)  // Data is missing, so draw as grey.
 		{
-			areaColour[ii] = extraColour;
+			for (int ii = 0; ii < indexEnd; ii++)
+			{
+				areaColour[ii] = unknownColour;
+				wTemp = mapTooltip.at("grey");
+				area[ii]->setToolTip(wTemp);
+			}
+		}
+		else  // There is data, but it's all the same...
+		{
+			for (int ii = 0; ii < indexEnd; ii++)
+			{
+				areaColour[ii] = extraColour;
+				wTemp = mapTooltip.at("pink");
+				area[ii]->setToolTip(wTemp);
+			}
 		}
 		return;
 	}
-	Wt::WString wTemp;
 	for (int ii = 0; ii < indexEnd; ii++)
 	{
 		dVal = activeData->at(ii);
 		if (dVal == -1.0)  // Data is missing, so draw as grey.
 		{
-			areaColour[ii][0] = 180;
-			areaColour[ii][1] = 180;
-			areaColour[ii][2] = 180;
+			areaColour[ii] = unknownColour;
 			wTemp = mapTooltip.at("grey");
 			area[ii]->setToolTip(wTemp);
 			continue;
 		}
-		percentage = (dVal - dMin) / (dMax - dMin);		
+		percentage = (dVal - legendMin) / (legendMax - legendMin);
 		if (percentage > 0.9999) { percentage = 0.9999; }
 		percentage *= (double)numColourBands;
 		floor = int(percentage);
@@ -1254,6 +1358,7 @@ void WTPAINT::updateDisplay(vector<int> viIndex)
 		}
 	}
 	scaleImgBar();
-	updateAreaColour(viIndex);
+	prepareActiveData();
+	updateAreaColour();
 	update();
 }

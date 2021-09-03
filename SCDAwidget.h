@@ -18,6 +18,8 @@
 #include <Wt/WMenuItem.h>
 #include <Wt/WImage.h>
 #include <Wt/WEvent.h>
+#include <Wt/WDialog.h>
+#include <Wt/WGroupBox.h>
 #include <Wt/WJavaScript.h>
 #include "SCDAserver.h"
 
@@ -38,6 +40,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
 	unordered_map<int, string> mapTimeWord;  // word index -> word  (shown in init).
 	unordered_map<string, Wt::WString> mapTooltip;  // widget -> tooltip
+	unordered_map<string, string> mapUnit;  // ambiguous unit -> definitive unit
 	bool mobile = 0;
 	const int num_filters = 3;
 	int numPreVariable = -1;  // Number of widgets in boxConfig prior to the "variable" panels.
@@ -57,26 +60,27 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WComboBox *cbCategory, *cbColTopicTitle, *cbColTopicTable, *cbColTopicSel;
 	Wt::WComboBox* cbDemographic;
 	Wt::WComboBox *cbRowTopicSel, *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
-	Wt::WContainerWidget *boxConfig, *boxData, *boxMap, *boxMapAll, *boxMapOption, *boxTable;
-	Wt::WContainerWidget *boxTableSlider;
-	Wt::WImage* imgMap;
+	Wt::WContainerWidget *boxConfig, *boxData, *boxDownload, *boxMap, *boxMapAll, *boxMapOption;
+	Wt::WContainerWidget *boxTable, *boxTableSlider, *boxTextLegend;
+	Wt::WImage *imgMap;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
-	Wt::WPanel *panelCategory, *panelColTopic, *panelRowTopic, *panelYear;
+	Wt::WPanel *panelCategory, *panelColTopic, *panelDemographic, *panelRowTopic, *panelYear;
 	Wt::WPopupMenu *popupUnit;
-	Wt::WPushButton *pbMobile, *pbUnit;
+	Wt::WPushButton *pbDownloadPDF, *pbMobile, *pbUnit;
 	Wt::WSelectionBox* sbList;
 	Wt::WSlider* sliderTable;
 	Wt::WSpinBox* spinBoxMapX, *spinBoxMapY, *spinBoxMapRot;
 	SCDAserver& sRef;
 	Wt::WStackedWidget* stackedTabData;
 	Wt::WTabWidget* tabData;
-	Wt::WText *textCata, *textLegend, *textTable, *textUnit;
+	Wt::WText *textCata, *textTable, *textUnit;
 	Wt::WTree* treeRegion;
 
 	vector<Wt::WComboBox*> allCB, varMID, varTitle;
 	vector<Wt::WPanel*> allPanel, varPanel;
 
+	void addCBLayer(Wt::WPanel*& wPanel);
 	void addDemographic(vector<vector<string>>& vvsDemo);
 	void addDifferentiator(vector<string> vsDiff);
 	void addVariable(vector<string>& vsVariable);
@@ -96,10 +100,12 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbVarTitleClicked(string id);
 	void cbVarMIDClicked(string id);
 	void cbYearChanged();
+	void cleanUnit(string& unit);
 	void connect();
 	vector<string> getDemo();
 	int getHeight();
-	Wt::WString getTextLegend();
+	vector<string> getNextCBLayer(Wt::WComboBox*& wCB);
+	Wt::WString getTextLegend(Wt::WPanel*& wPanel);
 	string getUnit();
 	vector<vector<string>> getVariable();
 	int getWidth();
@@ -107,9 +113,12 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void initUI();
 	string jsMakeFunctionTableScrollTo(Wt::WContainerWidget*& boxTable);
 	string jsMakeFunctionTableWidth(Wt::WContainerWidget*& boxTable, string tableID);
+	void loadingStart();
+	void loadingStop();
 	void makeUI();
 	void mapAreaClicked(int areaIndex);
 	void mapAreaDoubleClicked(int areaIndex);
+	void populateTextLegend(Wt::WContainerWidget*& boxTextLegend);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
 	void processDataEvent(const DataEvent& event);
 	void processEventCatalogue(string sYear, string sCata);

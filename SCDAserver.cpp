@@ -924,16 +924,6 @@ vector<string> SCDAserver::getTopicList(vector<string> vsYear)
 	sort(vsTopic.begin(), vsTopic.end());
 	return vsTopic;
 }
-string SCDAserver::getUnit(string sMID)
-{
-	// For a chosen column/row header, return its stated unit (if it has one).
-	string unit;
-	size_t pos2 = sMID.size() - 1;
-	if (sMID[pos2] != ')') { return unit; }  // Nothing found.
-	size_t pos1 = sMID.rfind('(') + 1;
-	unit = sMID.substr(pos1, pos2 - pos1);
-	return unit;
-}
 string SCDAserver::getUnit(string sYear, string sCata, string sDimMID)
 {
 	// This variant gets the column header from the database and checks it for a unit.
@@ -943,7 +933,7 @@ string SCDAserver::getUnit(string sYear, string sCata, string sDimMID)
 	vector<string> conditions = { "MID = " + sDimMID };
 	sf.select(search, tname, result, conditions);
 	if (result.size() < 1) { jf.err("No MID found-SCDAserver.getUnit"); }
-	unit = getUnit(result);
+	unit = wjtable.getUnit(result);
 	return unit;
 }
 vector<string> SCDAserver::getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed)
@@ -1173,7 +1163,7 @@ void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 	// Determine the data's unit.
 	vector<string> vsDim = vvsDIM.back();  // Form [column DIMIndex title, dimIndex(1, ...)].
 	vvsDIM.pop_back();
-	string sUnit = getUnit(vvsDIM[vvsDIM.size() - 1][1]);  // Firstly, check the row header.
+	string sUnit = wjtable.getUnit(vvsDIM[vvsDIM.size() - 1][1]);  // Firstly, check the row header.
 	if (sUnit.size() < 1)  // Secondly, check the column header. 
 	{
 		sUnit = getUnit(prompt[1], prompt[2], vsDim[1]);
@@ -1206,7 +1196,7 @@ void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 	vector<vector<string>> vvsTable;
 	vector<string> vsCol, vsRow, vsResult, conditions;
 	string tnameDIM, tnameDim, tnameData;
-	int iCol, iRow, index, iSize;
+	int iCol, iRow, index, iSize, numCol = -1;
 	vector<string> search = { "*" };
 	string tname = "Data$" + prompt[1] + "$" + prompt[2] + "$" + prompt[3];
 	vector<string> vsDataIndex = getDataIndex(prompt[1], prompt[2], vvsDIM);
@@ -1245,7 +1235,11 @@ void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 			conditions = { "DataIndex = " + vsDataIndex[ii] };
 			vsResult.clear();
 			iSize = sf.select(search, tname, vsResult, conditions);
-			if (iSize < 2) { continue; }
+			if (iSize < 2) 
+			{ 
+				if (numCol < 0) { numCol = sf.get_num_col(tname); }
+				vsResult.assign(numCol, "-1.0");  // No source data !
+			}
 			index = vvsTable.size();
 			vvsTable.push_back(vector<string>());
 			vvsTable[index].assign(vsResult.begin() + 1, vsResult.end());
