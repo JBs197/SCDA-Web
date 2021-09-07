@@ -61,7 +61,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WComboBox* cbDemographic;
 	Wt::WComboBox *cbRowTopicSel, *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
 	Wt::WContainerWidget *boxConfig, *boxData, *boxDownload, *boxMap, *boxMapAll, *boxMapOption;
-	Wt::WContainerWidget *boxTable, *boxTableSlider, *boxTextLegend;
+	Wt::WContainerWidget *boxTableSlider, *boxTextLegend;
 	Wt::WImage *imgMap;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
@@ -87,6 +87,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void addVariable(vector<vector<string>>& vvsVariable);
 	void appendMapToHistory(string sMap);
 	void cbCategoryClicked();
+	void cbColRowSelChanged();
 	void cbColRowSelClicked();
 	void cbColRowTitleClicked(string id);
 	void cbDemographicChanged();
@@ -102,6 +103,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbYearChanged();
 	void cleanUnit(string& unit);
 	void connect();
+	void downloadMap();
 	vector<string> getDemo();
 	int getHeight();
 	vector<string> getNextCBLayer(Wt::WComboBox*& wCB);
@@ -111,8 +113,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	int getWidth();
 	void init();
 	void initUI();
-	string jsMakeFunctionTableScrollTo(Wt::WContainerWidget*& boxTable);
-	string jsMakeFunctionTableWidth(Wt::WContainerWidget*& boxTable, string tableID);
+	string jsMakeFunctionTableScrollTo(WJTABLE*& boxTable);
+	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
 	void loadingStart();
 	void loadingStop();
 	void makeUI();
@@ -137,15 +139,10 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void resetVariables();
 	void resetVariables(int plus);
 	void scrollToSlider(const Wt::WScrollEvent& wsEvent);
+	void setMap(int iRow, int iCol, string sRegion);
 	void setTable(int geoCode, string sRegion);
 	void sliderToScroll(const int& fromLeft);
 	void tableCBUpdate(int iRow, int iCol);
-	void tableClicked(int iRow, int iCol);
-	void tableDoubleClicked(int iRow, int iCol);
-	vector<string> tableGetCol(int colIndex);
-	int tableGetColIndex(string header);
-	vector<string> tableGetRow(int rowIndex);
-	int tableGetRowIndex(string header);
 	void toggleMobile();
 	void treeClicked();
 	string treeSelected();
@@ -175,6 +172,7 @@ public:
 	Wt::WLength len300p = Wt::WLength("300px");
 	Wt::WLength len600p = Wt::WLength("600px");
 	Wt::WLength len700p = Wt::WLength("700px");
+	Wt::WLength len780p = Wt::WLength("780px");
 	Wt::WLength len800p = Wt::WLength("800px");
 };
 

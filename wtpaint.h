@@ -8,9 +8,12 @@
 #include <Wt/WPainter.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPaintDevice.h>
+#include <Wt/WPdfImage.h>
+#include <Wt/Render/WPdfRenderer.h>
 #include <Wt/WPolygonArea.h>
 #include <Wt/WRectArea.h>
 #include <Wt/WFlags.h>
+#include <hpdf.h>
 #include "jfunc.h"
 
 using namespace std;
@@ -34,7 +37,6 @@ class WTPAINT : public Wt::WPaintedWidget
 	double dHeight = -1.0, dWidth = -1.0;  // Unit of pixels.
 	vector<int> displayData;
 	vector<int> extraColour, unknownColour;
-	JFUNC jf;
 	int legendBarDouble = -1;  // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
 	const double legendIdleThreshold = 0.4;  // Minimum percentage of bar unused, to trigger action.
 	double legendMin = -1.0, legendMax = -1.0;
@@ -54,6 +56,8 @@ public:
 	}
 	~WTPAINT() override {}
 
+	JFUNC jf;
+
 	int adjustScale(vector<vector<int>>& scaleValues, string& sUnit);
 	string areaClicked(int index);
 	void clearAreas();
@@ -71,6 +75,7 @@ public:
 	void paintRegionAll(Wt::WPainter& painter);
 	void prepareActiveData();
 	void prepareActiveData(vector<int> viIndex);
+	void printPDF(string filePath);
 	vector<double> processPercent(vector<int> viIndex);
 	void scaleChildToWidget(vector<vector<double>>& vpfBorder, vector<vector<double>>& vpfFrame);
 	void scaleImgBar();

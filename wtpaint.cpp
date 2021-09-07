@@ -1069,6 +1069,13 @@ void WTPAINT::paintRegionAll(Wt::WPainter& painter)
 		if (ii == selIndex)  // This non-parent region was selected by the user. 
 		{
 			wPen = painter.pen();
+			if (areaName[areaName.size() - 1] == "Canada")
+			{
+				Wt::WLength penWidth(3.0, Wt::LengthUnit::Pixel);
+				wPen.setWidth(penWidth);
+				wColour = Wt::WColor((areaColour[ii][0] + 128) % 256, (areaColour[ii][1] + 128) % 256, (areaColour[ii][2] + 128) % 256);
+				wPen.setColor(wColour);
+			}
 			wPen.setStyle(Wt::PenStyle::DotLine);
 			painter.setPen(wPen);
 		}
@@ -1130,6 +1137,41 @@ void WTPAINT::prepareActiveData(vector<int> viIndex)
 		if (processed) { activeData = &areaDataProcessed; }
 		else { activeData = &areaData[0]; }
 	}
+}
+void WTPAINT::printPDF(string filePath)
+{
+	// Create a local PDF as a replica of this widget's drawn map.
+	Wt::WLength wlWidth = Wt::WLength(barTLBR[1][0]);
+	Wt::WLength wlHeight = Wt::WLength(barTLBR[1][1]);
+	Wt::WPdfImage wpdfi(wlWidth, wlHeight);
+	Wt::WPainter painterPDF(&wpdfi);
+
+	if (legendBarDouble == 1)
+	{
+		if (activeDataChildren == nullptr) { jf.err("No activeData pointer-wtpaint.printPDF"); }
+	}
+	else
+	{
+		if (activeData == nullptr) { jf.err("No activeData pointer-wtpaint.printPDF"); }
+	}
+
+	Wt::WLength penWidth(2.0, Wt::LengthUnit::Pixel);
+	Wt::WPen pen(Wt::PenStyle::SolidLine);
+	pen.setWidth(penWidth);
+	painterPDF.setPen(pen);
+	painterPDF.save();
+
+	paintLegendBar(painterPDF);
+	painterPDF.restore();
+	updateAreaColour();
+	paintRegionAll(painterPDF);
+
+	wpdfi.done();
+	ofstream PDF(filePath, ios::out | ios::binary);
+	wpdfi.write(PDF);
+	painterPDF.end();
+	PDF.close();
+	//wpdfi.~WPdfImage();
 }
 vector<double> WTPAINT::processPercent(vector<int> viIndex)
 {
