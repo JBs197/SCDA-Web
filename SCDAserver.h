@@ -1,5 +1,9 @@
 #pragma once
 #include <Wt/WServer.h>
+#include <Wt/WCanvasPaintDevice.h>
+#include <Wt/WMeasurePaintDevice.h>
+#include <Wt/WTree.h>
+#include <Wt/WTreeNode.h>
 #include <functional>
 #include "jtree.h"
 #include "sqlfunc.h"
@@ -99,6 +103,9 @@ public:
 	SCDAserver& operator=(const SCDAserver&) = delete;
 	class User {};
 
+	const double cellMargin = 4.0;  // Unit of pixels, applied vertically and horizontally.
+	Wt::WFont wfTable = Wt::WFont();
+
 	void addFrameKM(vector<vector<vector<double>>>& borderKM, vector<string>& vsGeoCode, string sYear);
 	vector<vector<int>> binMapBorder(string& tname0);
 	vector<vector<vector<int>>> binMapFrames(string& tname0);
@@ -140,9 +147,8 @@ private:
 	JFUNC jf;
 	JTREE jt;
 	SQLFUNC sf;
-	vector<string> vsTemp;
-	WJTABLE wjtable;
-	WTPAINT *wtf;
+	WJTABLE *wjTable;
+	WTPAINT *wtPaint;
 	struct UserInfo
 	{
 		string sessionID;
@@ -156,6 +162,7 @@ private:
 	Wt::WServer& serverRef;
 	typedef map<User*, UserInfo> userMap;
 	userMap users;
+	Wt::WFont wFont;
 
 	void err(string);
 	void postDataEvent(const DataEvent& event, string sID);

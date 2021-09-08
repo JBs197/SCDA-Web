@@ -150,8 +150,10 @@ void SCDAserver::err(string func)
 void SCDAserver::init()
 {
 	sf.init(db_path);
-	auto uniqueWtf = make_unique<WTPAINT>();
-	wtf = uniqueWtf.get();
+	auto uniqueWtp = make_unique<WTPAINT>();
+	wtPaint = uniqueWtp.get();
+	auto uniqueWjt = make_unique<WJTABLE>();
+	wjTable = uniqueWjt.get();
 }
 void SCDAserver::initPopulation()
 {
@@ -933,7 +935,7 @@ string SCDAserver::getUnit(string sYear, string sCata, string sDimMID)
 	vector<string> conditions = { "MID = " + sDimMID };
 	sf.select(search, tname, result, conditions);
 	if (result.size() < 1) { jf.err("No MID found-SCDAserver.getUnit"); }
-	unit = wjtable.getUnit(result);
+	unit = wjTable->getUnit(result);
 	return unit;
 }
 vector<string> SCDAserver::getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed)
@@ -1163,7 +1165,7 @@ void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 	// Determine the data's unit.
 	vector<string> vsDim = vvsDIM.back();  // Form [column DIMIndex title, dimIndex(1, ...)].
 	vvsDIM.pop_back();
-	string sUnit = wjtable.getUnit(vvsDIM[vvsDIM.size() - 1][1]);  // Firstly, check the row header.
+	string sUnit = wjTable->getUnit(vvsDIM[vvsDIM.size() - 1][1]);  // Firstly, check the row header.
 	if (sUnit.size() < 1)  // Secondly, check the column header. 
 	{
 		sUnit = getUnit(prompt[1], prompt[2], vsDim[1]);
@@ -1248,6 +1250,7 @@ void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 		vsCol.insert(vsCol.begin(), prompt[4]);
 		vsRow = getRowTitle(prompt[1], prompt[2]);
 	}
+
 	postDataEvent(DataEvent(DataEvent::Table, prompt[0], vvsTable, vsCol, vsRow), prompt[0]);
 }
 void SCDAserver::pullTopic(vector<string> prompt)

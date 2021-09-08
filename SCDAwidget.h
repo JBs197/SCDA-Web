@@ -13,13 +13,10 @@
 #include <Wt/WLength.h>
 #include <Wt/WTabWidget.h>
 #include <Wt/WStackedWidget.h>
-#include <Wt/WTree.h>
-#include <Wt/WTreeNode.h>
 #include <Wt/WMenuItem.h>
 #include <Wt/WImage.h>
 #include <Wt/WEvent.h>
 #include <Wt/WDialog.h>
-#include <Wt/WGroupBox.h>
 #include <Wt/WJavaScript.h>
 #include "SCDAserver.h"
 
@@ -61,7 +58,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WComboBox* cbDemographic;
 	Wt::WComboBox *cbRowTopicSel, *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
 	Wt::WContainerWidget *boxConfig, *boxData, *boxDownload, *boxMap, *boxMapAll, *boxMapOption;
-	Wt::WContainerWidget *boxTableSlider, *boxTextLegend;
+	Wt::WContainerWidget *boxTable, *boxTextLegend;
 	Wt::WImage *imgMap;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
@@ -69,8 +66,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WPopupMenu *popupUnit;
 	Wt::WPushButton *pbDownloadPDF, *pbMobile, *pbUnit;
 	Wt::WSelectionBox* sbList;
-	Wt::WSlider* sliderTable;
-	Wt::WSpinBox* spinBoxMapX, *spinBoxMapY, *spinBoxMapRot;
 	SCDAserver& sRef;
 	Wt::WStackedWidget* stackedTabData;
 	Wt::WTabWidget* tabData;
@@ -138,10 +133,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void resetTree();
 	void resetVariables();
 	void resetVariables(int plus);
-	void scrollToSlider(const Wt::WScrollEvent& wsEvent);
 	void setMap(int iRow, int iCol, string sRegion);
 	void setTable(int geoCode, string sRegion);
-	void sliderToScroll(const int& fromLeft);
 	void tableCBUpdate(int iRow, int iCol);
 	void toggleMobile();
 	void treeClicked();

@@ -226,14 +226,14 @@ void SCDAwidget::cbColRowSelChanged()
 	if (timerCB < timerTable)  // Load new map from CB values. 
 	{
 		// Update the data table's selected cell. 
-		int numRow = tableData->rowCount();
-		int numCol = tableData->columnCount();
+		int numRow = tableData->model->rowCount();
+		int numCol = tableData->model->columnCount();
 		if (numRow < 1 || numCol < 1) { return; }
 		Wt::WString wsColSel = cbColTopicSel->currentText();
 		string sColSel = wsColSel.toUTF8();
 		Wt::WString wsRowSel = cbRowTopicSel->currentText();
 		string sRowSel = wsRowSel.toUTF8();
-		int iRowSel = -2, iColSel = -2;
+		int iRowSel = -1, iColSel = -1;
 		string sCell;
 		if (wsRowSel != wsNoneSel)
 		{
@@ -244,18 +244,7 @@ void SCDAwidget::cbColRowSelChanged()
 			iColSel = tableData->getColIndex(sColSel);
 		}
 
-		if (iRowSel >= 0 && iColSel >= 0)
-		{
-			tableData->cellClicked(iRowSel, iColSel);
-		}
-		else if (iRowSel >= 0)
-		{
-			tableData->rowSelect(iRowSel);
-		}
-		else if (iColSel >= 0)
-		{
-			tableData->colSelect(iColSel);
-		}
+		tableData->cellSelect(iRowSel, iColSel);
 	}
 }
 void SCDAwidget::cbColRowSelClicked()
@@ -862,13 +851,6 @@ void SCDAwidget::initUI()
 	// Initial values for the region tree widget.
 	treeRegion->itemSelectionChanged().connect(this, &SCDAwidget::treeClicked);
 
-	// Initial values for the table tab.
-	if (jsEnabled)
-	{
-		sliderTable->sliderMoved().connect(this, std::bind(&SCDAwidget::sliderToScroll, this, std::placeholders::_1));
-		tableData->scrolled().connect(this, std::bind(&SCDAwidget::scrollToSlider, this, std::placeholders::_1));
-	}
-
 	// Initial values for the map tab.
 	textUnit->setTextAlignment(Wt::AlignmentFlag::Middle);
 	boxMap->setContentAlignment(Wt::AlignmentFlag::Center);
@@ -1051,27 +1033,20 @@ void SCDAwidget::makeUI()
 	jtWidget.addChild(treeRegion->id(), -2, stackedTabData->id());
 	tabDataUnique->addTab(move(treeRegionUnique), "Geographic Region", Wt::ContentLoading::Eager);
 
-	auto boxTableSliderUnique = make_unique<Wt::WContainerWidget>();
-	boxTableSliderUnique->setObjectName("boxTableSlider");
-	boxTableSlider = boxTableSliderUnique.get();
-	auto sliderTableUnique = make_unique<Wt::WSlider>(Wt::Orientation::Horizontal);
-	if (jsEnabled) { sliderTable = sliderTableUnique.get(); }
+	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
+	boxTableUnique->setObjectName("boxTable");
+	boxTable = boxTableUnique.get();
 	auto tableDataUnique = make_unique<WJTABLE>();
 	tableDataUnique->setObjectName("tableData");
-	tableDataUnique->setPositionScheme(Wt::PositionScheme::Relative);
 	tableData = tableDataUnique.get();
 
-	auto vLayoutTable = make_unique<Wt::WVBoxLayout>();
-	if (jsEnabled) { vLayoutTable->addWidget(move(sliderTableUnique)); }
-	vLayoutTable->addWidget(move(tableDataUnique));
-	boxTableSliderUnique->setLayout(move(vLayoutTable));
-	tabDataUnique->addTab(move(boxTableSliderUnique), "Data Table");
+	boxTableUnique->addWidget(move(tableDataUnique));
+	tabDataUnique->addTab(move(boxTableUnique), "Data Table");
 
 	auto phantom1 = stackedTabData->widget(1);
 	jtWidget.addChild(phantom1->id(), -2, stackedTabData->id());
-	jtWidget.addChild(boxTableSlider->id(), -2, phantom1->id());
-	if (jsEnabled) { jtWidget.addChild(sliderTable->id(), -2, boxTableSlider->id()); }
-	jtWidget.addChild(tableData->id(), -2, boxTableSlider->id());
+	jtWidget.addChild(boxTable->id(), -2, phantom1->id());
+	jtWidget.addChild(tableData->id(), -2, boxTable->id());
 
 	auto boxMapAllUnique = make_unique<Wt::WContainerWidget>();
 	boxMapAll = boxMapAllUnique.get();
@@ -1503,12 +1478,28 @@ void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vecto
 }
 void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow)
 {
-	tableData->clear();
-	tableData->init();
-	tableData->initColHeader(vsCol);
-	tableData->initRowHeader(vsRow);
-	tableData->initData(vvsTable);
-	tableData->updateColMinWidth();
+	if (vsCol.size() < 3 || vsRow.size() < 3) { jf.err("Missing col/row titles-SCDAwidget.processEventTable"); }
+	if (vvsTable.size() < 1) { jf.err("Missing table data-SCDAwidget.processEventTable"); }
+
+	auto app = Wt::WApplication::instance();
+
+	activeColTopic = vsCol.back();
+	vsCol.pop_back();
+	activeRowTopic = vsRow.back();
+	vsRow.pop_back();
+	tabData->setTabEnabled(1, 1);
+	string temp = "Data Table (" + vsCol[0] + ")";
+	Wt::WString wTemp = Wt::WString::fromUTF8(temp);
+	auto tab = tabData->itemAt(1);
+	tab->setText(wTemp);
+
+	// Populate the table widget.
+	tableData->reset();
+	tableData->modelSetTopLeft(vsCol[0]);
+	vsCol.erase(vsCol.begin());
+	tableData->modelSetTop(vsCol);
+	tableData->modelSetLeft(vsRow);
+	tableData->modelSetCore(vvsTable);
 	tableData->display();
 
 	// Populate cbColTopicSel and cbRowTopicSel if necessary.
@@ -1516,7 +1507,7 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	{
 		cbColTopicSel->setHidden(0);
 		cbColTopicSel->clear();
-		for (int ii = 1; ii < vsCol.size(); ii++)
+		for (int ii = 0; ii < vsCol.size(); ii++)
 		{
 			cbColTopicSel->addItem(vsCol[ii]);
 		}
@@ -1530,15 +1521,14 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	}
 
 	// Connect table cell signals/slots.
-	tableData->wsigCellSel().connect(this, bind(&SCDAwidget::setMap, this, placeholders::_1, placeholders::_2, placeholders::_3));
+	//tableData->wsigCellSel().connect(this, bind(&SCDAwidget::setMap, this, placeholders::_1, placeholders::_2, placeholders::_3));
 
 	// Add a tooltip to the table.
-	Wt::WString wTemp = mapTooltip.at("table");
+	wTemp = mapTooltip.at("table");
 	tableData->setToolTip(wTemp);
 
 	// Experimental...
 	/*
-	auto app = Wt::WApplication::instance();
 	app->doJavaScript(app->javaScriptClass() + ".getInfo();");
 	double dBoxTableWidth = boxData->maximumWidth().value();
 	dBoxTableWidth += boxTableSlider->padding(Wt::Side::Left).value() + boxTableSlider->padding(Wt::Side::Right).value();
@@ -1547,11 +1537,6 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	app->triggerUpdate();
 	*/
 
-	tabData->setTabEnabled(1, 1);
-	string temp = "Data Table (" + vsCol[0] + ")";
-	wTemp = Wt::WString::fromUTF8(temp);
-	auto tab = tabData->itemAt(1);
-	tab->setText(wTemp);
 	cbColRowSelClicked();  // Triggers map creation and table current selection.
 }
 void SCDAwidget::processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic)
@@ -1661,7 +1646,7 @@ void SCDAwidget::resetMap()
 void SCDAwidget::resetTable()
 {
 	if (tableData == nullptr) { return; }
-	tableData->clear();
+	tableData->reset();
 	Wt::WString wTemp("Data Table");
 	auto tab = tabData->itemAt(1);
 	tab->setText(wTemp);
@@ -1712,11 +1697,6 @@ void SCDAwidget::resetVariables(int plus)
 	app->processEvents();
 }
 
-void SCDAwidget::scrollToSlider(const Wt::WScrollEvent& wsEvent)
-{
-	int fromLeft = wsEvent.scrollX();
-	sliderTable->setValue(fromLeft);
-}
 void SCDAwidget::setMap(int iRow, int iCol, string sRegion)
 {
 	tableCBUpdate(iRow, iCol);
@@ -1729,7 +1709,7 @@ void SCDAwidget::setMap(int iRow, int iCol, string sRegion)
 	prompt[3] = sRegion;  // Parent region name. 
 
 	vector<vector<string>> variable = getVariable();
-	string temp = tableData->getRowHeader(iRow);
+	string temp = tableData->getCell(iRow, 0);
 	variable.push_back({ activeRowTopic, temp });
 	variable.push_back({ activeColTopic, to_string(iCol) });
 	sRef.pullMap(prompt, variable);
@@ -1747,12 +1727,6 @@ void SCDAwidget::setTable(int geoCode, string sRegion)
 	vector<vector<string>> variable = getVariable();
 	sRef.pullTable(prompt, variable);
 }
-void SCDAwidget::sliderToScroll(const int& fromLeft)
-{
-	string sFromLeft = to_string(fromLeft);
-	auto app = Wt::WApplication::instance();
-	app->doJavaScript(app->javaScriptClass() + ".scrollTo('" + sFromLeft + "');");
-}
 
 void SCDAwidget::tableCBUpdate(int iRow, int iCol)
 {
@@ -1766,16 +1740,8 @@ void SCDAwidget::tableCBUpdate(int iRow, int iCol)
 }
 void SCDAwidget::tableReceiveDouble(const double& width)
 {
-	//cout << "tableReceiveDouble: " << to_string(width) << endl;
+	cout << "tableReceiveDouble: " << to_string(width) << endl;
 	tableWidth = int(ceil(width));
-	if (tableWidth <= boxTableWidth) 
-	{ 
-		sliderTable->setHidden(1);
-		return;
-	}
-	sliderTable->setHidden(0);
-	sliderTable->setRange(0, tableWidth - boxTableWidth + 40);
-	sliderTable->valueChanged().connect(this, bind(&SCDAwidget::sliderToScroll, this, placeholders::_1));
 }
 void SCDAwidget::tableReceiveString(const string& sInfo)
 {
