@@ -151,8 +151,8 @@ void SCDAwidget::addVariable(vector<string>& vsVariable)
 	varTitle[index]->setCurrentIndex(titleIndex);
 	cbRenew(varMID[index], vsMID);
 	varMID[index]->setCurrentIndex(MIDIndex);
-	varMID[index]->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
-	varMID[index]->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
+	//varMID[index]->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
+	//varMID[index]->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
 
 	//varMID[index]->setHidden(1);
 	//auto varMIDUnique = make_unique<Wt::WComboBox>();
@@ -220,10 +220,11 @@ void SCDAwidget::cbCategoryClicked()
 }
 void SCDAwidget::cbColRowSelChanged()
 {
-	// Determine if the change was made by a user clicking on the CB, or from the table.
+	// Update the GUI using the most recent user input.
 	long long timerTable = tableData->jf.timerReport();
 	long long timerCB = jf.timerReport();
-	if (timerCB < timerTable)  // Load new map from CB values. 
+	vector<int> tableSel;
+	if (timerCB < timerTable)  // CB values override table values. 
 	{
 		// Update the data table's selected cell. 
 		int numRow = tableData->model->rowCount();
@@ -233,19 +234,39 @@ void SCDAwidget::cbColRowSelChanged()
 		string sColSel = wsColSel.toUTF8();
 		Wt::WString wsRowSel = cbRowTopicSel->currentText();
 		string sRowSel = wsRowSel.toUTF8();
-		int iRowSel = -1, iColSel = -1;
+		tableSel.assign(2, -2);
 		string sCell;
 		if (wsRowSel != wsNoneSel)
 		{
-			iRowSel = tableData->getRowIndex(sRowSel);
+			tableSel[0] = tableData->getRowIndex(sRowSel);
 		}
 		if (wsColSel != wsNoneSel)
 		{
-			iColSel = tableData->getColIndex(sColSel);
+			tableSel[1] = tableData->getColIndex(sColSel);
 		}
-
-		tableData->cellSelect(iRowSel, iColSel);
+		tableData->cellSelect(tableSel[0], tableSel[1]);
 	}
+	else  // Table values override CB values. 
+	{
+		// Update the CB widgets. 
+		tableSel = tableData->getRowColSel();
+		int cbRowIndex = cbRowTopicSel->currentIndex();
+		if (cbRowIndex != tableSel[0])
+		{
+			cbRowTopicSel->setCurrentIndex(tableSel[0]);
+			//return;
+		}
+		int cbColIndex = cbColTopicSel->currentIndex();
+		if (cbColIndex + 1 != tableSel[1]) 
+		{ 
+			cbColTopicSel->setCurrentIndex(tableSel[1] - 1); 
+			//return;
+		}
+	}
+
+	// Load a map.
+	string sRegion = tableData->getCell(-1, 0);
+	setMap(tableSel[0], tableSel[1], sRegion);
 }
 void SCDAwidget::cbColRowSelClicked()
 {
@@ -667,45 +688,10 @@ Wt::WString SCDAwidget::getTextLegend(Wt::WPanel*& wPanel)
 }
 string SCDAwidget::getUnit()
 {
-	// Return a unit, using the col/row combobox selections. 
 	if (activeCata.size() < 1) { return ""; }
-	string unit;
-	size_t pos1, pos2;
 
-	// Look for a unit easily defined within the column header.
-	Wt::WString wTemp = cbColTopicSel->currentText();
-	string topicSelCol = wTemp.toUTF8();
-	if (topicSelCol[topicSelCol.size() - 1] == ')')
-	{
-		pos2 = topicSelCol.size() - 1;
-		pos1 = topicSelCol.rfind('(') + 1;
-		unit = topicSelCol.substr(pos1, pos2 - pos1);
-		pos1 = unit.find(' ');
-		if (pos1 > unit.size()) 
-		{ 
-			cleanUnit(unit);
-			return unit; 
-		}	
-	}
-
-	// Look for a unit easily defined within the row header.
-	wTemp = cbRowTopicSel->currentText();
-	string topicSelRow = wTemp.toUTF8();
-	if (topicSelRow[topicSelRow.size() - 1] == ')')
-	{
-		pos2 = topicSelRow.size() - 1;
-		pos1 = topicSelRow.rfind('(') + 1;
-		unit = topicSelRow.substr(pos1, pos2 - pos1);
-		pos1 = unit.find(' ');
-		if (pos1 > unit.size()) 
-		{ 
-			cleanUnit(unit);
-			return unit; 
-		}
-	}
-
-	// Look for a unit subtly defined within the data table.
-	unit = tableData->getUnit();
+	// Look for a unit using the data table.
+	string unit = tableData->getUnit();
 	if (unit.size() > 0) 
 	{ 
 		cleanUnit(unit);
@@ -776,6 +762,8 @@ void SCDAwidget::init()
 	int iWidth = getWidth();
 	int iHeight = getHeight();
 	if (iHeight > iWidth) { toggleMobile(); }
+	tableData->setMaximumSize(len780p, iHeight - 80);
+	tableData->setOverflow(Wt::Overflow::Auto, Wt::Orientation::Horizontal | Wt::Orientation::Vertical);
 
 	jf.timerStart();
 	cbYearChanged();
@@ -800,7 +788,6 @@ void SCDAwidget::initUI()
 	boxConfig->setMaximumSize(len200p, wlAuto);
 	boxConfig->setMinimumSize(len300p, wlAuto);
 	boxData->setMaximumSize(len800p, wlAuto);
-	tableData->setMaximumSize(len780p, wlAuto);
 
 	// Initial values for cbYear.
 	activeYear = "2016";  // Default for now, as it is the only possibility.
@@ -829,7 +816,9 @@ void SCDAwidget::initUI()
 	cbRowTopicTitle->changed().connect(fnRowTopicTitle);
 	panelRowTopic->setMaximumSize(wlAuto, len200p);
 	panelRowTopic->setHidden(1);
-	cbRowTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelClicked);
+	cbRowTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
+	cbRowTopicSel->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
+	bool connected = cbRowTopicSel->changed().isConnected();
 
 	// Initial values for the column panel.
 	panelColTopic->setTitle("Table Column Topic");
@@ -838,7 +827,8 @@ void SCDAwidget::initUI()
 	cbColTopicTitle->changed().connect(fnColTopicTitle);
 	panelColTopic->setMaximumSize(wlAuto, len200p);
 	panelColTopic->setHidden(1);
-	cbColTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelClicked);
+	cbColTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
+	cbColTopicSel->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
 
 	// Initial values for the tab widget.
 	int numTab = tabData->count();
@@ -1041,7 +1031,7 @@ void SCDAwidget::makeUI()
 	tableData = tableDataUnique.get();
 
 	boxTableUnique->addWidget(move(tableDataUnique));
-	tabDataUnique->addTab(move(boxTableUnique), "Data Table");
+	tabDataUnique->addTab(move(boxTableUnique), "Data Table", Wt::ContentLoading::Eager);
 
 	auto phantom1 = stackedTabData->widget(1);
 	jtWidget.addChild(phantom1->id(), -2, stackedTabData->id());
@@ -1140,7 +1130,6 @@ void SCDAwidget::mapAreaClicked(int areaIndex)
 	string sID = jtRegion.mapSID.at(sRegionClicked);
 	Wt::WTreeNode* nodeSel = (Wt::WTreeNode*)treeRegion->findById(sID);
 	if (!treeRegion->isSelected(nodeSel)) { treeRegion->select(nodeSel); }
-	treeClicked();
 }
 void SCDAwidget::populateTextLegend(Wt::WContainerWidget*& boxTextLegend)
 {
@@ -1394,7 +1383,8 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	}
 	tabData->setTabEnabled(2, 1);
 	//tabData->setTabEnabled(3, 1);
-	tabData->setCurrentIndex(2);
+	if (first) { tabData->setCurrentIndex(2); }	
+	first = 0;
 	widgetMobile();
 	loadingStop();
 }
@@ -1482,7 +1472,6 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	if (vvsTable.size() < 1) { jf.err("Missing table data-SCDAwidget.processEventTable"); }
 
 	auto app = Wt::WApplication::instance();
-
 	activeColTopic = vsCol.back();
 	vsCol.pop_back();
 	activeRowTopic = vsRow.back();
@@ -1494,7 +1483,7 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	tab->setText(wTemp);
 
 	// Populate the table widget.
-	tableData->reset();
+	tableData->reset(vvsTable.size(), vvsTable[0].size() + 1);
 	tableData->modelSetTopLeft(vsCol[0]);
 	vsCol.erase(vsCol.begin());
 	tableData->modelSetTop(vsCol);
@@ -1520,9 +1509,6 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 		}
 	}
 
-	// Connect table cell signals/slots.
-	//tableData->wsigCellSel().connect(this, bind(&SCDAwidget::setMap, this, placeholders::_1, placeholders::_2, placeholders::_3));
-
 	// Add a tooltip to the table.
 	wTemp = mapTooltip.at("table");
 	tableData->setToolTip(wTemp);
@@ -1537,7 +1523,15 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	app->triggerUpdate();
 	*/
 
-	cbColRowSelClicked();  // Triggers map creation and table current selection.
+	// Connect table cell signals/slots.
+	if (!tableData->vClick().isConnected())
+	{
+		tableData->vClick().connect(this, std::bind(&SCDAwidget::virtualClick, this, std::placeholders::_1));
+	}
+	//tabData->setCurrentIndex(1);
+	app->processEvents();
+	cbColRowSelClicked();
+	cbColRowSelChanged();  // Triggers table current selection. 
 }
 void SCDAwidget::processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic)
 {
@@ -1699,8 +1693,7 @@ void SCDAwidget::resetVariables(int plus)
 
 void SCDAwidget::setMap(int iRow, int iCol, string sRegion)
 {
-	tableCBUpdate(iRow, iCol);
-
+	// Assumes that all widgets have been updated already.
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt(4);
 	prompt[0] = app->sessionId();
@@ -1709,7 +1702,8 @@ void SCDAwidget::setMap(int iRow, int iCol, string sRegion)
 	prompt[3] = sRegion;  // Parent region name. 
 
 	vector<vector<string>> variable = getVariable();
-	string temp = tableData->getCell(iRow, 0);
+	Wt::WString wsTemp = cbRowTopicSel->currentText();
+	string temp = wsTemp.toUTF8();
 	variable.push_back({ activeRowTopic, temp });
 	variable.push_back({ activeColTopic, to_string(iCol) });
 	sRef.pullMap(prompt, variable);
@@ -1812,6 +1806,17 @@ void SCDAwidget::updateUnit(string sUnit)
 	if (sUnit == "% of population") { viIndex = { 0, 1 }; }
 	else { viIndex = { 0 }; }
 	wtMap->updateDisplay(viIndex);
+}
+void SCDAwidget::virtualClick(const int& vcType)
+{
+	switch (vcType)
+	{
+	case 0:
+	{
+		cbColRowSelChanged();
+		break;
+	}
+	}
 }
 void SCDAwidget::widgetMobile()
 {

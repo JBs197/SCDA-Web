@@ -29,6 +29,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string activeTableColTitle, activeTableRowTitle;
 	vector<int> cbActive;
 	string db_path = sroot + "\\SCDA.db";
+	bool first = 1;
 	JFUNC jf;
 	bool jsEnabled = 0;
 	JTREE jtRegion, jtWidget;
@@ -153,10 +154,11 @@ public:
 	void displayCata(const Wt::WKeyEvent& wKey);
 	void tableReceiveDouble(const double& width);
 	void tableReceiveString(const string& sInfo);
+	void virtualClick(const int& vcType);
 
 	Wt::JSignal<string> jsInfo;
 	Wt::JSignal<double> jsTWidth;
-
+	
 	Wt::WLength wlAuto = Wt::WLength::Auto;
 	Wt::WLength len5p = Wt::WLength("5px");
 	Wt::WLength len50p = Wt::WLength("50px");

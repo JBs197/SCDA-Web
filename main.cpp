@@ -15,6 +15,8 @@ public:
 };
 SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(env), serverRef(serv), envRef(env)
 {
+	this->enableUpdates(1);
+
 	setTitle("SCDA Web Tool");
 	auto BootstrapTheme = make_unique<Wt::WBootstrapTheme>();
 	BootstrapTheme->setVersion(Wt::BootstrapVersion::v3);
