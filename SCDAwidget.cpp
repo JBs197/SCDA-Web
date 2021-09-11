@@ -20,6 +20,7 @@ void SCDAwidget::addDemographic(vector<vector<string>>& vvsDemo)
 	demoPanelUnique->setTitle("Demographic Group");
 	demoPanelUnique->setMaximumSize(wlAuto, len150p);
 	panelDemographic = demoPanelUnique.get();
+	allPanel.push_back(panelDemographic);
 
 	auto demoBoxUnique = make_unique<Wt::WContainerWidget>();
 
@@ -84,8 +85,6 @@ void SCDAwidget::addDifferentiator(vector<string> vsDiff)
 	vector<string> vsMID = { "", "Diff" };
 	cbRenew(varMID[index], vsMID);
 	varMID[index]->setEnabled(0);
-	function<void()> fnVarMID = bind(&SCDAwidget::cbVarMIDClicked, this, temp);
-	varMID[index]->changed().connect(fnVarMID);
 
 	varVLayoutUnique->addWidget(move(varCBTitleUnique));
 	varVLayoutUnique->addWidget(move(varCBMIDUnique));
@@ -135,7 +134,7 @@ void SCDAwidget::addVariable(vector<string>& vsVariable)
 	varTitle.push_back(varCBTitleUnique.get());
 	temp = varCBTitleUnique->id();
 	mapVarIndex.emplace(temp, index);
-	function<void()> fnVarTitle = bind(&SCDAwidget::cbVarTitleClicked, this, temp);
+	function<void()> fnVarTitle = bind(&SCDAwidget::cbVarTitleChanged, this, temp);
 	varTitle[index]->changed().connect(fnVarTitle);
 
 	indexTest = varMID.size();
@@ -151,8 +150,8 @@ void SCDAwidget::addVariable(vector<string>& vsVariable)
 	varTitle[index]->setCurrentIndex(titleIndex);
 	cbRenew(varMID[index], vsMID);
 	varMID[index]->setCurrentIndex(MIDIndex);
-	//varMID[index]->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
-	//varMID[index]->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
+	varMID[index]->changed().connect(this, &SCDAwidget::cbVarMIDChanged);
+	varMID[index]->clicked().connect(this, &SCDAwidget::cbVarMIDClicked);
 
 	//varMID[index]->setHidden(1);
 	//auto varMIDUnique = make_unique<Wt::WComboBox>();
@@ -184,7 +183,7 @@ void SCDAwidget::addVariable(vector<vector<string>>& vvsVariable)
 
 void SCDAwidget::cbCategoryClicked()
 {
-	// Populate tableData with its "input form", containing options for the user
+	// Populate the topic widgets with options for the user
 	// to choose column and row topics. 
 	resetVariables();
 	resetMap();
@@ -320,11 +319,13 @@ void SCDAwidget::cbColRowTitleClicked(string id)
 	{
 		cbRowTopicSel->clear();
 		cbRowTopicSel->setHidden(1);
+		pbColSubsectionFilter->setHidden(1);
 	}
 	if (activeColTopic == "*")
 	{
 		cbColTopicSel->clear();
 		cbColTopicSel->setHidden(1);
+		pbColSubsectionFilter->setHidden(1);
 	}
 	if (activeRowTopic == "*" && activeColTopic == "*")
 	{
@@ -354,6 +355,7 @@ void SCDAwidget::cbDemographicChanged()
 	cbRowTopicSel->setHidden(1);
 	cbColTopicSel->clear();
 	cbColTopicSel->setHidden(1);
+	pbColSubsectionFilter->setHidden(1);
 	panelColTopic->setTitle("Table Column Topic");
 	resetMap();
 	resetTable();
@@ -476,12 +478,16 @@ void SCDAwidget::cbUnHighlight(Wt::WComboBox*& cb)
 	Wt::WPanel* panel = (Wt::WPanel*)boxConfig->findById(panelID);
 	panel->titleBarWidget()->setDecorationStyle(wcssDefault);
 }
-void SCDAwidget::cbVarMIDClicked(string id)
+void SCDAwidget::cbVarMIDChanged()
 {
 	if (activeCata.size() > 0) { treeClicked(); }
 	else { jf.err("No activeCata-SCDAwidget.cbVarMIDclicked"); }
 }
-void SCDAwidget::cbVarTitleClicked(string id)
+void SCDAwidget::cbVarMIDClicked()
+{
+	jf.timerStart();
+}
+void SCDAwidget::cbVarTitleChanged(string id)
 {
 	int removeVar = -1;
 	int index = mapVarIndex.at(id);
@@ -525,7 +531,7 @@ void SCDAwidget::cbVarTitleClicked(string id)
 	varMID[index]->setEnabled(1);
 	cbRenew(varMID[index], vsMID);
 	varPanel[index]->setTitle("Parameter");
-	cbVarMIDClicked("");
+	cbVarMIDChanged();
 	if (removeVar >= 0)
 	{
 		Wt::WApplication* app = Wt::WApplication::instance();
@@ -567,12 +573,51 @@ void SCDAwidget::connect()
 		}
 	}
 }
-void SCDAwidget::downloadMap()
+void SCDAwidget::dialogColSubsectionFilter()
 {
-	auto app = Wt::WApplication::instance();
-	string fileRoot = app->docRoot();
-	string filePath = fileRoot + "/MapTest.pdf";
-	wtMap->printPDF(filePath);
+	wdColFilter = this->addWidget(make_unique<Wt::WDialog>("Choose a column item to display exclusively with its interior items -"));
+	
+	string priorSelected, sID;
+	JTREE jtCol = tableData->getTreeCol(priorSelected);
+	jtCol.expandGeneration = -1;  // Expand all nodes automatically.
+	string sRoot = jtCol.getRootName();
+	Wt::WString wsTemp = Wt::WString::fromUTF8(sRoot);
+	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
+	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
+	auto treeRoot = treeRootUnique.get();
+	populateTree(jtCol, treeRoot);
+
+	auto tree = make_unique<Wt::WTree>();
+	tree->setSelectionMode(Wt::SelectionMode::Single);
+	treeRootUnique->setNodeVisible(0);
+	tree->setTreeRoot(move(treeRootUnique));
+	if (priorSelected.size() > 0)
+	{
+		sID = jtCol.mapSID.at(priorSelected);
+		Wt::WTreeNode* wtNode = dynamic_cast<Wt::WTreeNode*>(tree->findById(sID));
+		tree->select(wtNode);
+	}
+
+	tree->itemSelectionChanged().connect(this, &SCDAwidget::dialogColSubsectionFilterEnd);
+	treeDialog = tree.get();
+	auto wBox = wdColFilter->contents();
+	wBox->addWidget(move(tree));
+	wdColFilter->show();
+}
+void SCDAwidget::dialogColSubsectionFilterEnd()
+{
+	auto selSet = treeDialog->selectedNodes();
+	if (selSet.size() < 1) { return; }
+	if (selSet.size() > 1) { jf.err("Invalid selection-SCDAwidget.dialogColSubsectionFilterEnd"); }
+	auto selIt = selSet.begin();
+	auto selNode = *selIt;
+	auto wTemp = selNode->label()->text();
+	string sHeader = wTemp.toUTF8();
+	wdColFilter->accept();
+
+	int colIndex = tableData->mapColIndex.at(sHeader);
+	tableData->setSubsectionFilterCol(colIndex);
+	tabData->setCurrentIndex(1);
 }
 void SCDAwidget::displayCata(const Wt::WKeyEvent& wKey)
 {
@@ -593,6 +638,13 @@ void SCDAwidget::displayCata(const Wt::WKeyEvent& wKey)
 		}
 		textCata->setText(wsCata);
 	}
+}
+void SCDAwidget::downloadMap()
+{
+	auto app = Wt::WApplication::instance();
+	string fileRoot = app->docRoot();
+	string filePath = fileRoot + "/MapTest.pdf";
+	wtMap->printPDF(filePath);
 }
 
 vector<string> SCDAwidget::getDemo()
@@ -789,6 +841,12 @@ void SCDAwidget::initUI()
 	boxConfig->setMinimumSize(len300p, wlAuto);
 	boxData->setMaximumSize(len800p, wlAuto);
 
+	// Initialize often-used decoration styles.
+	wcssDefault = cbYear->decorationStyle();
+	Wt::WBorder wBorder = Wt::WBorder(Wt::BorderStyle::Dotted);
+	wcssAttention.setBorder(wBorder);
+	wcssHighlighted.setBackgroundColor(colourSelectedWeak);
+
 	// Initial values for cbYear.
 	activeYear = "2016";  // Default for now, as it is the only possibility.
 	panelYear->setTitle("Census Year");
@@ -797,12 +855,6 @@ void SCDAwidget::initUI()
 	cbYear->setCurrentIndex(0);
 	cbYear->setEnabled(0);
 	cbYear->changed().connect(this, &SCDAwidget::cbYearChanged);
-
-	// Initialize often-used decoration styles.
-	wcssDefault = cbYear->decorationStyle();
-	Wt::WBorder wBorder = Wt::WBorder(Wt::BorderStyle::Dotted);
-	wcssAttention.setBorder(wBorder);
-	wcssHighlighted.setBackgroundColor(colourSelectedWeak);
 
 	// Initial values for the category panel.
 	panelCategory->setTitle("Topical Category");
@@ -818,17 +870,18 @@ void SCDAwidget::initUI()
 	panelRowTopic->setHidden(1);
 	cbRowTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
 	cbRowTopicSel->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
-	bool connected = cbRowTopicSel->changed().isConnected();
+	//cbRowTopicIndent->changed().connect(this, &SCDAwidget::cbRowTopicIndentChanged);
 
 	// Initial values for the column panel.
 	panelColTopic->setTitle("Table Column Topic");
 	temp = "panelCol";
 	function<void()> fnColTopicTitle = bind(&SCDAwidget::cbColRowTitleClicked, this, temp);
 	cbColTopicTitle->changed().connect(fnColTopicTitle);
-	panelColTopic->setMaximumSize(wlAuto, len200p);
+	panelColTopic->setMaximumSize(wlAuto, len250p);
 	panelColTopic->setHidden(1);
 	cbColTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
 	cbColTopicSel->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
+	pbColSubsectionFilter->clicked().connect(this, &SCDAwidget::dialogColSubsectionFilter);
 
 	// Initial values for the tab widget.
 	int numTab = tabData->count();
@@ -986,6 +1039,13 @@ void SCDAwidget::makeUI()
 	cbID = cbColTopicSel->id();
 	mapCBPanel.emplace(cbID, panelID);
 	jtWidget.addChild(cbID, -2, boxColTopicUnique->id());
+	auto tempBox = make_unique<Wt::WContainerWidget>();
+	auto tempLayout = make_unique<Wt::WVBoxLayout>();
+	auto pbColSubsectionFilterUnique = make_unique<Wt::WPushButton>("Apply Subsection Filter");
+	pbColSubsectionFilter = pbColSubsectionFilterUnique.get();
+	cbID = pbColSubsectionFilter->id();
+	mapCBPanel.emplace(cbID, panelID);
+	jtWidget.addChild(cbID, -2, boxColTopicUnique->id());
 
 	auto panelRowTopicUnique = make_unique<Wt::WPanel>();
 	panelRowTopic = panelRowTopicUnique.get();
@@ -1006,6 +1066,12 @@ void SCDAwidget::makeUI()
 	cbID = cbRowTopicSel->id();
 	mapCBPanel.emplace(cbID, panelID);
 	jtWidget.addChild(cbID, -2, boxRowTopicUnique->id());
+	//auto cbRowTopicIndentUnique = make_unique<Wt::WComboBox>();
+	//cbRowTopicIndent = cbRowTopicIndentUnique.get();
+	//allCB.push_back(cbRowTopicIndent);
+	//cbID = cbRowTopicIndent->id();
+	//mapCBPanel.emplace(cbID, panelID);
+	//jtWidget.addChild(cbID, -2, boxRowTopicUnique->id());
 
 	auto boxDataUnique = make_unique<Wt::WContainerWidget>();
 	boxDataUnique->setObjectName("boxData");
@@ -1090,13 +1156,17 @@ void SCDAwidget::makeUI()
 	boxCBCategoryUnique->addWidget(move(cbCategoryUnique));
 	panelCategoryUnique->setCentralWidget(move(boxCBCategoryUnique));
 
-	boxRowTopicUnique->addWidget(move(cbRowTopicTitleUnique));
-	boxRowTopicUnique->addWidget(move(cbRowTopicSelUnique));
-	panelRowTopicUnique->setCentralWidget(move(boxRowTopicUnique));
-
 	boxColTopicUnique->addWidget(move(cbColTopicTitleUnique));
 	boxColTopicUnique->addWidget(move(cbColTopicSelUnique));
+	tempLayout->addWidget(move(pbColSubsectionFilterUnique));
+	tempBox->setLayout(move(tempLayout));
+	boxColTopicUnique->addWidget(move(tempBox));
 	panelColTopicUnique->setCentralWidget(move(boxColTopicUnique));
+
+	boxRowTopicUnique->addWidget(move(cbRowTopicTitleUnique));
+	boxRowTopicUnique->addWidget(move(cbRowTopicSelUnique));
+	//boxColTopicUnique->addWidget(move(cbRowTopicIndentUnique));
+	panelRowTopicUnique->setCentralWidget(move(boxRowTopicUnique));
 
 	vLayoutConfig->addWidget(move(pbMobileUnique));
 	vLayoutConfig->addWidget(move(textCataUnique));
@@ -1226,7 +1296,7 @@ void SCDAwidget::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 	vector<int> viChildren;
 	Wt::WString wTemp = node->label()->text();
 	string sNode = wTemp.toUTF8();
-	int iNode = jt.getIName(sNode);
+	if (jt.isExpanded(sNode)) { node->expand(); }
 	string sID = node->id();
 	jt.mapSID.emplace(sNode, sID);
 	jt.listChildren(sNode, viChildren, vsChildren);
@@ -1486,8 +1556,8 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	tableData->reset(vvsTable.size(), vvsTable[0].size() + 1);
 	tableData->modelSetTopLeft(vsCol[0]);
 	vsCol.erase(vsCol.begin());
-	tableData->modelSetTop(vsCol);
-	tableData->modelSetLeft(vsRow);
+	int colMaxIndent = tableData->modelSetTop(vsCol);
+	int rowMaxIndent = tableData->modelSetLeft(vsRow);
 	tableData->modelSetCore(vvsTable);
 	tableData->display();
 
@@ -1495,11 +1565,8 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	if (cbRowTopicSel->isHidden() || cbColTopicSel->isHidden())
 	{
 		cbColTopicSel->setHidden(0);
-		cbColTopicSel->clear();
-		for (int ii = 0; ii < vsCol.size(); ii++)
-		{
-			cbColTopicSel->addItem(vsCol[ii]);
-		}
+		pbColSubsectionFilter->setHidden(0);
+		cbRenew(cbColTopicSel, vsCol);
 
 		cbRowTopicSel->setHidden(0);
 		cbRowTopicSel->clear();
@@ -1652,9 +1719,11 @@ void SCDAwidget::resetTopicSel()
 	panelRowTopic->setHidden(0);
 	cbRowTopicSel->clear();
 	cbRowTopicSel->setHidden(1);
+	//cbRowTopicIndent->setHidden(1);
 	panelColTopic->setHidden(0);
 	cbColTopicSel->clear();
 	cbColTopicSel->setHidden(1);
+	pbColSubsectionFilter->setHidden(1);
 }
 void SCDAwidget::resetTree()
 {
@@ -1878,6 +1947,11 @@ void SCDAwidget::widgetMobile()
 			leTest->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
 			leTest->setMinimumSize(len300p, len200p);
 		}
+		if (pbColSubsectionFilter != nullptr)
+		{
+			pbColSubsectionFilter->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+			pbColSubsectionFilter->setMinimumSize(len300p, len200p);
+		}
 	}
 	else
 	{
@@ -1934,6 +2008,11 @@ void SCDAwidget::widgetMobile()
 		{
 			leTest->decorationStyle().font().setSize(Wt::FontSize::Medium);
 			leTest->setMinimumSize(wlAuto, wlAuto);
+		}
+		if (pbColSubsectionFilter != nullptr)
+		{
+			pbColSubsectionFilter->decorationStyle().font().setSize(Wt::FontSize::Medium);
+			pbColSubsectionFilter->setMinimumSize(wlAuto, wlAuto);
 		}
 	}
 }

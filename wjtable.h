@@ -7,14 +7,14 @@
 #include <Wt/WStandardItem.h>
 #include <Wt/WItemDelegate.h>
 #include <Wt/WText.h>
-#include "jfunc.h"
+#include "jtree.h"
 
 using namespace std;
 
 class WJDELEGATE : public Wt::WItemDelegate
 {
 	double height;
-	string styleCell = "line-height: 20px; white-space: normal; overflow-y: auto;";
+	string styleCell = "white-space: normal; overflow-y: auto;";
 	string temp;
 
 public:
@@ -30,11 +30,11 @@ public:
 		{
 			if (iCol > 0)
 			{
-				temp = styleCell + " text-align: right;";
+				temp = styleCell + "line-height: 28px; text-align: right; font-size: x-large;";
 			}
 			else
 			{
-				temp = styleCell + " text-align: left; font-weight: bold;";
+				temp = styleCell + "line-height: 20px; text-align: left; font-size: medium; font-weight: bold;";
 			}
 			widgetUnique->setAttributeValue("style", temp);
 		}
@@ -80,13 +80,13 @@ public:
 
 class WJTABLE : public Wt::WTableView
 {
+	int colFilterParent = -1, rowFilterParent = -1;
 	const double heightCell = 68.0;
 	const double heightHeader = 68.0;
-	unordered_map<string, int> mapColIndex, mapRowIndex;  // sHeader -> col/row index
-	unordered_map<int, string> mapColUnit, mapRowUnit;  // index -> sUnit (if known)
-	unordered_map<int, string> mapHeaderID;  // colIndex -> headerID
 	string scSelectedWeak, scSelectedStrong, scWhite;
 	Wt::WModelIndex selectedIndex;
+	set<string> setUnitBreaker;          // List of strings which disqualify a unit candidate.
+	set<string> setUnitPercent;          // List of strings which indicate a unit of "%".
 	Wt::Signal<int> vClick_;
 	Wt::WBorder wbNone, wbSelected;
 	Wt::WColor wcSelectedWeak, wcSelectedStrong, wcWhite;
@@ -104,7 +104,13 @@ public:
 	enum virtualClickType { ColRowSel };
 
 	JFUNC jf;
+	unordered_map<string, int> mapColIndex, mapRowIndex;  // sHeader -> col/row index
+	unordered_map<int, string> mapColUnit, mapRowUnit;  // index -> sUnit (if known)
+	unordered_map<int, string> mapColValue;  // colIndex -> sHeader
+	unordered_map<int, string> mapHeaderID;  // colIndex -> headerID
+	unordered_map<int, int> mapIndentCol, mapIndentRow;  // col/row index -> header indentation.
 	shared_ptr<Wt::WStandardItemModel> model = nullptr;
+	shared_ptr<Wt::WStandardItemModel> modelFiltered = nullptr;
 
 	Wt::Signal<int>& vClick() { return vClick_; }
 
@@ -116,6 +122,7 @@ public:
 	int getColIndex(string sHeader);
 	vector<int> getRowColSel();
 	int getRowIndex(string sHeader);
+	JTREE getTreeCol(string& priorSel);
 	string getUnit();
 	string getUnit(int iRow, int iCol);
 	string getUnit(string header);
@@ -123,8 +130,8 @@ public:
 	void headerSelect(int iCol);
 	void init();
 	void modelSetCore(vector<vector<string>>& vvsData);
-	void modelSetLeft(vector<string>& vsRow);
-	void modelSetTop(vector<string>& vsCol);
+	int modelSetLeft(vector<string>& vsRow);
+	int modelSetTop(vector<string>& vsCol);
 	void modelSetTopLeft(string sRegion);
 	void reset();
 	void reset(int numRow, int numCol);
@@ -133,6 +140,8 @@ public:
 	void setProperty(Wt::WWidget* widget, string property, string value);
 	void setProperty(Wt::WWidget* widget, vector<string> vsProperty, vector<string> vsValue);
 	void setRowUnit(string& rowHeader, int index);
+	void setSubsectionFilterCol(int iCol);
+	void setSubsectionFilter(int iRow, int iCol);
 	void tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent);
 	void tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent);
 };

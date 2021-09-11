@@ -94,6 +94,8 @@ typedef function<void(const DataEvent&)> DataEventCallback;
 
 class SCDAserver
 {
+	unordered_map<string, int> mapClientIndex;  // sessionID -> shared_ptr index
+
 public:
 	SCDAserver(Wt::WServer& wtServer, string& dbPath) 
 		: serverRef(wtServer), db_path(dbPath) {
@@ -114,7 +116,7 @@ public:
 	double binMapScale(string& tname0);
 	vector<vector<string>> completeVariable(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed, string sYear);
 	bool connect(User* user, const DataEventCallback& handleEvent);
-	void init();
+	int init(string sessionID);
 	void initPopulation();
 	vector<vector<vector<double>>> getBorderKM(vector<string>& vsGeoCode, string sYear);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt);
@@ -132,7 +134,7 @@ public:
 	vector<string> getRowTitle(string sYear, string sCata);
 	long long getTimer();
 	vector<string> getTopicList(vector<string> vsYear);
-	string getUnit(string sYear, string sCata, string sDimMID);
+	string getUnit(int clientIndex, string sYear, string sCata, string sDimMID);
 	vector<string> getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getYear(string sYear);
 	void pullCategory(vector<string> prompt);
@@ -147,8 +149,8 @@ private:
 	JFUNC jf;
 	JTREE jt;
 	SQLFUNC sf;
-	WJTABLE *wjTable;
-	WTPAINT *wtPaint;
+	vector<shared_ptr<WJTABLE>> wjTable;
+	vector<shared_ptr<WTPAINT>> wtPaint;
 	struct UserInfo
 	{
 		string sessionID;

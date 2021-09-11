@@ -147,13 +147,14 @@ void SCDAserver::err(string func)
 {
 	jf.err(func);
 }
-void SCDAserver::init()
+int SCDAserver::init(string sessionID)
 {
-	sf.init(db_path);
-	auto uniqueWtp = make_unique<WTPAINT>();
-	wtPaint = uniqueWtp.get();
-	auto uniqueWjt = make_unique<WJTABLE>();
-	wjTable = uniqueWjt.get();
+	int index = wtPaint.size();
+	if (index != wjTable.size()) { jf.err("Shared pointer size mismatch-SCDAserver.init"); }
+	wtPaint.push_back(make_shared<WTPAINT>());
+	wjTable.push_back(make_shared<WJTABLE>());
+	mapClientIndex.emplace(sessionID, index);
+	return index;
 }
 void SCDAserver::initPopulation()
 {
@@ -926,7 +927,7 @@ vector<string> SCDAserver::getTopicList(vector<string> vsYear)
 	sort(vsTopic.begin(), vsTopic.end());
 	return vsTopic;
 }
-string SCDAserver::getUnit(string sYear, string sCata, string sDimMID)
+string SCDAserver::getUnit(int clientIndex, string sYear, string sCata, string sDimMID)
 {
 	// This variant gets the column header from the database and checks it for a unit.
 	string result, unit;
@@ -935,7 +936,7 @@ string SCDAserver::getUnit(string sYear, string sCata, string sDimMID)
 	vector<string> conditions = { "MID = " + sDimMID };
 	sf.select(search, tname, result, conditions);
 	if (result.size() < 1) { jf.err("No MID found-SCDAserver.getUnit"); }
-	unit = wjTable->getUnit(result);
+	unit = wjTable[clientIndex]->getUnit(result);
 	return unit;
 }
 vector<string> SCDAserver::getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed)
@@ -1074,6 +1075,7 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 		}
 	}
 }
+
 void SCDAserver::pullCategory(vector<string> prompt)
 {
 	// Prompt has form [id, visible year].
@@ -1142,6 +1144,10 @@ void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 {
 	// Prompt has form [id, year, cata, sParent].
 	// vvsDIM has form [some index][DIM title, DIM value] (all DIMs must be represented).
+	int clientIndex;
+	if (mapClientIndex.count(prompt[0])) { clientIndex = mapClientIndex.at(prompt[0]); }
+	else { clientIndex = init(prompt[0]); }
+
 	string result, tnameData;
 	vector<string> vsResult;
 	vector<vector<string>> vvsResult;
@@ -1165,10 +1171,10 @@ void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 	// Determine the data's unit.
 	vector<string> vsDim = vvsDIM.back();  // Form [column DIMIndex title, dimIndex(1, ...)].
 	vvsDIM.pop_back();
-	string sUnit = wjTable->getUnit(vvsDIM[vvsDIM.size() - 1][1]);  // Firstly, check the row header.
+	string sUnit = wjTable[clientIndex]->getUnit(vvsDIM[vvsDIM.size() - 1][1]);  // Firstly, check the row header.
 	if (sUnit.size() < 1)  // Secondly, check the column header. 
 	{
-		sUnit = getUnit(prompt[1], prompt[2], vsDim[1]);
+		sUnit = getUnit(clientIndex, prompt[1], prompt[2], vsDim[1]);
 	}
 
 	// Retrieve the unique DataIndex needed for this row of data. 
@@ -1195,6 +1201,10 @@ void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 {
 	// Prompt has form [id, year, cata, GEO_CODE, Region Name].
 	// vvsDIM has form [some index][DIM title, DIM value].
+	int clientIndex;
+	if (mapClientIndex.count(prompt[0])) { clientIndex = mapClientIndex.at(prompt[0]); }
+	else { clientIndex = init(prompt[0]); }
+
 	vector<vector<string>> vvsTable;
 	vector<string> vsCol, vsRow, vsResult, conditions;
 	string tnameDIM, tnameDim, tnameData;

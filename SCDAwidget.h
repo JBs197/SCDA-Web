@@ -55,23 +55,24 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	WTPAINT* wtMap;
 
 	Wt::WColor colourSelectedStrong, colourSelectedWeak, colourWhite;
-	Wt::WComboBox *cbCategory, *cbColTopicTitle, *cbColTopicTable, *cbColTopicSel;
-	Wt::WComboBox* cbDemographic;
-	Wt::WComboBox *cbRowTopicSel, *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
+	Wt::WComboBox *cbCategory, *cbColTopicTitle, *cbColTopicTable;
+	Wt::WComboBox *cbColTopicSel, *cbDemographic, *cbRowTopicSel;
+	Wt::WComboBox *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
 	Wt::WContainerWidget *boxConfig, *boxData, *boxDownload, *boxMap, *boxMapAll, *boxMapOption;
 	Wt::WContainerWidget *boxTable, *boxTextLegend;
+	Wt::WDialog *wdColFilter;
 	Wt::WImage *imgMap;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
 	Wt::WPanel *panelCategory, *panelColTopic, *panelDemographic, *panelRowTopic, *panelYear;
 	Wt::WPopupMenu *popupUnit;
-	Wt::WPushButton *pbDownloadPDF, *pbMobile, *pbUnit;
+	Wt::WPushButton *pbColSubsectionFilter, *pbDownloadPDF, *pbMobile, *pbUnit;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
 	Wt::WStackedWidget* stackedTabData;
 	Wt::WTabWidget* tabData;
 	Wt::WText *textCata, *textTable, *textUnit;
-	Wt::WTree* treeRegion;
+	Wt::WTree *treeDialog, *treeRegion;
 
 	vector<Wt::WComboBox*> allCB, varMID, varTitle;
 	vector<Wt::WPanel*> allPanel, varPanel;
@@ -81,7 +82,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void addDifferentiator(vector<string> vsDiff);
 	void addVariable(vector<string>& vsVariable);
 	void addVariable(vector<vector<string>>& vvsVariable);
-	void appendMapToHistory(string sMap);
 	void cbCategoryClicked();
 	void cbColRowSelChanged();
 	void cbColRowSelClicked();
@@ -94,11 +94,14 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<vector<string>>& vvsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem, string selItem);
 	void cbUnHighlight(Wt::WComboBox*& cb);
-	void cbVarTitleClicked(string id);
-	void cbVarMIDClicked(string id);
+	void cbVarTitleChanged(string id);
+	void cbVarMIDChanged();
+	void cbVarMIDClicked();
 	void cbYearChanged();
 	void cleanUnit(string& unit);
 	void connect();
+	void dialogColSubsectionFilter();
+	void dialogColSubsectionFilterEnd();
 	void downloadMap();
 	vector<string> getDemo();
 	int getHeight();
@@ -139,7 +142,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void tableCBUpdate(int iRow, int iCol);
 	void toggleMobile();
 	void treeClicked();
-	string treeSelected();
 	void updateTextCata(int numCata);
 	void updateUnit(string sUnit);
 	void widgetMobile();
@@ -164,6 +166,7 @@ public:
 	Wt::WLength len50p = Wt::WLength("50px");
 	Wt::WLength len150p = Wt::WLength("150px");
 	Wt::WLength len200p = Wt::WLength("200px");
+	Wt::WLength len250p = Wt::WLength("250px");
 	Wt::WLength len300p = Wt::WLength("300px");
 	Wt::WLength len600p = Wt::WLength("600px");
 	Wt::WLength len700p = Wt::WLength("700px");
