@@ -80,7 +80,7 @@ public:
 
 class WJTABLE : public Wt::WTableView
 {
-	int colFilterParent = -1, rowFilterParent = -1;
+	int colFilterParent = 0, rowFilterParent = -1;
 	const double heightCell = 68.0;
 	const double heightHeader = 68.0;
 	string scSelectedWeak, scSelectedStrong, scWhite;
@@ -123,6 +123,7 @@ public:
 	vector<int> getRowColSel();
 	int getRowIndex(string sHeader);
 	JTREE getTreeCol(string& priorSel);
+	JTREE getTreeRow(string& priorSel);
 	string getUnit();
 	string getUnit(int iRow, int iCol);
 	string getUnit(string header);
@@ -140,8 +141,9 @@ public:
 	void setProperty(Wt::WWidget* widget, string property, string value);
 	void setProperty(Wt::WWidget* widget, vector<string> vsProperty, vector<string> vsValue);
 	void setRowUnit(string& rowHeader, int index);
-	void setSubsectionFilterCol(int iCol);
 	void setSubsectionFilter(int iRow, int iCol);
+	void setSubsectionFilterCol(int iCol);
+	void setSubsectionFilterRow(int iRow);
 	void tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent);
 	void tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent);
 };

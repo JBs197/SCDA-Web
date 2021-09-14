@@ -122,7 +122,7 @@ void WJTABLE::cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol)
 		wGreatgrandparent->decorationStyle().setBackgroundColor(wcWhite);
 	}
 
-	// Apply new row/column highlighting.
+	// Apply new row/column highlighting. 
 	if (iRow != selectedRow)
 	{ 
 		for (int ii = 0; ii < numCol; ii++)
@@ -163,13 +163,14 @@ void WJTABLE::display()
 	setOverflow(Wt::Overflow::Visible, Wt::Orientation::Vertical);
 	setRowHeight(heightCell);
 	setHeaderHeight(heightHeader);
-	setPreloadMargin(9000.0);
+	setPreloadMargin(60000.0);
 	for (int ii = 0; ii < numCol; ii++)
 	{
 		setHeaderWordWrap(ii, 1);
 		setHeaderAlignment(ii, Wt::AlignmentFlag::Top);
 		setColumnAlignment(ii, Wt::AlignmentFlag::Top);
-		setColumnWidth(ii, 170.0);
+		if (ii == 0) { setColumnWidth(ii, 200.0); }
+		else { setColumnWidth(ii, 170.0); }
 	}
 }
 string WJTABLE::getCell(int iRow, int iCol)
@@ -223,7 +224,7 @@ int WJTABLE::getRowIndex(string sHeader)
 JTREE WJTABLE::getTreeCol(string& priorSel)
 {
 	JTREE jtCol;
-	jtCol.init("", -1);  // Invisible root.
+	jtCol.init("No Filter", -1);
 	int indent;
 	string sHeader, sParent;
 	vector<int> indentHistory;
@@ -250,6 +251,48 @@ JTREE WJTABLE::getTreeCol(string& priorSel)
 	if (colFilterParent >= 0) { priorSel = mapColValue.at(colFilterParent); }
 	else { priorSel.clear(); }
 	return jtCol;
+}
+JTREE WJTABLE::getTreeRow(string& priorSel)
+{
+	JTREE jtRow;
+	jtRow.init("No Filter", -1);
+	int indent;
+	string sHeader, sParent;
+	Wt::WString wsTemp;
+	vector<int> indentHistory;
+	Wt::WStandardItem* wsiTemp;
+	int numRow = model->rowCount();
+	for (int ii = 0; ii < numRow; ii++)
+	{
+		indent = mapIndentRow.at(ii);
+		if (indentHistory.size() <= indent) { indentHistory.push_back(ii); }
+		else
+		{
+			indentHistory[indent] = ii;
+			indentHistory.resize(indent + 1);
+		}
+
+		wsiTemp = model->item(ii, 0);
+		wsTemp = wsiTemp->text();
+		sHeader = wsTemp.toUTF8();
+		if (indent == 0) { jtRow.addChild(sHeader, -2, -1); }
+		else
+		{
+			wsiTemp = model->item(indentHistory[indentHistory.size() - 2], 0);
+			wsTemp = wsiTemp->text();
+			sParent = wsTemp.toUTF8();
+			jtRow.addChild(sHeader, -2, sParent);
+		}
+	}
+
+	if (rowFilterParent >= 0) 
+	{ 
+		wsiTemp = model->item(rowFilterParent, 0);
+		wsTemp = wsiTemp->text();
+		priorSel = wsTemp.toUTF8();
+	}
+	else { priorSel.clear(); }
+	return jtRow;
 }
 string WJTABLE::getUnit()
 {
@@ -489,7 +532,8 @@ void WJTABLE::reset()
 }
 void WJTABLE::reset(int numRow, int numCol)
 {
-	colFilterParent = -1;
+	colFilterParent = 0;
+	rowFilterParent = -1;
 	mapColIndex.clear();
 	mapRowIndex.clear();
 	mapColUnit.clear();
@@ -595,47 +639,22 @@ void WJTABLE::setRowUnit(string& rowHeader, int index)
 }
 void WJTABLE::setSubsectionFilterCol(int iCol)
 {
-	// Only iCol and its descendents will be visible on the table. 
 	colFilterParent = iCol;
-	int numCol = model->columnCount();
-	int numIndent = mapIndentCol.size();
-	if (numIndent + 1 != numCol) { jf.err("Column map size mismatch-wjtable.setSubsectionFilterCol"); }
-
-	int indent;
-	bool done = 0;
-	int indentICol = mapIndentCol.at(iCol);
-	for (int ii = 1; ii < numCol; ii++)
-	{
-		if (ii < iCol) 
-		{ 
-			hideColumn(ii); 
-			continue;
-		}
-		else if (ii == iCol) 
-		{ 
-			showColumn(ii); 
-			continue;
-		}
-		else if (done)
-		{
-			hideColumn(ii);
-			continue;
-		}
-
-		indent = mapIndentCol.at(ii);
-		if (indent > indentICol) { showColumn(ii); }
-		else
-		{
-			hideColumn(ii);
-			done = 1;
-		}
-	}
+	setSubsectionFilter(rowFilterParent, iCol);
+}
+void WJTABLE::setSubsectionFilterRow(int iRow)
+{
+	rowFilterParent = iRow;
+	setSubsectionFilter(iRow, colFilterParent);
 }
 void WJTABLE::setSubsectionFilter(int iRow, int iCol)
 {
 	// Only iRow/iCol and their descendents will be visible on the table. 
-	rowFilterParent = iRow;
-	colFilterParent = iCol;
+	if (iRow < 0 && iCol <= 0) 
+	{ 
+		setModel(model); 
+		return;
+	}
 
 	int numRow = model->rowCount();
 	int numIndent = mapIndentRow.size();
@@ -646,25 +665,49 @@ void WJTABLE::setSubsectionFilter(int iRow, int iCol)
 	if (numIndent + 1 != numCol) { jf.err("Column map size mismatch-wjtable.setSubsectionFilter"); }
 
 	int indent, index;
-	int indentIRow = mapIndentRow.at(iRow);
-	vector<int> viRow = { iRow };
-	for (int ii = iRow + 1; ii < numRow; ii++)
+	vector<int> viCol, viRow;
+
+	if (iRow >= 0)
 	{
-		indent = mapIndentRow.at(ii);
-		if (indent > indentIRow) { viRow.push_back(ii); }
-		else { break; }
+		int indentIRow = mapIndentRow.at(iRow);
+		viRow = { iRow };
+		for (int ii = iRow + 1; ii < numRow; ii++)
+		{
+			indent = mapIndentRow.at(ii);
+			if (indent > indentIRow) { viRow.push_back(ii); }
+			else { break; }
+		}
+	}
+	else 
+	{ 
+		viRow.resize(numRow);
+		for (int ii = 0; ii < numRow; ii++)
+		{
+			viRow[ii] = ii;
+		}
 	}
 
-	int indentICol = mapIndentCol.at(iCol);
-	vector<int> viCol = { iCol };
-	for (int ii = iCol + 1; ii < numCol; ii++)
+	if (iCol >= 1)
 	{
-		indent = mapIndentCol.at(ii);
-		if (indent > indentICol) { viCol.push_back(ii); }
-		else { break; }
+		int indentICol = mapIndentCol.at(iCol);
+		viCol = { iCol };
+		for (int ii = iCol + 1; ii < numCol; ii++)
+		{
+			indent = mapIndentCol.at(ii);
+			if (indent > indentICol) { viCol.push_back(ii); }
+			else { break; }
+		}
+	}
+	else
+	{
+		viCol.resize(numCol - 1);
+		for (int ii = 1; ii < numCol; ii++)
+		{
+			viCol[ii - 1] = ii;
+		}
 	}
 
-	auto modelTemp = make_shared<Wt::WStandardItemModel>(viRow.size(), viCol.size() + 1);
+	auto modelTemp = make_shared<Wt::WStandardItemModel>(numRow, numCol);
 	string temp = mapColValue.at(0);
 	modelTemp->setHeaderData(0, Wt::Orientation::Horizontal, temp, Wt::ItemDataRole::Display);
 	index = 1;

@@ -27,14 +27,11 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
 	string activeCata, activeCategory, activeColTopic, activeRowTopic, activeYear;
 	string activeTableColTitle, activeTableRowTitle;
-	vector<int> cbActive;
 	string db_path = sroot + "\\SCDA.db";
 	bool first = 1;
 	JFUNC jf;
 	bool jsEnabled = 0;
-	JTREE jtRegion, jtWidget;
-	unordered_map<string, string> mapCBPanel;  // cb id -> parent panel id
-	unordered_map<string, int> mapVarIndex;  // unique id -> var index (panel, CBs)
+	JTREE jtRegion;
 	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
 	unordered_map<int, string> mapTimeWord;  // word index -> word  (shown in init).
 	unordered_map<string, Wt::WString> mapTooltip;  // widget -> tooltip
@@ -51,57 +48,52 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	const Wt::WString wsAll = Wt::WString("All");
 	const Wt::WString wsNoneSel = Wt::WString("[None selected]");
 
+	WJCONFIG* wjConfig;
 	WJTABLE* tableData;
 	WTPAINT* wtMap;
 
 	Wt::WColor colourSelectedStrong, colourSelectedWeak, colourWhite;
-	Wt::WComboBox *cbCategory, *cbColTopicTitle, *cbColTopicTable;
-	Wt::WComboBox *cbColTopicSel, *cbDemographic, *cbRowTopicSel;
-	Wt::WComboBox *cbRowTopicTitle, *cbRowTopicTable, *cbYear;
+	Wt::WComboBox *cbColTopicTitle, *cbColTopicTable;
+	Wt::WComboBox *cbColTopicSel, *cbRowTopicSel;
+	Wt::WComboBox *cbRowTopicTitle, *cbRowTopicTable;
 	Wt::WContainerWidget *boxConfig, *boxData, *boxDownload, *boxMap, *boxMapAll, *boxMapOption;
 	Wt::WContainerWidget *boxTable, *boxTextLegend;
-	Wt::WDialog *wdColFilter;
+	Wt::WDialog *wdColFilter, *wdRowFilter;
 	Wt::WImage *imgMap;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
-	Wt::WPanel *panelCategory, *panelColTopic, *panelDemographic, *panelRowTopic, *panelYear;
+	Wt::WPanel *panelCategory, *panelDemographic, *panelTopicCol, *panelTopicRow, *panelYear;
 	Wt::WPopupMenu *popupUnit;
-	Wt::WPushButton *pbColSubsectionFilter, *pbDownloadPDF, *pbMobile, *pbUnit;
+	Wt::WPushButton *pbSubsectionFilterCol, *pbSubsectionFilterRow, *pbDownloadPDF, *pbMobile, *pbUnit;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
 	Wt::WStackedWidget* stackedTabData;
 	Wt::WTabWidget* tabData;
 	Wt::WText *textCata, *textTable, *textUnit;
-	Wt::WTree *treeDialog, *treeRegion;
+	Wt::WTree *treeDialogCol, *treeDialogRow, *treeRegion;
 
-	vector<Wt::WComboBox*> allCB, varMID, varTitle;
+	vector<WJCOMBO*> allCBJ;
 	vector<Wt::WPanel*> allPanel, varPanel;
+	vector<Wt::WPushButton*> allPB;
 
-	void addCBLayer(Wt::WPanel*& wPanel);
-	void addDemographic(vector<vector<string>>& vvsDemo);
-	void addDifferentiator(vector<string> vsDiff);
 	void addVariable(vector<string>& vsVariable);
-	void addVariable(vector<vector<string>>& vvsVariable);
-	void cbCategoryClicked();
+	void cbCategoryChanged();
 	void cbColRowSelChanged();
 	void cbColRowSelClicked();
 	void cbColRowTitleClicked(string id);
-	void cbDemographicChanged();
-	void cbDiffTitleChanged(string id);
-	void cbHighlight(Wt::WComboBox*& cb);
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<vector<string>>& vvsItem);
 	void cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem, string selItem);
-	void cbUnHighlight(Wt::WComboBox*& cb);
 	void cbVarTitleChanged(string id);
 	void cbVarMIDChanged();
 	void cbVarMIDClicked();
-	void cbYearChanged();
 	void cleanUnit(string& unit);
 	void connect();
-	void dialogColSubsectionFilter();
-	void dialogColSubsectionFilterEnd();
+	void dialogSubsectionFilterCol();
+	void dialogSubsectionFilterColEnd();
+	void dialogSubsectionFilterRow();
+	void dialogSubsectionFilterRowEnd();
 	void downloadMap();
 	vector<string> getDemo();
 	int getHeight();
@@ -110,12 +102,16 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string getUnit();
 	vector<vector<string>> getVariable();
 	int getWidth();
+	void incomingPullSignal(const int& pullType);
+	void incomingResetSignal(const int& resetType);
 	void init();
 	void initUI();
 	string jsMakeFunctionTableScrollTo(WJTABLE*& boxTable);
 	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
-	void loadingStart();
-	void loadingStop();
+	unique_ptr<Wt::WContainerWidget> makeBoxConfig(Wt::WContainerWidget*& wBox);
+	unique_ptr<Wt::WContainerWidget> makeBoxData(Wt::WContainerWidget*& wBox);
+	unique_ptr<WJTABLE> makeTableData(WJTABLE*& tableData);
+	unique_ptr<Wt::WTree> makeTreeRegion(Wt::WTree*& wTree);
 	void makeUI();
 	void mapAreaClicked(int areaIndex);
 	void mapAreaDoubleClicked(int areaIndex);
