@@ -83,10 +83,12 @@ class WJTABLE : public Wt::WTableView
 	int colFilterParent = 0, rowFilterParent = -1;
 	const double heightCell = 68.0;
 	const double heightHeader = 68.0;
+	mutex m_time;
 	string scSelectedWeak, scSelectedStrong, scWhite;
 	Wt::WModelIndex selectedIndex;
 	set<string> setUnitBreaker;          // List of strings which disqualify a unit candidate.
 	set<string> setUnitPercent;          // List of strings which indicate a unit of "%".
+	Wt::Signal<int, int> timerSignal_;
 	Wt::Signal<int> vClick_;
 	Wt::WBorder wbNone, wbSelected;
 	Wt::WColor wcSelectedWeak, wcSelectedStrong, wcWhite;
@@ -97,6 +99,7 @@ class WJTABLE : public Wt::WTableView
 
 public:
 	WJTABLE() : Wt::WTableView() { 
+		this->setId("wjTableData");
 		setRowHeaderCount(1); 
 		init();
 	}
@@ -112,6 +115,7 @@ public:
 	shared_ptr<Wt::WStandardItemModel> model = nullptr;
 	shared_ptr<Wt::WStandardItemModel> modelFiltered = nullptr;
 
+	Wt::Signal<int, int>& timerSignal() { return timerSignal_; }
 	Wt::Signal<int>& vClick() { return vClick_; }
 
 	void cellSelect(int iRow, int iCol);

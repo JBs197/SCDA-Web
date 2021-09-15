@@ -1091,36 +1091,15 @@ void SCDAserver::pullCategory(vector<string> prompt)
 	}
 	postDataEvent(DataEvent(DataEvent::Category, prompt[0], numCata, vsTopic), prompt[0]);
 }
-void SCDAserver::pullDifferentiator(vector<string> prompt, vector<string> vsCata)
+void SCDAserver::pullDifferentiator(vector<string> prompt, vector<vector<string>> vvsCata)
 {
 	// Creates a "variable" event from the given "ForWhom" description.
 	// Prompt has form [id, sFixed0, sFixed1, ...].
-	// vsCata has form [sYear@sCata0, sYear@sCata1, ...].
+	// vvsCata has form [year index][sYear, sCata0, sCata1, ...].
 
 	string sYear;
 	string sID = prompt[0];
 	prompt.erase(prompt.begin());
-	size_t pos1 = vsCata[0].find('@');
-	vector<vector<string>> vvsCata = { {vsCata[0].substr(0, pos1), vsCata[0].substr(pos1 + 1)} };
-	for (int ii = 1; ii < vsCata.size(); ii++)
-	{
-		pos1 = vsCata[ii].find('@');
-		sYear = vsCata[ii].substr(0, pos1);
-		for (int jj = 0; jj < vvsCata.size(); jj++)
-		{
-			if (vvsCata[jj][0] == sYear)
-			{
-				vvsCata[jj].push_back(vsCata[ii].substr(pos1 + 1));
-				break;
-			}
-			else if (jj == vvsCata.size() - 1)
-			{
-				vvsCata.push_back({ sYear, vsCata[ii].substr(pos1 + 1) });
-				break;
-			}
-		}
-	}
-
 	vector<string> vsVariable = getVariable(vvsCata, prompt);
 	if (vsVariable.size() > 0) 
 	{ 

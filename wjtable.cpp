@@ -742,9 +742,12 @@ void WJTABLE::setSubsectionFilter(int iRow, int iCol)
 void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent)
 {
 	// Triggered in response to a user click.
+	if (!wmIndex.isValid()) { jf.err("Invalid index from table click-wjtable.tableClicked"); }
 	jf.timerStart();
 	cellSelect(wmIndex);
-	vClick().emit(WJTABLE::ColRowSel);
+	int iRow = wmIndex.row();
+	int iCol = wmIndex.column();
+	timerSignal_.emit(iRow, iCol);
 }
 void WJTABLE::tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent)
 {

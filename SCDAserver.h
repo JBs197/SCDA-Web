@@ -139,7 +139,7 @@ public:
 	vector<string> getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getYear(string sYear);
 	void pullCategory(vector<string> prompt);
-	void pullDifferentiator(vector<string> prompt, vector<string> vsCata);
+	void pullDifferentiator(vector<string> prompt, vector<vector<string>> vvsCata);
 	void pullMap(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTable(vector<string> prompt, vector<vector<string>> vvsDIM);
 	void pullTopic(vector<string> prompt);

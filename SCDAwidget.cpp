@@ -1,319 +1,5 @@
 #include "SCDAwidget.h"
 
-void SCDAwidget::addVariable(vector<string>& vsVariable)
-{
-	// This variant is for known values. vsVariable form [title, MID].
-	if (vsVariable.size() != 2) { jf.err("Missing prompt-SCDAwidget.addVariable"); }
-	Wt::WString wTemp;
-	string temp;
-	int titleIndex = -1, MIDIndex = -1;
-	vector<string> vsTitle(vvsParameter.size());
-	for (int ii = 0; ii < vvsParameter.size(); ii++)
-	{
-		vsTitle[ii] = vvsParameter[ii].back();
-		if (vsTitle[ii] == vsVariable[0]) { titleIndex = ii; }
-	}
-	if (titleIndex < 0) { jf.err("Parameter title not found-SCDAwidget.addVariable"); }
-	vector<string> vsMID(vvsParameter[titleIndex].size() - 1);
-	for (int ii = 0; ii < vsMID.size(); ii++)
-	{
-		vsMID[ii] = vvsParameter[titleIndex][ii];
-		if (vsMID[ii] == vsVariable[1]) { MIDIndex = ii; }
-	}
-	if (MIDIndex < 0) { jf.err("Parameter MID not found-SCDAwidget.addVariable"); }
-
-	int index = varPanel.size();
-	auto varPanelUnique = make_unique<Wt::WPanel>("Parameter");
-	varPanel.push_back(varPanelUnique.get());
-	varPanel[index]->setMaximumSize(wlAuto, len200p);
-
-	temp = varPanelUnique->id();
-	mapVarIndex.emplace(temp, index);
-
-	auto cbjVar = make_unique<WJCOMBO>(2);
-	cbjVar->setCB(vsTitle, 0, titleIndex);
-	function<void()> fnVarTitle = bind(&SCDAwidget::cbVarTitleChanged, this, temp);
-	cbjVar->vCB[0]->changed().connect(fnVarTitle);
-
-	cbjVar->setCB(vsMID, 1, MIDIndex);
-	cbjVar->vCB[1]->changed().connect(this, &SCDAwidget::cbVarMIDChanged);
-	cbjVar->vCB[1]->clicked().connect(this, &SCDAwidget::cbVarMIDClicked);
-
-	varPanelUnique->setCentralWidget(move(cbjVar));
-	layoutConfig->addWidget(move(varPanelUnique));
-	widgetMobile();
-}
-void SCDAwidget::cbCategoryChanged()
-{
-	// Populate the topic widgets with options for the user
-	// to choose column and row topics. 
-	resetVariables();
-	resetMap();
-	resetTable();
-	resetTree();
-	resetTopicSel();
-	Wt::WString wsYear = cbjYear->vCB[0]->currentText();
-	activeYear = wsYear.toUTF8();
-	activeColTopic = "*";
-	activeRowTopic = "*";
-	int index = cbjCategory->vCB[0]->currentIndex();
-	if (index == 0)
-	{
-		activeCategory = "*";
-		panelTopicCol->setHidden(1);
-		panelTopicRow->setHidden(1);
-		cbjCategory->highlight(1);
-		return;
-	}
-
-	cbjCategory->highlight(0);
-	Wt::WApplication* app = Wt::WApplication::instance();
-	vector<string> prompt(5);
-	Wt::WString wsTemp = cbjCategory->vCB[0]->currentText();
-	activeCategory = wsTemp.toUTF8();
-	prompt[0] = app->sessionId();
-	prompt[1] = activeYear;
-	prompt[2] = activeCategory;
-	prompt[3] = "*";  // Column topic.
-	prompt[4] = "*";  // Row topic.
-	sRef.pullTopic(prompt);
-}
-void SCDAwidget::cbColRowSelChanged()
-{
-	// Update the GUI using the most recent user input.
-	long long timerTable = tableData->jf.timerReport();
-	long long timerCB = jf.timerReport();
-	vector<int> tableSel;
-	if (timerCB < timerTable)  // CB values override table values. 
-	{
-		// Update the data table's selected cell. 
-		int numRow = tableData->model->rowCount();
-		int numCol = tableData->model->columnCount();
-		if (numRow < 1 || numCol < 1) { return; }
-		Wt::WString wsColSel = cbColTopicSel->currentText();
-		string sColSel = wsColSel.toUTF8();
-		Wt::WString wsRowSel = cbRowTopicSel->currentText();
-		string sRowSel = wsRowSel.toUTF8();
-		tableSel.assign(2, -2);
-		string sCell;
-		if (wsRowSel != wsNoneSel)
-		{
-			tableSel[0] = tableData->getRowIndex(sRowSel);
-		}
-		if (wsColSel != wsNoneSel)
-		{
-			tableSel[1] = tableData->getColIndex(sColSel);
-		}
-		tableData->cellSelect(tableSel[0], tableSel[1]);
-	}
-	else  // Table values override CB values. 
-	{
-		// Update the CB widgets. 
-		tableSel = tableData->getRowColSel();
-		int cbRowIndex = cbRowTopicSel->currentIndex();
-		if (cbRowIndex != tableSel[0])
-		{
-			cbRowTopicSel->setCurrentIndex(tableSel[0]);
-			//return;
-		}
-		int cbColIndex = cbColTopicSel->currentIndex();
-		if (cbColIndex + 1 != tableSel[1]) 
-		{ 
-			cbColTopicSel->setCurrentIndex(tableSel[1] - 1); 
-			//return;
-		}
-	}
-
-	// Load a map.
-	string sRegion = tableData->getCell(-1, 0);
-	setMap(tableSel[0], tableSel[1], sRegion);
-}
-void SCDAwidget::cbColRowSelClicked()
-{
-	jf.timerStart();
-}
-void SCDAwidget::cbColRowTitleClicked(string id)
-{
-	// When a column or row topic is specified, obtain an updated listing for
-	// its opposite (column/row), and for its mirror (side panel/input table).
-	resetVariables();
-	Wt::WApplication* app = Wt::WApplication::instance();
-	vector<string> prompt(5);
-	Wt::WString wTemp;
-	int index;
-	prompt[0] = app->sessionId();
-	prompt[1] = activeYear;
-	prompt[2] = activeCategory;
-	if (id == "cbjTopicCol")
-	{
-		index = cbColTopicTitle->currentIndex();
-		if (index == 0)
-		{
-			activeColTopic = "*";
-			activeRowTopic = "*";
-		}
-		else
-		{
-			wTemp = cbColTopicTitle->currentText();
-			activeColTopic = wTemp.toUTF8();
-		}
-	}
-	else if (id == "panelRow")
-	{
-		index = cbRowTopicTitle->currentIndex();
-		if (index == 0)
-		{
-			activeRowTopic = "*";
-			activeColTopic = "*";
-		}
-		else
-		{
-			wTemp = cbRowTopicTitle->currentText();
-			activeRowTopic = wTemp.toUTF8();
-		}
-	}
-	else { jf.err("Unknown input id-SCDAwidget-cbColRowClicked"); }
-	prompt[3] = activeColTopic;
-	prompt[4] = activeRowTopic;
-
-	if (activeRowTopic == "*")
-	{
-		cbRowTopicSel->clear();
-		cbRowTopicSel->setHidden(1);
-		pbSubsectionFilterCol->setHidden(1);
-		pbSubsectionFilterRow->setHidden(1);
-	}
-	if (activeColTopic == "*")
-	{
-		cbColTopicSel->clear();
-		cbColTopicSel->setHidden(1);
-		pbSubsectionFilterCol->setHidden(1);
-		pbSubsectionFilterRow->setHidden(1);
-	}
-	if (activeRowTopic == "*" && activeColTopic == "*")
-	{
-		resetMap();
-		resetTable();
-		resetTree();
-	}
-
-	// Query the server for the next stage, depending on the current state of specificity.
-	if (prompt[3] == "*" || prompt[4] == "*")
-	{
-		sRef.pullTopic(prompt);  // Rows or columns not yet determined.
-	}
-	else
-	{
-		cbjTopicCol->highlight(0);
-		cbjTopicRow->highlight(0);
-		vector<vector<string>> vvsDummy;
-		sRef.pullVariable(prompt, vvsDummy);
-	}
-}
-void SCDAwidget::cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem)
-{
-	// Repopulate the combobox with the given list, showing the top item. 
-	cb->clear();
-	for (int ii = 0; ii < vsItem.size(); ii++)
-	{
-		cb->addItem(vsItem[ii]);
-	}
-	cb->setCurrentIndex(0);
-}
-void SCDAwidget::cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem)
-{
-	cbRenew(cb, sTop, vsItem, sTop);  // Default is top item shown. 
-}
-void SCDAwidget::cbRenew(Wt::WComboBox*& cb, string sTop, vector<vector<string>>& vvsItem)
-{
-	// Populates the combobox with sTop, followed by the final elements of vvsItem.
-	cb->clear();
-	cb->addItem(sTop);
-	for (int ii = 0; ii < vvsItem.size(); ii++)
-	{
-		cb->addItem(vvsItem[ii].back());
-	}
-	cb->setCurrentIndex(0);
-}
-void SCDAwidget::cbRenew(Wt::WComboBox*& cb, string sTop, vector<string>& vsItem, string selItem)
-{
-	// Repopulate the combobox with the selected item shown. 
-	int index = -1;
-	cb->clear();
-	cb->addItem(sTop.c_str());
-	for (int ii = 0; ii < vsItem.size(); ii++)
-	{
-		cb->addItem(vsItem[ii].c_str());
-		if (vsItem[ii] == selItem) { index = ii; }
-	}
-	cb->setCurrentIndex(index + 1);
-}
-void SCDAwidget::cbVarMIDChanged()
-{
-	if (activeCata.size() > 0) { treeClicked(); }
-	else { jf.err("No activeCata-SCDAwidget.cbVarMIDclicked"); }
-}
-void SCDAwidget::cbVarMIDClicked()
-{
-	jf.timerStart();
-}
-void SCDAwidget::cbVarTitleChanged(string id)
-{
-	int removeVar = -1;
-	vector<int> viEn;
-	int index = mapVarIndex.at(id);
-	WJCOMBO* cbjVar = (WJCOMBO*)varPanel[index]->centralWidget();
-	int iActive = cbjVar->vCB[0]->currentIndex();
-	string sTitle;
-	string sTitleClicked = cbjVar->vvsList[0][iActive];
-	string sTop = "[None selected]";
-	if (sTitleClicked == sTop)
-	{
-		varPanel[index]->setTitle("Select a parameter ...");
-		cbjVar->vCB[1]->clear();
-		viEn = { 1, 1, 0 };
-		cbjVar->setEnabled(viEn);
-		return;
-	}
-	else  // If this title already exists in a panel, delete that panel. (There can be only one ... !)
-	{
-		auto boxChildren = boxConfig->children();
-		for (int ii = numPreVariable; ii < boxChildren.size(); ii++)
-		{
-			if (ii - numPreVariable == index) { continue; }
-			WJCOMBO* cbjVarOther = (WJCOMBO*)varPanel[ii - numPreVariable]->centralWidget();
-			iActive = cbjVarOther->vCB[0]->currentIndex();
-			sTitle = cbjVarOther->vvsList[0][iActive];
-			if (sTitle == sTitleClicked)
-			{
-				removeVar = ii - numPreVariable;
-				break;
-			}
-		}
-	}
-	vector<string> vsMID;
-	for (int ii = 0; ii < vvsParameter.size(); ii++)
-	{
-		if (vvsParameter[ii].back() == sTitleClicked)
-		{
-			vsMID = vvsParameter[ii];
-			break;
-		}
-	}
-	vsMID.pop_back();
-	viEn = { 1, 1, 1 };
-	cbjVar->setEnabled(viEn);
-	cbjVar->setCB(vsMID, 1);
-	varPanel[index]->setTitle("Parameter");
-	cbVarMIDChanged();
-	if (removeVar >= 0)
-	{
-		Wt::WApplication* app = Wt::WApplication::instance();
-		app->processEvents();
-		removeVariable(removeVar);
-	}
-}
-
 void SCDAwidget::cleanUnit(string& unit)
 {
 	string temp;
@@ -327,8 +13,9 @@ void SCDAwidget::connect()
 {
 	if (sRef.connect(this, bind(&SCDAwidget::processDataEvent, this, placeholders::_1)))
 	{
-		Wt::WApplication::instance()->enableUpdates(1);
-		sessionID = Wt::WApplication::instance()->sessionId();
+		wjConfig->pullSignal().connect(this, bind(&SCDAwidget::incomingPullSignal, this, placeholders::_1));
+		wjConfig->resetSignal().connect(this, bind(&SCDAwidget::incomingResetSignal, this, placeholders::_1));
+		wjConfig->pbMobile->clicked().connect(this, &SCDAwidget::toggleMobile);
 		if (jsEnabled)
 		{
 			this->jsTWidth.connect(this, std::bind(&SCDAwidget::tableReceiveDouble, this, std::placeholders::_1));
@@ -336,10 +23,37 @@ void SCDAwidget::connect()
 		}
 	}
 }
+void SCDAwidget::displayCata(const Wt::WKeyEvent& wKey)
+{
+	Wt::WString wsCata;
+	size_t len;
+	auto key = wKey.key();
+	if (key == Wt::Key::Delete) 
+	{
+		if (activeCata.size() < 1) 
+		{ 
+			wsCata = "<None>"; 
+			len = 6;
+		}
+		else 
+		{ 
+			wsCata = Wt::WString(activeCata); 
+			len = activeCata.size();
+		}
+		wjConfig->textCata->setText(wsCata);
+	}
+}
+void SCDAwidget::downloadMap()
+{
+	auto app = Wt::WApplication::instance();
+	string fileRoot = app->docRoot();
+	string filePath = fileRoot + "/MapTest.pdf";
+	wtMap->printPDF(filePath);
+}
 void SCDAwidget::dialogSubsectionFilterCol()
 {
-	wdColFilter = this->addWidget(make_unique<Wt::WDialog>("Choose a column item to display exclusively with its interior items -"));
-	
+	wdFilter = this->addWidget(make_unique<Wt::WDialog>("Choose a column item to display exclusively with its interior items -"));
+
 	string priorSelected, sID;
 	JTREE jtCol = tableData->getTreeCol(priorSelected);
 	jtCol.expandGeneration = -1;  // Expand all nodes automatically.
@@ -363,9 +77,9 @@ void SCDAwidget::dialogSubsectionFilterCol()
 
 	tree->itemSelectionChanged().connect(this, &SCDAwidget::dialogSubsectionFilterColEnd);
 	treeDialogCol = tree.get();
-	auto wBox = wdColFilter->contents();
+	auto wBox = wdFilter->contents();
 	wBox->addWidget(move(tree));
-	wdColFilter->show();
+	wdFilter->show();
 }
 void SCDAwidget::dialogSubsectionFilterColEnd()
 {
@@ -376,7 +90,7 @@ void SCDAwidget::dialogSubsectionFilterColEnd()
 	auto selNode = *selIt;
 	auto wTemp = selNode->label()->text();
 	string sHeader = wTemp.toUTF8();
-	wdColFilter->accept();
+	wdFilter->accept();
 
 	int colIndex = tableData->mapColIndex.at(sHeader);
 	tableData->setSubsectionFilterCol(colIndex);
@@ -384,7 +98,7 @@ void SCDAwidget::dialogSubsectionFilterColEnd()
 }
 void SCDAwidget::dialogSubsectionFilterRow()
 {
-	wdRowFilter = this->addWidget(make_unique<Wt::WDialog>("Choose a row item to display exclusively with its interior items -"));
+	wdFilter = this->addWidget(make_unique<Wt::WDialog>("Choose a row item to display exclusively with its interior items -"));
 
 	string priorSelected, sID;
 	JTREE jtRow = tableData->getTreeRow(priorSelected);
@@ -408,9 +122,9 @@ void SCDAwidget::dialogSubsectionFilterRow()
 
 	tree->itemSelectionChanged().connect(this, &SCDAwidget::dialogSubsectionFilterRowEnd);
 	treeDialogRow = tree.get();
-	auto wBox = wdRowFilter->contents();
+	auto wBox = wdFilter->contents();
 	wBox->addWidget(move(tree));
-	wdRowFilter->show();
+	wdFilter->show();
 }
 void SCDAwidget::dialogSubsectionFilterRowEnd()
 {
@@ -421,61 +135,11 @@ void SCDAwidget::dialogSubsectionFilterRowEnd()
 	auto selNode = *selIt;
 	auto wTemp = selNode->label()->text();
 	string sHeader = wTemp.toUTF8();
-	wdRowFilter->accept();
+	wdFilter->accept();
 
 	int rowIndex = tableData->mapRowIndex.at(sHeader);
 	tableData->setSubsectionFilterRow(rowIndex);
 	tabData->setCurrentIndex(1);
-}
-void SCDAwidget::displayCata(const Wt::WKeyEvent& wKey)
-{
-	Wt::WString wsCata;
-	size_t len;
-	auto key = wKey.key();
-	if (key == Wt::Key::Delete) 
-	{
-		if (activeCata.size() < 1) 
-		{ 
-			wsCata = "<None>"; 
-			len = 6;
-		}
-		else 
-		{ 
-			wsCata = Wt::WString(activeCata); 
-			len = activeCata.size();
-		}
-		textCata->setText(wsCata);
-	}
-}
-void SCDAwidget::downloadMap()
-{
-	auto app = Wt::WApplication::instance();
-	string fileRoot = app->docRoot();
-	string filePath = fileRoot + "/MapTest.pdf";
-	wtMap->printPDF(filePath);
-}
-
-vector<string> SCDAwidget::getDemo()
-{
-	vector<string> vsCata;
-	if (vvsDemographic.size() < 1) { jf.err("No Demographic init-SCDAwidget.getDemo"); }
-	if (cbjDemo == nullptr) 
-	{ 
-		vsCata.assign(vvsDemographic[0].begin() + 1, vvsDemographic[0].end());
-		return vsCata;
-	}
-	Wt::WString wsDemo = cbjDemo->vCB[0]->currentText();
-	if (wsDemo == wsNoneSel) { return vsCata; }
-	string forWhom = wsDemo.toUTF8();
-	for (int ii = 0; ii < vvsDemographic.size(); ii++)
-	{
-		if (vvsDemographic[ii][0] == forWhom)
-		{
-			vsCata.assign(vvsDemographic[ii].begin() + 1, vvsDemographic[ii].end());
-			break;
-		}
-	}
-	return vsCata;
 }
 int SCDAwidget::getHeight()
 {
@@ -562,24 +226,6 @@ string SCDAwidget::getUnit()
 	unit = "# of persons";
 	return unit;
 }
-vector<vector<string>> SCDAwidget::getVariable()
-{
-	// Checks the active state of each "variable" panel and returns each title and MID.
-	int numVar = varPanel.size();
-	vector<vector<string>> vvsVariable(numVar);
-	string sTitle, sMID;
-	Wt::WString wTemp;
-	for (int ii = 0; ii < numVar; ii++)
-	{
-		wTemp = varTitle[ii]->currentText();
-		sTitle = wTemp.toUTF8();
-		wTemp = varMID[ii]->currentText();
-		sMID = wTemp.toUTF8(); 
-		if (sMID == "") { sMID = "*"; }
-		vvsVariable[ii] = { sTitle, sMID };
-	}
-	return vvsVariable;
-}
 int SCDAwidget::getWidth()
 {
 	const Wt::WEnvironment& env = Wt::WApplication::instance()->environment();
@@ -588,20 +234,67 @@ int SCDAwidget::getWidth()
 	return iWidth;
 }
 
+void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
+{
+	// Either the config CBs or the data table is reporting a change in selected headers. 
+	long long timeConfig = wjConfig->jf.timerReport();
+	long long timeTable = tableData->jf.timerReport();
+
+	// Update the CB widgets or the data table's selected cell, then load a map. 
+	string sRegion = tableData->getCell(-1, 0);
+	if (timeConfig < timeTable)  // CB values override table values. 
+	{
+		tableData->cellSelect(iRow, iCol + 1);
+		setMap(iRow, iCol, sRegion);
+	}
+	else  // Table values override CB values. 
+	{ 
+		wjConfig->wjcTopicRow->wcbMID->setCurrentIndex(iRow);  
+		wjConfig->wjcTopicCol->wcbMID->setCurrentIndex(iCol - 1);
+		setMap(iRow, iCol - 1, sRegion);
+	}
+}
 void SCDAwidget::incomingPullSignal(const int& pullType)
 {
 	auto app = Wt::WApplication::instance();
 	string sessionID = app->sessionId();
 	Wt::WString wsTemp;
-	vector<string> prompt;
+	vector<string> vsPrompt;
+	vector<vector<string>> vvsPrompt;
 	switch (pullType)
 	{
 	case 0:  // Pull category.
-		prompt.resize(2);
-		prompt[0] = sessionID;
+		vsPrompt.resize(2);
+		vsPrompt[0] = sessionID;
 		wsTemp = wjConfig->wjcYear->wcbTitle->currentText();
-		prompt[1] = wsTemp.toUTF8();
-		sRef.pullCategory(prompt);
+		vsPrompt[1] = wsTemp.toUTF8();
+		sRef.pullCategory(vsPrompt);
+		break;
+	case 1:  // Pull differentiator.
+		wjConfig->getPrompt(vsPrompt, vvsPrompt);
+		vsPrompt[0] = sessionID;
+		sRef.pullDifferentiator(vsPrompt, vvsPrompt);
+		break;
+	case 2:  // Pull table.
+	{
+		wjConfig->getPrompt(vsPrompt, vvsPrompt);
+		vsPrompt[0] = sessionID;
+		vsPrompt[2] = activeCata;
+		int geoCode;
+		treeClicked(geoCode, vsPrompt[4]);
+		vsPrompt[3] = to_string(geoCode);
+		sRef.pullTable(vsPrompt, vvsPrompt);
+		break;
+	}
+	case 3:  // Pull topic.
+		wjConfig->getPrompt(vsPrompt);
+		vsPrompt[0] = sessionID;
+		sRef.pullTopic(vsPrompt);
+		break;
+	case 4:  // Pull variable.
+		wjConfig->getPrompt(vsPrompt, vvsPrompt);
+		vsPrompt[0] = sessionID;
+		sRef.pullVariable(vsPrompt, vvsPrompt);
 		break;
 	}
 }
@@ -616,25 +309,45 @@ void SCDAwidget::incomingResetSignal(const int& resetType)
 		resetTable();
 		break;
 	case 2:
-		resetTopicSel();
+		resetTree();
 		break;
-
 	}
 }
 void SCDAwidget::init()
 {
 	this->clear();
-	auto hLayout = make_unique<Wt::WHBoxLayout>();
+	screenWidth = getWidth();
+	screenHeight = getHeight();
+	vector<string> vsYear = { "2016" };
 
-	auto boxConfigUnique = makeBoxConfig(boxConfig);  // RESUME HERE
-	hLayout->addWidget(move(boxConfigUnique));
+	auto hLayout = make_unique<Wt::WHBoxLayout>();
+	auto wjConfigUnique = make_unique<WJCONFIG>(vsYear);
+	wjConfig = wjConfigUnique.get();
+	hLayout->addWidget(move(wjConfigUnique));
 	auto boxDataUnique = makeBoxData(boxData);
 	hLayout->addWidget(move(boxDataUnique));
+	this->setLayout(move(hLayout));
 
-	makeUI();
 	connect();
 	initUI();
+	initMaps();
+	if (screenHeight > screenWidth) { toggleMobile(); }
 
+	auto app = Wt::WApplication::instance();
+	if (jsEnabled)
+	{
+		string getInfoJS = jsMakeFunctionTableWidth(tableData, "tableData");
+		app->declareJavaScriptFunction("getInfo", getInfoJS);
+		string scrollToJS = jsMakeFunctionTableScrollTo(tableData);
+		app->declareJavaScriptFunction("scrollTo", scrollToJS);
+	}
+
+	jf.timerStart();
+	vector<string> prompt = { app->sessionId(), vsYear[0] };
+	sRef.pullCategory(prompt);
+}
+void SCDAwidget::initMaps()
+{
 	mapTimeWord.emplace(0, "seconds");
 	mapTimeWord.emplace(1, "minutes");
 	mapTimeWord.emplace(2, "hours");
@@ -648,23 +361,6 @@ void SCDAwidget::init()
 
 	mapUnit.emplace("percentage", "%");
 	mapUnit.emplace("number", "#");
-
-	if (jsEnabled)
-	{
-		string getInfoJS = jsMakeFunctionTableWidth(tableData, "tableData");
-		app->declareJavaScriptFunction("getInfo", getInfoJS);
-		string scrollToJS = jsMakeFunctionTableScrollTo(tableData);
-		app->declareJavaScriptFunction("scrollTo", scrollToJS);
-	}
-
-	int iWidth = getWidth();
-	int iHeight = getHeight();
-	if (iHeight > iWidth) { toggleMobile(); }
-	tableData->setMaximumSize(len780p, iHeight - 80);
-	tableData->setOverflow(Wt::Overflow::Auto, Wt::Orientation::Horizontal | Wt::Orientation::Vertical);
-
-	jf.timerStart();
-	cbYearChanged();
 }
 void SCDAwidget::initUI()
 {
@@ -674,45 +370,26 @@ void SCDAwidget::initUI()
 	vector<string> prompt = { app->sessionId() };
 
 	// Colourful things.
-	colourSelectedWeak.setRgb(200, 200, 255);
-	colourSelectedStrong.setRgb(150, 150, 192);
-	colourWhite.setRgb(255, 255, 255, 255);
+	wcGrey.setRgb(210, 210, 210);
+	wcSelectedWeak.setRgb(200, 200, 255);
+	wcSelectedStrong.setRgb(150, 150, 192);
+	wcWhite.setRgb(255, 255, 255, 255);
 
 	// Box names.
-	boxConfig->setObjectName("boxConfig");
 	boxData->setObjectName("boxData");
 
 	// Initial values for box sizes.
-	boxConfig->setMaximumSize(len200p, wlAuto);
-	boxConfig->setMinimumSize(len300p, wlAuto);
 	boxData->setMaximumSize(len800p, wlAuto);
 
 	// Initialize often-used decoration styles.
 	wcssDefault = Wt::WCssDecorationStyle();
 	Wt::WBorder wBorder = Wt::WBorder(Wt::BorderStyle::Dotted);
 	wcssAttention.setBorder(wBorder);
-	wcssHighlighted.setBackgroundColor(colourSelectedWeak);
+	wcssHighlighted.setBackgroundColor(wcSelectedWeak);
 
-	// Initial values for the column panel.
-	temp = "panelCol";
-	function<void()> fnColTopicTitle = bind(&SCDAwidget::cbColRowTitleClicked, this, temp);
-	cbColTopicTitle->changed().connect(fnColTopicTitle);
-	panelColTopic->setMaximumSize(wlAuto, len250p);
-	panelColTopic->setHidden(1);
-	cbColTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
-	cbColTopicSel->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
-	pbSubsectionFilterCol->clicked().connect(this, &SCDAwidget::dialogSubsectionFilterCol);
-
-
-	// Initial values for the row panel.
-	temp = "panelRow";
-	function<void()> fnRowTopicTitle = bind(&SCDAwidget::cbColRowTitleClicked, this, temp);
-	cbRowTopicTitle->changed().connect(fnRowTopicTitle);
-	panelRowTopic->setMaximumSize(wlAuto, len200p);
-	panelRowTopic->setHidden(1);
-	cbRowTopicSel->changed().connect(this, &SCDAwidget::cbColRowSelChanged);
-	cbRowTopicSel->clicked().connect(this, &SCDAwidget::cbColRowSelClicked);
-	pbSubsectionFilterRow->clicked().connect(this, &SCDAwidget::dialogSubsectionFilterRow);
+	// Initial values for the column/row filter buttons.
+	wjConfig->wjcTopicCol->wpbDialog->clicked().connect(this, &SCDAwidget::dialogSubsectionFilterCol);
+	wjConfig->wjcTopicRow->wpbDialog->clicked().connect(this, &SCDAwidget::dialogSubsectionFilterRow);
 
 	// Initial values for the tab widget.
 	int numTab = tabData->count();
@@ -723,7 +400,12 @@ void SCDAwidget::initUI()
 	tabData->setCurrentIndex(0);
 
 	// Initial values for the region tree widget.
-	treeRegion->itemSelectionChanged().connect(this, &SCDAwidget::treeClicked);
+	auto fnTree = std::bind(static_cast<void(SCDAwidget::*)(void)>(&SCDAwidget::treeClicked), this);
+	treeRegion->itemSelectionChanged().connect(fnTree);
+
+	// Initial values for the table tab.
+	tableData->setMaximumSize(len780p, screenHeight - 80);
+	tableData->setOverflow(Wt::Overflow::Auto, Wt::Orientation::Horizontal | Wt::Orientation::Vertical);
 
 	// Initial values for the map tab.
 	textUnit->setTextAlignment(Wt::AlignmentFlag::Middle);
@@ -733,9 +415,7 @@ void SCDAwidget::initUI()
 	//pbDownloadPDF->clicked().connect(this, std::bind(&SCDAwidget::downloadMap, this));
 
 	// Initial values for the miscellaneous buttons.
-	pbMobile->setEnabled(1);
-	pbMobile->setMaximumSize(wlAuto, len50p);
-	pbMobile->clicked().connect(this, &SCDAwidget::toggleMobile);
+
 
 }
 string SCDAwidget::jsMakeFunctionTableScrollTo(WJTABLE*& boxTable)
@@ -795,32 +475,6 @@ string SCDAwidget::jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID)
 	return getInfo;
 }
 
-unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxConfig(Wt::WContainerWidget*& wBox)
-{
-	auto boxConfigUnique = make_unique<Wt::WContainerWidget>();
-	boxConfigUnique->setObjectName("boxConfig");
-	wBox = boxConfigUnique.get();
-
-	auto pbMobileUnique = make_unique<Wt::WPushButton>("Toggle Mobile Version");
-	pbMobile = pbMobileUnique.get();
-	allPB.push_back(pbMobile);
-	auto textCataUnique = make_unique<Wt::WText>();
-	textCata = textCataUnique.get();
-
-	auto panelYearUnique = makePanelYear({ "2016" });  // Currently the only available year.
-	auto panelCategoryUnique = makePanelCategory();
-	auto panelTopicColUnique = makePanelTopicCol();
-	auto panelTopicRowUnique = makePanelTopicRow();
-
-	auto vLayoutConfig = make_unique<Wt::WVBoxLayout>();
-	vLayoutConfig->addWidget(move(pbMobileUnique));
-	vLayoutConfig->addWidget(move(textCataUnique));
-	vLayoutConfig->addWidget(move(panelYearUnique));
-	vLayoutConfig->addWidget(move(panelCategoryUnique));
-	vLayoutConfig->addWidget(move(panelTopicColUnique));
-	vLayoutConfig->addWidget(move(panelTopicRowUnique));
-	numPreVariable = vLayoutConfig->count();
-}
 unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData(Wt::WContainerWidget*& wBox)
 {
 	auto boxDataUnique = make_unique<Wt::WContainerWidget>();
@@ -833,62 +487,31 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData(Wt::WContainerWidget*& 
 	stackedTabData = tabData->contentsStack();
 
 	auto treeRegionUnique = makeTreeRegion(treeRegion);
-	auto tableDataUnique = makeTableData(tableData);
-	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
-	boxTableUnique->setObjectName("boxTable");
-	boxTable = boxTableUnique.get();
-
 	tabDataUnique->addTab(move(treeRegionUnique), "Geographic Region", Wt::ContentLoading::Eager);
 
-
-}
-unique_ptr<WJTABLE> SCDAwidget::makeTableData(WJTABLE*& wjTable)
-{
-
-}
-unique_ptr<Wt::WTree> SCDAwidget::makeTreeRegion(Wt::WTree*& wTree)
-{
-	auto treeRegionUnique = make_unique<Wt::WTree>();
-	treeRegionUnique->setObjectName("treeRegion");
-	wTree = treeRegionUnique.get();
-	return treeRegionUnique;
-}
-void SCDAwidget::makeUI()
-{
-	auto cbColTopicSelUnique = make_unique<Wt::WComboBox>();
-	cbColTopicSel = cbColTopicSelUnique.get();
-	auto boxFilterColUnique = make_unique<Wt::WContainerWidget>();
-	auto layoutFilterCol = make_unique<Wt::WVBoxLayout>();
-	auto pbSubsectionFilterColUnique = make_unique<Wt::WPushButton>("Apply Subsection Filter");
-	pbSubsectionFilterCol = pbSubsectionFilterColUnique.get();
-	allPB.push_back(pbSubsectionFilterCol);
-
-	auto cbRowTopicSelUnique = make_unique<Wt::WComboBox>();
-	cbRowTopicSel = cbRowTopicSelUnique.get();
-	allCB.push_back(cbRowTopicSel);
-	cbID = cbRowTopicSel->id();
-	jtWidget.addChild(cbID, -2, boxRowTopicUnique->id());
-	auto boxFilterRowUnique = make_unique<Wt::WContainerWidget>();
-	auto layoutFilterRow = make_unique<Wt::WVBoxLayout>();
-	auto pbSubsectionFilterRowUnique = make_unique<Wt::WPushButton>("Apply Subsection Filter");
-	pbSubsectionFilterRow = pbSubsectionFilterRowUnique.get();
-	allPB.push_back(pbSubsectionFilterRow);
-
-	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
-	boxTableUnique->setObjectName("boxTable");
-	boxTable = boxTableUnique.get();
-	auto tableDataUnique = make_unique<WJTABLE>();
-	tableDataUnique->setObjectName("tableData");
-	tableData = tableDataUnique.get();
-
-	boxTableUnique->addWidget(move(tableDataUnique));
+	auto boxTableUnique = makeBoxTable(tableData);
 	tabDataUnique->addTab(move(boxTableUnique), "Data Table", Wt::ContentLoading::Eager);
 
-	auto phantom1 = stackedTabData->widget(1);
-	jtWidget.addChild(phantom1->id(), -2, stackedTabData->id());
-	jtWidget.addChild(boxTable->id(), -2, phantom1->id());
-	jtWidget.addChild(tableData->id(), -2, boxTable->id());
+	auto boxMapUnique = makeBoxMap(wtMap);
+	tabDataUnique->addTab(move(boxMapUnique), "Data Map");
 
+	auto boxDownloadUnique = makeBoxDownload();
+	tabDataUnique->addTab(move(boxDownloadUnique), "Download");
+
+	boxDataUnique->addWidget(move(tabDataUnique));
+	return boxDataUnique;
+}
+unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxDownload()
+{
+	auto boxDownloadUnique = make_unique<Wt::WContainerWidget>();
+	boxDownload = boxDownloadUnique.get();
+	auto pbDownloadPDFUnique = make_unique<Wt::WPushButton>("PDF");
+	pbDownloadPDF = pbDownloadPDFUnique.get();
+	boxDownloadUnique->addWidget(move(pbDownloadPDFUnique));
+	return boxDownloadUnique;
+}
+unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxMap(WTPAINT*& wtMap)
+{
 	auto boxMapAllUnique = make_unique<Wt::WContainerWidget>();
 	boxMapAll = boxMapAllUnique.get();
 	auto boxMapOptionUnique = make_unique<Wt::WContainerWidget>();
@@ -916,60 +539,27 @@ void SCDAwidget::makeUI()
 	vLayoutMap->addWidget(move(boxMapUnique));
 	vLayoutMap->addWidget(move(boxTextLegendUnique));
 	boxMapAllUnique->setLayout(move(vLayoutMap));
-	tabDataUnique->addTab(move(boxMapAllUnique), "Data Map");
 
-	auto phantom2 = stackedTabData->widget(2);
-	jtWidget.addChild(phantom2->id(), -2, stackedTabData->id());
-	jtWidget.addChild(boxMapAll->id(), -2, phantom2->id());
-	jtWidget.addChild(boxMapOption->id(), -2, boxMapAll->id());
-	jtWidget.addChild(textUnit->id(), -2, boxMapOption->id());
-	jtWidget.addChild(pbUnit->id(), -2, boxMapOption->id());
-	jtWidget.addChild(popupUnit->id(), -2, pbUnit->id());
-	jtWidget.addChild(boxMap->id(), -2, boxMapAll->id());
-	jtWidget.addChild(boxTextLegend->id(), -2, boxMapAll->id());
-
-	auto boxDownloadUnique = make_unique<Wt::WContainerWidget>();
-	boxDownload = boxDownloadUnique.get();
-	auto pbDownloadPDFUnique = make_unique<Wt::WPushButton>("PDF");
-	pbDownloadPDF = pbDownloadPDFUnique.get();
-	boxDownloadUnique->addWidget(move(pbDownloadPDFUnique));
-	//tabDataUnique->addTab(move(boxDownloadUnique), "Download");
-
-	boxCBYearUnique->addWidget(move(cbYearUnique));
-	panelYearUnique->setCentralWidget(move(boxCBYearUnique));
-
-	boxCBCategoryUnique->addWidget(move(cbCategoryUnique));
-	panelCategoryUnique->setCentralWidget(move(boxCBCategoryUnique));
-
-	boxColTopicUnique->addWidget(move(cbColTopicTitleUnique));
-	boxColTopicUnique->addWidget(move(cbColTopicSelUnique));
-	layoutFilterCol->addWidget(move(pbSubsectionFilterColUnique));
-	boxFilterColUnique->setLayout(move(layoutFilterCol));
-	boxColTopicUnique->addWidget(move(boxFilterColUnique));
-	panelColTopicUnique->setCentralWidget(move(boxColTopicUnique));
-
-	boxRowTopicUnique->addWidget(move(cbRowTopicTitleUnique));
-	boxRowTopicUnique->addWidget(move(cbRowTopicSelUnique));
-	layoutFilterRow->addWidget(move(pbSubsectionFilterRowUnique));
-	boxFilterRowUnique->setLayout(move(layoutFilterRow));
-	boxRowTopicUnique->addWidget(move(boxFilterRowUnique));
-	panelRowTopicUnique->setCentralWidget(move(boxRowTopicUnique));
-
-	vLayoutConfig->addWidget(move(pbMobileUnique));
-	vLayoutConfig->addWidget(move(textCataUnique));
-	vLayoutConfig->addWidget(move(panelYearUnique));
-	vLayoutConfig->addWidget(move(panelCategoryUnique));
-	vLayoutConfig->addWidget(move(panelColTopicUnique));
-	vLayoutConfig->addWidget(move(panelRowTopicUnique));
-	numPreVariable = vLayoutConfig->count();
-	boxConfigUnique->setLayout(move(vLayoutConfig));
-
-	boxDataUnique->addWidget(move(tabDataUnique));
-
-	hLayout->addWidget(move(boxConfigUnique), 1);
-	hLayout->addWidget(move(boxDataUnique), 2);
-	this->setLayout(move(hLayout));
+	return boxMapAllUnique;
 }
+unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxTable(WJTABLE*& tableData)
+{
+	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
+	boxTableUnique->setObjectName("boxTable");
+	boxTable = boxTableUnique.get();
+	auto wjTableUnique = make_unique<WJTABLE>();
+	tableData = wjTableUnique.get();
+	boxTableUnique->addWidget(move(wjTableUnique));
+	return boxTableUnique;
+}
+unique_ptr<Wt::WTree> SCDAwidget::makeTreeRegion(Wt::WTree*& wTree)
+{
+	auto treeRegionUnique = make_unique<Wt::WTree>();
+	treeRegionUnique->setObjectName("treeRegion");
+	wTree = treeRegionUnique.get();
+	return treeRegionUnique;
+}
+
 void SCDAwidget::mapAreaClicked(int areaIndex)
 {
 	string sRegionClicked = wtMap->areaClicked(areaIndex);
@@ -988,94 +578,25 @@ void SCDAwidget::mapAreaClicked(int areaIndex)
 	Wt::WTreeNode* nodeSel = (Wt::WTreeNode*)treeRegion->findById(sID);
 	if (!treeRegion->isSelected(nodeSel)) { treeRegion->select(nodeSel); }
 }
-
 void SCDAwidget::populateTextLegend(Wt::WContainerWidget*& boxTextLegend)
 {
-	// Read the topic and parameter panels, and make a list of the selected options. 
-	boxTextLegend->clear();
-	auto vLayout = make_unique<Wt::WVBoxLayout>();
-	Wt::WColor wGrey = Wt::WColor(210, 210, 210);
 	bool grey = 0;
-
-	Wt::WString wsTemp = panelYear->title() + ":  " + getTextLegend(panelYear);
-	auto wText = make_unique<Wt::WText>(wsTemp);
-	wText->setTextAlignment(Wt::AlignmentFlag::Left);
-	wText->decorationStyle().font().setSize(Wt::FontSize::Large);
-	if (grey)
+	auto layout = make_unique<Wt::WVBoxLayout>();
+	vector<Wt::WString> vwsLegend = wjConfig->getTextLegend();
+	for (int ii = 0; ii < vwsLegend.size(); ii++)
 	{
-		wText->decorationStyle().setBackgroundColor(wGrey);
-		grey = 0;
-	}
-	else { grey = 1; }
-	vLayout->addWidget(move(wText));
-
-	wsTemp = panelCategory->title() + ":  " + getTextLegend(panelCategory);
-	wText = make_unique<Wt::WText>(wsTemp);
-	wText->setTextAlignment(Wt::AlignmentFlag::Left);
-	wText->decorationStyle().font().setSize(Wt::FontSize::Large);
-	if (grey)
-	{
-		wText->decorationStyle().setBackgroundColor(wGrey);
-		grey = 0;
-	}
-	else { grey = 1; }
-	vLayout->addWidget(move(wText));
-
-	wsTemp = panelColTopic->title() + ":  " + getTextLegend(panelColTopic);
-	wText = make_unique<Wt::WText>(wsTemp);
-	wText->setTextAlignment(Wt::AlignmentFlag::Left);
-	wText->decorationStyle().font().setSize(Wt::FontSize::Large);
-	if (grey)
-	{
-		wText->decorationStyle().setBackgroundColor(wGrey);
-		grey = 0;
-	}
-	else { grey = 1; }
-	vLayout->addWidget(move(wText));
-
-	wsTemp = panelRowTopic->title() + ":  " + getTextLegend(panelRowTopic);
-	wText = make_unique<Wt::WText>(wsTemp);
-	wText->setTextAlignment(Wt::AlignmentFlag::Left);
-	wText->decorationStyle().font().setSize(Wt::FontSize::Large);
-	if (grey)
-	{
-		wText->decorationStyle().setBackgroundColor(wGrey);
-		grey = 0;
-	}
-	else { grey = 1; }
-	vLayout->addWidget(move(wText));
-
-	if (panelDemographic != nullptr)
-	{
-		wsTemp = panelDemographic->title() + ":  " + getTextLegend(panelDemographic);
-		wText = make_unique<Wt::WText>(wsTemp);
+		auto wText = make_unique<Wt::WText>(vwsLegend[ii]);
 		wText->setTextAlignment(Wt::AlignmentFlag::Left);
 		wText->decorationStyle().font().setSize(Wt::FontSize::Large);
 		if (grey)
 		{
-			wText->decorationStyle().setBackgroundColor(wGrey);
+			wText->decorationStyle().setBackgroundColor(wcGrey);
 			grey = 0;
 		}
 		else { grey = 1; }
-		vLayout->addWidget(move(wText));
+		layout->addWidget(move(wText));
 	}
-
-	for (int ii = 0; ii < varPanel.size(); ii++)
-	{
-		wsTemp = varPanel[ii]->title() + ":  " + getTextLegend(varPanel[ii]);
-		wText = make_unique<Wt::WText>(wsTemp);
-		wText->setTextAlignment(Wt::AlignmentFlag::Left);
-		wText->decorationStyle().font().setSize(Wt::FontSize::Large);
-		if (grey)
-		{
-			wText->decorationStyle().setBackgroundColor(wGrey);
-			grey = 0;
-		}
-		else { grey = 1; }
-		vLayout->addWidget(move(wText));
-	}
-
-	boxTextLegend->setLayout(move(vLayout));
+	boxTextLegend->setLayout(move(layout));
 }
 void SCDAwidget::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 {
@@ -1120,7 +641,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		break;
 	case 4:  // Differentiation: create a single parameter panel, chosen to specify the catalogue.
 		updateTextCata(event.getNumCata());
-		addDifferentiator(event.get_list());
+		wjConfig->addDifferentiator(event.get_list());
 		break;
 	case 5:  // Map: display it on the painter widget.
 		processEventMap(event.get_list(), event.get_areas(), event.getRegionData());
@@ -1144,43 +665,42 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 }
 void SCDAwidget::processEventCatalogue(string sYear, string sCata)
 {
-	activeYear = sYear;
 	activeCata = sCata;
+	Wt::WString wsTemp;
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt(6);
 	prompt[0] = app->sessionId();
-	prompt[1] = activeYear;
-	prompt[2] = activeCategory;
-	prompt[3] = activeColTopic;
-	prompt[4] = activeRowTopic;
+	prompt[1] = sYear;
+	wsTemp = wjConfig->wjcCategory->wcbTitle->currentText();
+	prompt[2] = wsTemp.toUTF8();
+	wsTemp = wjConfig->wjcTopicCol->wcbTitle->currentText();
+	prompt[3] = wsTemp.toUTF8();
+	wsTemp = wjConfig->wjcTopicRow->wcbTitle->currentText();
+	prompt[4] = wsTemp.toUTF8();
 	prompt[5] = activeCata;
-	vector<vector<string>> vvsVariable = getVariable();
+	vector<vector<string>> vvsVariable = wjConfig->getVariable();
 	sRef.pullVariable(prompt, vvsVariable);
 }
 void SCDAwidget::processEventCategory(vector<string> vsCategory)
 {
+	wjConfig->wpCategory->setHidden(0);
 	vsCategory.insert(vsCategory.begin(), "[Choose a topical category]");
-	cbjCategory->addCB(vsCategory);
-	cbjCategory->vCB[0]->changed().connect(this, &SCDAwidget::cbCategoryChanged);
-	cbjCategory->setVisible(1);
-	cbjCategory->highlight(1);
-	widgetMobile();
+	wjConfig->wjcCategory->setTitle(vsCategory);
+	wjConfig->highlight(wjConfig->wpCategory, 1);
+	wjConfig->wjcCategory->highlight(wcssAttention, wcssDefault);
 }
 void SCDAwidget::processEventDemographic(vector<vector<string>> vvsDemo)
 {
-	vvsDemographic = vvsDemo;
-	resetVariables(1);
-	if (vvsDemo.size() > 1)
-	{
-		addDemographic(vvsDemo);
-	}
+	wjConfig->vvsDemographic = vvsDemo;
+	wjConfig->resetVariables(1);
+	if (vvsDemo.size() > 1) { wjConfig->addDemographic(vvsDemo); }
 	else
 	{
 		Wt::WApplication* app = Wt::WApplication::instance();
 		vector<string> prompt = { app->sessionId() };
 		vector<string> vsCata;
-		vsCata.assign(vvsDemo[0].begin() + 1, vvsDemo[0].end());
-		sRef.pullDifferentiator(prompt, vsCata);
+		//vsCata.assign(vvsDemo[0].begin() + 1, vvsDemo[0].end());
+		sRef.pullDifferentiator(prompt, vvsDemo);
 	}
 }
 void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData)
@@ -1240,8 +760,6 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	//tabData->setTabEnabled(3, 1);
 	if (first) { tabData->setCurrentIndex(2); }	
 	first = 0;
-	widgetMobile();
-	loadingStop();
 }
 void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vector<vector<string>> vvsCata, vector<string> vsDIMIndex)
 {
@@ -1252,7 +770,7 @@ void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vecto
 		numCata += vvsCata[ii].size() - 1;
 	}
 
-	int index = varPanel.size();
+	int index = wjConfig->varPanel.size();
 	int numVar = -1;
 	if (numCata == 1)
 	{
@@ -1269,17 +787,19 @@ void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vecto
 		}
 
 		Wt::WString wTemp;
-		if (!index) { vvsParameter = vvsVariable; }
+		WJCOMBO* wjc;
+		if (!index) { wjConfig->vvsParameter = vvsVariable; }
 		else
 		{
-			for (int ii = 0; ii < varMID.size(); ii++)
+			for (int ii = 0; ii < varPanel.size(); ii++)
 			{
-				wTemp = varMID[ii]->currentText();
+				wjc = (WJCOMBO*)varPanel[ii]->centralWidget();
+				wTemp = wjc->wcbMID->currentText();
 				if (wTemp != "") { break; }
-				else if (ii == varMID.size() - 1)
+				else if (ii == varPanel.size() - 1)
 				{
-					if (cbDemographic != nullptr) { resetVariables(1); }
-					else { resetVariables(0); }
+					if (wjConfig->wpDemo != nullptr) { wjConfig->resetVariables(1); }
+					else { wjConfig->resetVariables(0); }
 					activeCata = vvsCata[0][1];
 					vvsParameter = vvsVariable;
 				}
@@ -1291,11 +811,12 @@ void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vecto
 		{
 			vsTemp[0] = vvsVariable[ii].back();  // Title.
 			vsTemp[1] = vvsVariable[ii][0];  // Default MID.
-			addVariable(vsTemp);
+			wjConfig->addVariable(vsTemp);
 		}
-		for (int ii = 0; ii < varTitle.size(); ii++)
+		for (int ii = 0; ii < varPanel.size(); ii++)
 		{
-			varTitle[ii]->setEnabled(0);
+			wjc = (WJCOMBO*)varPanel[ii]->centralWidget();
+			wjc->wcbTitle->setEnabled(0);
 		}
 	}
 	else
@@ -1303,7 +824,7 @@ void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vecto
 		// Multiple catalogues satisfy the Year, Category, Row, and Column criteria.
 		// Check vvsVariable[0] for the type of differentiation to employ.
 		if (vvsVariable[0].size() != 1) { jf.err("Invalid vvsCandidate-SCDAwidget.pDE(Variable)"); }
-		addVariable(vvsVariable);
+		//wjConfig->addVariable(vvsVariable);
 		int bbq = 1;
 	}
 
@@ -1312,7 +833,6 @@ void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vecto
 	{
 		Wt::WApplication* app = Wt::WApplication::instance();
 		app->processEvents();
-		activeYear = vvsCata[0][0];
 		activeCata = vvsCata[0][1];
 		vector<string> promptTree(3);
 		promptTree[0] = app->sessionId();
@@ -1327,9 +847,9 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	if (vvsTable.size() < 1) { jf.err("Missing table data-SCDAwidget.processEventTable"); }
 
 	auto app = Wt::WApplication::instance();
-	activeColTopic = vsCol.back();
+	//activeColTopic = vsCol.back();
 	vsCol.pop_back();
-	activeRowTopic = vsRow.back();
+	//activeRowTopic = vsRow.back();
 	vsRow.pop_back();
 	tabData->setTabEnabled(1, 1);
 	string temp = "Data Table (" + vsCol[0] + ")";
@@ -1347,15 +867,15 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	tableData->display();
 
 	// Populate cbColTopicSel and cbRowTopicSel if necessary.
-	if (cbRowTopicSel->isHidden() || cbColTopicSel->isHidden())
+	if (wjConfig->wjcTopicRow->wcbMID->isHidden() || wjConfig->wjcTopicCol->wcbMID->isHidden())
 	{
-		cbColTopicSel->setHidden(0);
-		pbSubsectionFilterCol->setHidden(0);
-		cbRenew(cbColTopicSel, vsCol);
+		wjConfig->wjcTopicCol->wcbMID->setHidden(0);
+		wjConfig->wjcTopicCol->wpbDialog->setHidden(0);
+		wjConfig->wjcTopicCol->setMID(vsCol);
 
-		cbRowTopicSel->setHidden(0);
-		pbSubsectionFilterRow->setHidden(0);
-		cbRenew(cbRowTopicSel, vsRow);
+		wjConfig->wjcTopicRow->wcbMID->setHidden(0);
+		wjConfig->wjcTopicRow->wpbDialog->setHidden(0);
+		wjConfig->wjcTopicRow->setMID(vsRow);
 	}
 
 	// Add a tooltip to the table.
@@ -1367,7 +887,7 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	{
 		app->doJavaScript(app->javaScriptClass() + ".getInfo();");
 		double dBoxTableWidth = boxData->maximumWidth().value();
-		dBoxTableWidth += boxTableSlider->padding(Wt::Side::Left).value() + boxTableSlider->padding(Wt::Side::Right).value();
+		dBoxTableWidth += boxTable->padding(Wt::Side::Left).value() + boxTable->padding(Wt::Side::Right).value();
 		boxTableWidth = int(ceil(dBoxTableWidth));
 		app->doJavaScript(app->javaScriptClass() + ".scrollTo(0);");
 		app->triggerUpdate();
@@ -1376,62 +896,66 @@ void SCDAwidget::processEventTable(vector<vector<string>> vvsTable, vector<strin
 	// Connect table cell signals/slots.
 	if (!tableData->vClick().isConnected())
 	{
-		tableData->vClick().connect(this, std::bind(&SCDAwidget::virtualClick, this, std::placeholders::_1));
+		//tableData->vClick().connect(this, std::bind(&SCDAwidget::virtualClick, this, std::placeholders::_1));
 	}
 	//tabData->setCurrentIndex(1);
 	app->processEvents();
-	cbColRowSelClicked();
-	cbColRowSelChanged();  // Triggers table current selection. 
+	wjConfig->varMIDClicked();
+	wjConfig->varMIDChanged();  // Triggers table current selection. 
 }
 void SCDAwidget::processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic)
 {
 	Wt::WApplication* app = Wt::WApplication::instance();
+	Wt::WString wsTemp;
+	int numRowTopic = vsRowTopic.size();
+	int numColTopic = vsColTopic.size();
+	wjConfig->wpTopicRow->setHidden(0);
+	wjConfig->wpTopicCol->setHidden(0);
+
 	string rowDefault = "[Choose a row topic]";
-	if (vsRowTopic.size() == 1)
-	{
-		activeRowTopic = vsRowTopic[0];
-	}
 	vsRowTopic.insert(vsRowTopic.begin(), rowDefault);
-	cbjTopicRow->setCB(vsRowTopic, 0, activeRowTopic);
+	wjConfig->wjcTopicRow->setTitle(vsRowTopic);
+	if (numRowTopic == 1) { wjConfig->wjcTopicRow->wcbTitle->setCurrentIndex(1); }
 
 	string colDefault = "[Choose a column topic]";
-	if (vsColTopic.size() == 1)
-	{
-		activeColTopic = vsColTopic[0];
-	}
 	vsColTopic.insert(vsColTopic.begin(), colDefault);
-	cbjTopicCol->setCB(vsColTopic, 0, activeColTopic);
+	wjConfig->wjcTopicCol->setTitle(vsColTopic);
+	if (numColTopic == 1) { wjConfig->wjcTopicCol->wcbTitle->setCurrentIndex(1); }
 
-	cbjCategory->highlight(0);
-	if (vsColTopic.size() == 1 && vsRowTopic.size() == 1)
+	wjConfig->highlight(wjConfig->wpCategory, 0);
+	wjConfig->wjcCategory->highlight(wcssDefault, wcssDefault);
+	if (numRowTopic == 1 && numColTopic == 1)
 	{
-		cbjTopicCol->highlight(0);
-		cbjTopicRow->highlight(0);
+		wjConfig->wjcTopicRow->highlight(wcssDefault, wcssDefault);
+		wjConfig->wjcTopicCol->highlight(wcssDefault, wcssDefault);
 		vector<vector<string>> vvsVariable;
 		vector<string> prompt(5);
 		prompt[0] = app->sessionId();
-		prompt[1] = activeYear;
-		prompt[2] = activeCategory;
-		prompt[3] = activeColTopic;
-		prompt[4] = activeRowTopic;
+		wsTemp = wjConfig->wjcYear->wcbTitle->currentText();
+		prompt[1] = wsTemp.toUTF8();
+		wsTemp = wjConfig->wjcCategory->wcbTitle->currentText();
+		prompt[2] = wsTemp.toUTF8();
+		wsTemp = wjConfig->wjcTopicCol->wcbTitle->currentText();
+		prompt[3] = wsTemp.toUTF8();
+		wsTemp = wjConfig->wjcTopicRow->wcbTitle->currentText();
+		prompt[4] = wsTemp.toUTF8();
 		sRef.pullVariable(prompt, vvsVariable);
 	}
 	else if (vsColTopic.size() == 1)
 	{
-		cbjTopicCol->highlight(0);
-		cbjTopicRow->highlight(1);
+		wjConfig->wjcTopicRow->highlight(wcssAttention, wcssDefault);
+		wjConfig->wjcTopicCol->highlight(wcssDefault, wcssDefault);
 	}
 	else if (vsRowTopic.size() == 1)
 	{
-		cbjTopicCol->highlight(1);
-		cbjTopicRow->highlight(0);
+		wjConfig->wjcTopicRow->highlight(wcssDefault, wcssDefault);
+		wjConfig->wjcTopicCol->highlight(wcssAttention, wcssDefault);
 	}
 	else
 	{
-		cbjTopicCol->highlight(1);
-		cbjTopicRow->highlight(1);
+		wjConfig->wjcTopicRow->highlight(wcssAttention, wcssDefault);
+		wjConfig->wjcTopicCol->highlight(wcssAttention, wcssDefault);
 	}
-	widgetMobile();
 }
 void SCDAwidget::processEventTree(JTREE jt)
 {
@@ -1451,38 +975,6 @@ void SCDAwidget::processEventTree(JTREE jt)
 	treeRegion->select(treeRoot);
 }
 
-void SCDAwidget::removeVariable(int varIndex)
-{
-	// Remove the given variable's panel widget. Update mapVarIndex, varPanel, varTitle, varMID;
-	int index;
-	string id;
-	Wt::WString wTemp;
-	auto varPanelTemp = varPanel;
-	varPanel.clear();
-	auto varTitleTemp = varTitle;
-	varTitle.clear();
-	auto varMIDTemp = varMID;
-	varMID.clear();
-	mapVarIndex.clear();
-	for (int ii = 0; ii < varPanelTemp.size(); ii++)
-	{
-		if (ii == varIndex) { continue; }
-		index = varPanel.size();
-		varPanel.push_back(varPanelTemp[ii]);
-		id = varPanel[index]->id();
-		mapVarIndex.emplace(id, index);
-		varTitle.push_back(varTitleTemp[ii]);
-		id = varTitle[index]->id();
-		mapVarIndex.emplace(id, index);
-		varMID.push_back(varMIDTemp[ii]);
-		id = varMID[index]->id();
-		mapVarIndex.emplace(id, index);
-	}
-	auto boxChildren = boxConfig->children();
-	boxConfig->removeWidget(boxChildren[numPreVariable + varIndex]);
-	Wt::WApplication* app = Wt::WApplication::instance();
-	app->processEvents();
-}
 void SCDAwidget::resetMap()
 {
 	boxMap->clear();
@@ -1500,93 +992,52 @@ void SCDAwidget::resetTable()
 	tabData->setTabEnabled(1, 0);
 	tabData->setCurrentIndex(0);
 }
-void SCDAwidget::resetTopicSel()
-{
-	panelRowTopic->setHidden(0);
-	cbRowTopicSel->clear();
-	cbRowTopicSel->setHidden(1);
-	pbSubsectionFilterRow->setHidden(1);
-	panelColTopic->setHidden(0);
-	cbColTopicSel->clear();
-	cbColTopicSel->setHidden(1);
-	pbSubsectionFilterCol->setHidden(1);
-}
 void SCDAwidget::resetTree()
 {
 	jtRegion.clear();
 	treeRegion->setTreeRoot(make_unique<Wt::WTreeNode>(""));
 }
-void SCDAwidget::resetVariables()
-{
-	// Remove all "variable" panels and clear all "variable" buffers.
-	int plus = 0;
-	resetVariables(plus);
-}
-void SCDAwidget::resetVariables(int plus)
-{
-	// Remove all "variable" panels and clear all "variable" buffers.
-	int numKeep = numPreVariable + plus;
-	auto boxChildren = boxConfig->children();
-	for (int ii = numKeep; ii < boxChildren.size(); ii++)
-	{
-		boxConfig->removeWidget(boxChildren[ii]);
-	}
-	activeCata.clear();
-	vvsParameter.clear();
-	varPanel.clear();
-	varTitle.clear();
-	varMID.clear();
-	mapVarIndex.clear();
-	if (plus < 1) 
-	{ 
-		vvsDemographic.clear();
-		cbDemographic = nullptr;
-	}
-	Wt::WApplication* app = Wt::WApplication::instance();
-	app->processEvents();
-}
 
 void SCDAwidget::setMap(int iRow, int iCol, string sRegion)
 {
 	// Assumes that all widgets have been updated already.
+	Wt::WString wsTemp;
 	Wt::WApplication* app = Wt::WApplication::instance();
 	vector<string> prompt(4);
 	prompt[0] = app->sessionId();
-	prompt[1] = activeYear;
+	wsTemp = wjConfig->wjcYear->wcbTitle->currentText();
+	prompt[1] = wsTemp.toUTF8();
 	prompt[2] = activeCata;
 	prompt[3] = sRegion;  // Parent region name. 
 
-	vector<vector<string>> variable = getVariable();
-	Wt::WString wsTemp = cbRowTopicSel->currentText();
-	string temp = wsTemp.toUTF8();
-	variable.push_back({ activeRowTopic, temp });
-	variable.push_back({ activeColTopic, to_string(iCol) });
+	vector<vector<string>> variable = wjConfig->getVariable();
+	wsTemp = wjConfig->wjcTopicRow->wcbTitle->currentText();
+	string rowTitle = wsTemp.toUTF8();
+	wsTemp = wjConfig->wjcTopicRow->wcbMID->currentText();
+	string rowMID = wsTemp.toUTF8();
+	wsTemp = wjConfig->wjcTopicCol->wcbTitle->currentText();
+	string colTitle = wsTemp.toUTF8();
+	variable.push_back({ rowTitle, rowMID });
+	variable.push_back({ colTitle, to_string(iCol) });
 	sRef.pullMap(prompt, variable);
 }
 void SCDAwidget::setTable(int geoCode, string sRegion)
 {
 	// This variant loads a table using a selected region from the tree. 
 	Wt::WApplication* app = Wt::WApplication::instance();
+	Wt::WString wsTemp;
 	vector<string> prompt(5);
 	prompt[0] = app->sessionId();
-	prompt[1] = activeYear;
+	wsTemp = wjConfig->wjcYear->wcbTitle->currentText();
+	prompt[1] = wsTemp.toUTF8();
 	prompt[2] = activeCata;
 	prompt[3] = to_string(geoCode);
 	prompt[4] = sRegion;
-	vector<vector<string>> variable = getVariable();
+
+	vector<vector<string>> variable = wjConfig->getVariable();
 	sRef.pullTable(prompt, variable);
 }
 
-void SCDAwidget::tableCBUpdate(int iRow, int iCol)
-{
-	int count;
-	Wt::WText *wText;
-	Wt::WString wsCB, wsTable;
-	if (iRow < 0) { cbRowTopicSel->setCurrentIndex(0); }
-	else { cbRowTopicSel->setCurrentIndex(iRow); }
-	if (iCol < 0) { cbColTopicSel->setCurrentIndex(0); }
-	else { cbColTopicSel->setCurrentIndex(iCol); }
-}
 void SCDAwidget::tableReceiveDouble(const double& width)
 {
 	cout << "tableReceiveDouble: " << to_string(width) << endl;
@@ -1606,7 +1057,7 @@ void SCDAwidget::toggleMobile()
 		mobile = 0;
 		boxConfig->setMaximumSize(len200p, wlAuto);
 		boxData->setMaximumSize(len800p, wlAuto);
-		widgetMobile();
+		//widgetMobile();
 		auto hLayout = make_unique<Wt::WHBoxLayout>();
 		auto boxConfigUnique = this->removeWidget(boxConfig);
 		auto boxDataUnique = this->removeWidget(boxData);
@@ -1619,7 +1070,7 @@ void SCDAwidget::toggleMobile()
 		mobile = 1;
 		boxConfig->setMaximumSize(wlAuto, wlAuto);
 		boxData->setMaximumSize(wlAuto, wlAuto);
-		widgetMobile();
+		//widgetMobile();
 		auto vLayout = make_unique<Wt::WVBoxLayout>();
 		auto boxConfigUnique = this->removeWidget(boxConfig);
 		auto boxDataUnique = this->removeWidget(boxData);
@@ -1630,6 +1081,7 @@ void SCDAwidget::toggleMobile()
 }
 void SCDAwidget::treeClicked()
 {
+	// This variant automatically launches a new table pull.
 	auto selSet = treeRegion->selectedNodes();
 	if (selSet.size() < 1) { return; }
 	auto selIt = selSet.begin();
@@ -1638,6 +1090,17 @@ void SCDAwidget::treeClicked()
 	string sRegion = wTemp.toUTF8();
 	int geoCode = jtRegion.getIName(sRegion);
 	setTable(geoCode, sRegion);
+}
+void SCDAwidget::treeClicked(int& geoCode, string& sRegion)
+{
+	// This variant simply returns the geoCode and name of the selected region. 
+	auto selSet = treeRegion->selectedNodes();
+	if (selSet.size() < 1) { return; }
+	auto selIt = selSet.begin();
+	auto selNode = *selIt;
+	auto wTemp = selNode->label()->text();
+	sRegion = wTemp.toUTF8();
+	geoCode = jtRegion.getIName(sRegion);
 }
 void SCDAwidget::updateTextCata(int numCata)
 {
@@ -1651,7 +1114,7 @@ void SCDAwidget::updateTextCata(int numCata)
 	{
 		wsTemp = to_string(numCata) + " catalogues remain - more parameters must be specified.";
 	}
-	textCata->setText(wsTemp);
+	wjConfig->textCata->setText(wsTemp);
 }
 void SCDAwidget::updateUnit(string sUnit)
 {
@@ -1662,139 +1125,4 @@ void SCDAwidget::updateUnit(string sUnit)
 	else { viIndex = { 0 }; }
 	wtMap->updateDisplay(viIndex);
 }
-void SCDAwidget::virtualClick(const int& vcType)
-{
-	switch (vcType)
-	{
-	case 0:
-	{
-		cbColRowSelChanged();
-		break;
-	}
-	}
-}
-void SCDAwidget::widgetMobile()
-{
-	if (mobile)
-	{
-		for (int ii = 0; ii < allCB.size(); ii++)
-		{
-			if (allCB[ii] != nullptr)
-			{
-				allCB[ii]->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-				allCB[ii]->setMinimumSize(len300p, len200p);
-			}
-		}
-		for (int ii = 0; ii < allPB.size(); ii++)
-		{
-			if (allPB[ii] != nullptr)
-			{
-				allPB[ii]->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-				allPB[ii]->setMinimumSize(wlAuto, len50p);
-			}
-		}
-		for (int ii = 0; ii < varTitle.size(); ii++)
-		{
-			if (varTitle[ii] != nullptr)
-			{
-				varTitle[ii]->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-				varTitle[ii]->setMinimumSize(wlAuto, len50p);
-			}
-			if (varMID[ii] != nullptr)
-			{
-				varMID[ii]->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-				varMID[ii]->setMinimumSize(wlAuto, len50p);
-			}
-			if (varPanel[ii] != nullptr)
-			{
-				varPanel[ii]->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-				varPanel[ii]->setMinimumSize(wlAuto, len50p);
-			}
-		}
-		for (int ii = 0; ii < allPanel.size(); ii++)
-		{
-			if (allPanel[ii] != nullptr)
-			{
-				allPanel[ii]->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-				allPanel[ii]->setMinimumSize(wlAuto, len50p);
-			}
-		}
-		if (cbDemographic != nullptr)
-		{
-			panelDemographic->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-			panelDemographic->setMinimumSize(wlAuto, len50p);
-			cbDemographic->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-			cbDemographic->setMinimumSize(wlAuto, len50p);
-		}
-		if (tabData != nullptr)
-		{
-			tabData->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-			tabData->setMinimumSize(wlAuto, len50p);
-		}
-		if (leTest != nullptr)
-		{
-			leTest->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-			leTest->setMinimumSize(len300p, len200p);
-		}
-	}
-	else
-	{
-		for (int ii = 0; ii < allCB.size(); ii++)
-		{
-			if (allCB[ii] != nullptr)
-			{
-				allCB[ii]->decorationStyle().font().setSize(Wt::FontSize::Medium);
-				allCB[ii]->setMinimumSize(wlAuto, wlAuto);
-			}
-		}
-		for (int ii = 0; ii < allPB.size(); ii++)
-		{
-			if (allPB[ii] != nullptr)
-			{
-				allPB[ii]->decorationStyle().font().setSize(Wt::FontSize::Medium);
-				allPB[ii]->setMinimumSize(wlAuto, wlAuto);
-			}
-		}
-		for (int ii = 0; ii < varTitle.size(); ii++)
-		{
-			if (varTitle[ii] != nullptr)
-			{
-				varTitle[ii]->decorationStyle().font().setSize(Wt::FontSize::Medium);
-				varTitle[ii]->setMinimumSize(wlAuto, wlAuto);
-			}
-			if (varMID[ii] != nullptr)
-			{
-				varMID[ii]->decorationStyle().font().setSize(Wt::FontSize::Medium);
-				varMID[ii]->setMinimumSize(wlAuto, wlAuto);
-			}
-			if (varPanel[ii] != nullptr)
-			{
-				varPanel[ii]->decorationStyle().font().setSize(Wt::FontSize::Medium);
-				varPanel[ii]->setMinimumSize(wlAuto, wlAuto);
-			}
-		}
-		for (int ii = 0; ii < allPanel.size(); ii++)
-		{
-			if (allPanel[ii] != nullptr)
-			{
-				allPanel[ii]->decorationStyle().font().setSize(Wt::FontSize::Medium);
-				allPanel[ii]->setMinimumSize(wlAuto, wlAuto);
-			}
-		}
-		if (cbDemographic != nullptr && cbDemographic->count() > 0)
-		{
-			cbDemographic->decorationStyle().font().setSize(Wt::FontSize::Medium);
-			cbDemographic->setMinimumSize(wlAuto, wlAuto);
-		}
-		if (tabData != nullptr)
-		{
-			tabData->decorationStyle().font().setSize(Wt::FontSize::Medium);
-			tabData->setMinimumSize(wlAuto, wlAuto);
-		}
-		if (leTest != nullptr)
-		{
-			leTest->decorationStyle().font().setSize(Wt::FontSize::Medium);
-			leTest->setMinimumSize(wlAuto, wlAuto);
-		}
-	}
-}
+
