@@ -38,6 +38,10 @@ public:
 			}
 			widgetUnique->setAttributeValue("style", temp);
 		}
+		else
+		{
+			int bbq = 1;
+		}
 		return widgetUnique;
 	}
 };
@@ -61,10 +65,7 @@ public:
 		auto widgetUnique = Wt::WItemDelegate::update(widget, index, flags);
 		if (!widget)
 		{
-			if (iCol > 0)
-			{
-				temp = styleCell + " text-align: left;";
-			}
+			if (iCol > 0) { temp = styleCell + " text-align: left;"; }
 			else
 			{
 				int iNum = int(height / 2.0) - 10;
@@ -74,37 +75,39 @@ public:
 			widgetUnique->setAttributeValue("style", temp);
 			sigHeaderID_.emit(iCol, widgetUnique->id());
 		}
+		else
+		{
+			int bbq = 1;
+		}
 		return widgetUnique;
 	}
 };
 
 class WJTABLE : public Wt::WTableView
 {
-	int colFilterParent = 0, rowFilterParent = -1;
 	const double heightCell = 68.0;
 	const double heightHeader = 68.0;
 	mutex m_time;
 	string scSelectedWeak, scSelectedStrong, scWhite;
-	Wt::WModelIndex selectedIndex;
+	Wt::WModelIndex selectedIndex = Wt::WModelIndex();
 	set<string> setUnitBreaker;          // List of strings which disqualify a unit candidate.
 	set<string> setUnitPercent;          // List of strings which indicate a unit of "%".
-	Wt::Signal<int, int> timerSignal_;
-	Wt::Signal<int> vClick_;
+	Wt::Signal<int, int> headerSignal_;
 	Wt::WBorder wbNone, wbSelected;
 	Wt::WColor wcSelectedWeak, wcSelectedStrong, wcWhite;
 	Wt::WLength wlAuto;
 
-	shared_ptr<WJDELEGATE> wjDel;
-	shared_ptr<WJHDELEGATE> wjhDel;
-
 public:
-	WJTABLE() : Wt::WTableView() { 
-		this->setId("wjTableData");
+	WJTABLE(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow, string sRegion) 
+		: Wt::WTableView() {
 		setRowHeaderCount(1); 
-		init();
+		init(vvsTable, vsCol, vsRow, sRegion);
+	}
+	WJTABLE() : Wt::WTableView() {
+		setRowHeaderCount(1);
+		initBlank();
 	}
 	~WJTABLE() {}
-	enum virtualClickType { ColRowSel };
 
 	JFUNC jf;
 	unordered_map<string, int> mapColIndex, mapRowIndex;  // sHeader -> col/row index
@@ -112,42 +115,38 @@ public:
 	unordered_map<int, string> mapColValue;  // colIndex -> sHeader
 	unordered_map<int, string> mapHeaderID;  // colIndex -> headerID
 	unordered_map<int, int> mapIndentCol, mapIndentRow;  // col/row index -> header indentation.
+	
 	shared_ptr<Wt::WStandardItemModel> model = nullptr;
-	shared_ptr<Wt::WStandardItemModel> modelFiltered = nullptr;
+	shared_ptr<WJDELEGATE> wjDel = nullptr;
+	shared_ptr<WJHDELEGATE> wjhDel = nullptr;
 
-	Wt::Signal<int, int>& timerSignal() { return timerSignal_; }
-	Wt::Signal<int>& vClick() { return vClick_; }
+	Wt::Signal<int, int>& headerSignal() { return headerSignal_; }
 
 	void cellSelect(int iRow, int iCol);
 	void cellSelect(Wt::WModelIndex wmIndex);
 	void cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol);
-	void display();
 	string getCell(int iRow, int iCol);
 	int getColIndex(string sHeader);
 	vector<int> getRowColSel();
 	int getRowIndex(string sHeader);
-	JTREE getTreeCol(string& priorSel);
-	JTREE getTreeRow(string& priorSel);
 	string getUnit();
 	string getUnit(int iRow, int iCol);
 	string getUnit(string header);
 	string getUnitParser(string header);
 	void headerSelect(int iCol);
-	void init();
+	void init(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow, string sRegion);
+	void initBlank();
+	void initModel(int numRow, int numCol);
+	void initValues();
 	void modelSetCore(vector<vector<string>>& vvsData);
-	int modelSetLeft(vector<string>& vsRow);
-	int modelSetTop(vector<string>& vsCol);
+	void modelSetLeft(vector<string>& vsRow);
+	void modelSetTop(vector<string>& vsCol);
 	void modelSetTopLeft(string sRegion);
-	void reset();
-	void reset(int numRow, int numCol);
 	void saveHeader(const int& iCol, const string& sID);
 	void setColUnit(string& colHeader, int index);
 	void setProperty(Wt::WWidget* widget, string property, string value);
 	void setProperty(Wt::WWidget* widget, vector<string> vsProperty, vector<string> vsValue);
 	void setRowUnit(string& rowHeader, int index);
-	void setSubsectionFilter(int iRow, int iCol);
-	void setSubsectionFilterCol(int iCol);
-	void setSubsectionFilterRow(int iRow);
 	void tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent);
 	void tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent);
 };

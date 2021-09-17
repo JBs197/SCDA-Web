@@ -16,7 +16,6 @@
 #include <Wt/WMenuItem.h>
 #include <Wt/WImage.h>
 #include <Wt/WEvent.h>
-#include <Wt/WDialog.h>
 #include <Wt/WJavaScript.h>
 #include "SCDAserver.h"
 
@@ -39,22 +38,23 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	const int num_filters = 3;
 	int screenWidth, screenHeight;         // Unit of pixels, measured from the client. 
 	Wt::WString selectedRegion, selectedFolder;
-	string sessionID, mapRegion;
-	int tableWidth, boxTableWidth;  // Used by JS functions.
+	string sessionID, tableRegion;
+	vector<string> tableCol, tableRow;    // Headers.
+	vector<vector<string>> tableCore;
+	int tableWidth, boxTableWidth;        // Used by JS functions.
 	vector<vector<string>> vvsDemographic;  // Form [forWhom index][forWhom, sCata0, sCata1, ...]
 	vector<vector<string>> vvsParameter;  // Form [variable index][MID0, MID1, ..., variable title].
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
 	const Wt::WString wsAll = Wt::WString("All");
 	const Wt::WString wsNoneSel = Wt::WString("[None selected]");
 
-	WJCONFIG* wjConfig;
-	WJTABLE* tableData;
-	WTPAINT* wtMap;
+	WJCONFIG* wjConfig = nullptr;
+	WJTABLE* tableData = nullptr;
+	WTPAINT* wtMap = nullptr;
 
 	Wt::WColor wcGrey, wcSelectedStrong, wcSelectedWeak, wcWhite;
-	Wt::WContainerWidget *boxConfig, *boxData, *boxDownload, *boxMap, *boxMapAll, *boxMapOption;
-	Wt::WContainerWidget *boxTable, *boxTextLegend;
-	Wt::WDialog *wdFilter;
+	Wt::WContainerWidget *boxConfig, *boxData, *boxDownload, *boxMap, *boxMapAll;
+	Wt::WContainerWidget *boxMapOption, *boxTable, *boxTextLegend;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
 	Wt::WPopupMenu *popupUnit;
@@ -66,22 +66,17 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WText *textTable, *textUnit;
 	Wt::WTree *treeDialogCol, *treeDialogRow, *treeRegion;
 
-	vector<WJCOMBO*> allCBJ;
-	vector<Wt::WPanel*> allPanel, varPanel;
 	vector<Wt::WPushButton*> allPB;
 
 	void cleanUnit(string& unit);
 	void connect();
-	void dialogSubsectionFilterCol();
-	void dialogSubsectionFilterColEnd();
-	void dialogSubsectionFilterRow();
-	void dialogSubsectionFilterRowEnd();
 	void downloadMap();
 	int getHeight();
 	vector<string> getNextCBLayer(Wt::WComboBox*& wCB);
 	Wt::WString getTextLegend(Wt::WPanel*& wPanel);
 	string getUnit();
 	int getWidth();
+	void incomingFilterSignal();
 	void incomingHeaderSignal(const int& iRow, const int& iCol);
 	void incomingPullSignal(const int& pullType);
 	void incomingResetSignal(const int& resetType);
@@ -90,11 +85,9 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void initUI();
 	string jsMakeFunctionTableScrollTo(WJTABLE*& boxTable);
 	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
-	unique_ptr<Wt::WContainerWidget> makeBoxData(Wt::WContainerWidget*& wBox);
+	unique_ptr<Wt::WContainerWidget> makeBoxData();
 	unique_ptr<Wt::WContainerWidget> makeBoxDownload();
-	unique_ptr<Wt::WContainerWidget> makeBoxMap(WTPAINT*& wtMap);
-	unique_ptr<Wt::WContainerWidget> makeBoxTable(WJTABLE*& tableData);
-	unique_ptr<Wt::WTree> makeTreeRegion(Wt::WTree*& wTree);
+	unique_ptr<Wt::WContainerWidget> makeBoxMap();
 	void mapAreaClicked(int areaIndex);
 	void populateTextLegend(Wt::WContainerWidget*& boxTextLegend);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
@@ -104,7 +97,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventDemographic(vector<vector<string>> vvsDemo);
 	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData);
 	void processEventParameter(vector<vector<string>> vvsVariable, vector<vector<string>> vvsCata, vector<string> vsDIMIndex);
-	void processEventTable(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow);
+	void processEventTable(vector<vector<string>>& vvsTable, vector<string>& vsCol, vector<string>& vsRow, string& sRegion);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
 	void processEventTree(JTREE jt);
 	void resetMap();

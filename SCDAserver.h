@@ -25,7 +25,7 @@ public:
 	const vector<string> list, listCol, listRow;
 	const vector<vector<string>> catalogue, table, variable;
 	const vector<string> ancestry;
-	const string sYear, sCata;
+	const string sYear, sCata, sRegion;
 	const vector<Wt::WPainterPath> wpPaths;
 	const vector<vector<vector<double>>> areas;
 	const vector<vector<double>> regionData;
@@ -41,6 +41,7 @@ public:
 	int getNumCata() const { return numCata; }
 	vector<vector<double>> getRegionData() const { return regionData; }
 	string getSCata() const { return sCata; }
+	string getSRegion() const { return sRegion; }
 	string getSYear() const { return sYear; }
 	vector<vector<string>> getTable() const { return table; }
 	JTREE getTree() const { return tree; }
@@ -77,8 +78,8 @@ private:
 		: etype(et), sessionID(sID), numCata(nC), variable(var), catalogue(cata), list(DIMIndex) {}
 
 	// Constructor for eType Table.
-	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<string>& vsCol, const vector<string>& vsRow)
-		: etype(et), sessionID(sID), table(vvsTable), listCol(vsCol), listRow(vsRow), numCata(1) {}
+	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<string>& vsCol, const vector<string>& vsRow, const string& region)
+		: etype(et), sessionID(sID), table(vvsTable), listCol(vsCol), listRow(vsRow), sRegion(region), numCata(1) {}
 
 	// Constructor for eType Topic.
 	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsCol, const vector<string>& vsRow)
@@ -138,6 +139,7 @@ public:
 	string getUnit(int clientIndex, string sYear, string sCata, string sDimMID);
 	vector<string> getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getYear(string sYear);
+	string getYear(string sYear, string sCata);
 	void pullCategory(vector<string> prompt);
 	void pullDifferentiator(vector<string> prompt, vector<vector<string>> vvsCata);
 	void pullMap(vector<string> prompt, vector<vector<string>> vvsDIM);

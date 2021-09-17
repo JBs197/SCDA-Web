@@ -1061,6 +1061,23 @@ vector<string> SCDAserver::getYear(string sYear)
 	else { vsYear = { sYear }; }
 	return vsYear;
 }
+string SCDAserver::getYear(string extYear, string sCata)
+{
+	// Returns the correct internal year for the given external year and catalogue name.
+	string intYear, tname;
+	vector<string> vsYear = getYear(extYear);
+	for (int ii = 0; ii < vsYear.size(); ii++)
+	{
+		tname = "Census$" + vsYear[ii] + "$" + sCata + "$DIMIndex";
+		if (sf.table_exist(tname)) 
+		{ 
+			intYear = vsYear[ii];
+			break; 
+		}
+		else if (ii == vsYear.size() - 1) { jf.err("Failed to match extYear to sCata-SCDAserver.getYear"); }
+	}
+	return intYear;
+}
 
 void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 {
@@ -1127,6 +1144,10 @@ void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 	if (mapClientIndex.count(prompt[0])) { clientIndex = mapClientIndex.at(prompt[0]); }
 	else { clientIndex = init(prompt[0]); }
 
+	// Determine the correct internal year.
+	string tempYear = prompt[1];
+	prompt[1] = getYear(tempYear, prompt[2]);
+
 	string result, tnameData;
 	vector<string> vsResult;
 	vector<vector<string>> vvsResult;
@@ -1184,6 +1205,10 @@ void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 	if (mapClientIndex.count(prompt[0])) { clientIndex = mapClientIndex.at(prompt[0]); }
 	else { clientIndex = init(prompt[0]); }
 
+	// Determine the correct internal year.
+	string tempYear = prompt[1];
+	prompt[1] = getYear(tempYear, prompt[2]);
+
 	vector<vector<string>> vvsTable;
 	vector<string> vsCol, vsRow, vsResult, conditions;
 	string tnameDIM, tnameDim, tnameData;
@@ -1202,7 +1227,7 @@ void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 			{
 				vvsTable.push_back({ vsResult[ii] });
 			}
-			vsCol = { prompt[4], "Value" };
+			vsCol = { "Value" };
 			vsRow = getColTitle(prompt[1], prompt[2]);  // This is not a typo.
 		}
 		else if (vsDataIndex[0] == "all")
@@ -1214,7 +1239,6 @@ void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 				vvsTable[ii].erase(vvsTable[ii].begin());
 			}
 			vsCol = getColTitle(prompt[1], prompt[2]);
-			vsCol.insert(vsCol.begin(), prompt[4]);
 			vsRow = getRowTitle(prompt[1], prompt[2]);
 		}
 		else { jf.err("Unknown vsDataIndex-SCDAserver.pullTable"); }
@@ -1236,17 +1260,17 @@ void SCDAserver::pullTable(vector<string> prompt, vector<vector<string>> vvsDIM)
 			vvsTable[index].assign(vsResult.begin() + 1, vsResult.end());
 		}
 		vsCol = getColTitle(prompt[1], prompt[2]);
-		vsCol.insert(vsCol.begin(), prompt[4]);
 		vsRow = getRowTitle(prompt[1], prompt[2]);
 	}
 
-	postDataEvent(DataEvent(DataEvent::Table, prompt[0], vvsTable, vsCol, vsRow), prompt[0]);
+	postDataEvent(DataEvent(DataEvent::Table, prompt[0], vvsTable, vsCol, vsRow, prompt[4]), prompt[0]);
 }
 void SCDAserver::pullTopic(vector<string> prompt)
 {
 	// Posts an event containing the list of options for the column topic and
 	// the row topic. The prompt has form [id, year, category, colTopic, rowTopic].
 	if (prompt.size() != 5) { jf.err("Missing prompt-SCDAserver.pullTopic"); }
+
 	string sID = prompt[0];
 	prompt.erase(prompt.begin());
 	vector<vector<string>> vvsCata = getCatalogue(prompt);
@@ -1319,6 +1343,11 @@ void SCDAserver::pullTree(vector<string> prompt)
 	// Creates a "tree" event containing a JTREE object that describes the geographical regions.
 	// Prompt has form [id, year, cata].
 	if (prompt.size() < 3) { jf.err("Missing prompt-SCDAserver.pullTree"); }
+
+	// Determine the correct internal year.
+	string tempYear = prompt[1];
+	prompt[1] = getYear(tempYear, prompt[2]);
+
 	JTREE jt;
 	vector<vector<string>> geo = getGeo(prompt[1], prompt[2]);
 	jf.removeBlanks(geo);

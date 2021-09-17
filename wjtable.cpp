@@ -25,7 +25,7 @@ void WJTABLE::cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol)
 	string sValue0 = "0px";
 	string sValue6 = "6px";
 	Wt::WContainerWidget *wBox = nullptr;
-	Wt::WWidget *wGreatgrandparent = nullptr, *wHeader = nullptr;
+	Wt::WWidget *wHeader = nullptr;
 	Wt::WText* wText = nullptr;
 	Wt::WModelIndex wmiTemp;
 	Wt::WStandardItem* wsiTemp = nullptr;
@@ -118,8 +118,9 @@ void WJTABLE::cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol)
 		}
 		sID = mapHeaderID.at(selectedCol);
 		wHeader = findById(sID);
-		wGreatgrandparent = wHeader->parent()->parent()->parent();
-		wGreatgrandparent->decorationStyle().setBackgroundColor(wcWhite);
+		wBox = (Wt::WContainerWidget*)wHeader->parent()->parent()->parent();
+		wBox->decorationStyle().setBackgroundColor(wcWhite);
+		wBox->setPadding(0.0, Wt::Side::Left);
 	}
 
 	// Apply new row/column highlighting. 
@@ -146,32 +147,13 @@ void WJTABLE::cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol)
 		}
 		sID = mapHeaderID.at(iCol);
 		wHeader = findById(sID);
-		wGreatgrandparent = wHeader->parent()->parent()->parent();
-		wBox = dynamic_cast<Wt::WContainerWidget*>(wGreatgrandparent);
+		wBox = (Wt::WContainerWidget*)wHeader->parent()->parent()->parent();
 		wBox->decorationStyle().setBackgroundColor(wcSelectedWeak);
 		wBox->setPadding(0.0, Wt::Side::Left);
 	}
 
 	// Update the saved selectedIndex.
 	selectedIndex = wmIndex;
-}
-void WJTABLE::display()
-{
-	setModel(model);
-	setSortingEnabled(0);
-	int numCol = model->columnCount();
-	setOverflow(Wt::Overflow::Visible, Wt::Orientation::Vertical);
-	setRowHeight(heightCell);
-	setHeaderHeight(heightHeader);
-	setPreloadMargin(60000.0);
-	for (int ii = 0; ii < numCol; ii++)
-	{
-		setHeaderWordWrap(ii, 1);
-		setHeaderAlignment(ii, Wt::AlignmentFlag::Top);
-		setColumnAlignment(ii, Wt::AlignmentFlag::Top);
-		if (ii == 0) { setColumnWidth(ii, 200.0); }
-		else { setColumnWidth(ii, 170.0); }
-	}
 }
 string WJTABLE::getCell(int iRow, int iCol)
 {
@@ -220,79 +202,6 @@ int WJTABLE::getRowIndex(string sHeader)
 		index = mapRowIndex.at(sHeader);
 	}
 	return index;
-}
-JTREE WJTABLE::getTreeCol(string& priorSel)
-{
-	JTREE jtCol;
-	jtCol.init("No Filter", -1);
-	int indent;
-	string sHeader, sParent;
-	vector<int> indentHistory;
-	int numCol = model->columnCount();
-	for (int ii = 1; ii < numCol; ii++)
-	{
-		indent = mapIndentCol.at(ii);
-		if (indentHistory.size() <= indent) { indentHistory.push_back(ii); }
-		else
-		{
-			indentHistory[indent] = ii;
-			indentHistory.resize(indent + 1);
-		}
-
-		sHeader = mapColValue.at(ii);
-		if (indent == 0) { jtCol.addChild(sHeader, -2, -1); }
-		else 
-		{
-			sParent = mapColValue.at(indentHistory[indentHistory.size() - 2]);
-			jtCol.addChild(sHeader, -2, sParent);
-		}
-	}
-
-	if (colFilterParent >= 0) { priorSel = mapColValue.at(colFilterParent); }
-	else { priorSel.clear(); }
-	return jtCol;
-}
-JTREE WJTABLE::getTreeRow(string& priorSel)
-{
-	JTREE jtRow;
-	jtRow.init("No Filter", -1);
-	int indent;
-	string sHeader, sParent;
-	Wt::WString wsTemp;
-	vector<int> indentHistory;
-	Wt::WStandardItem* wsiTemp;
-	int numRow = model->rowCount();
-	for (int ii = 0; ii < numRow; ii++)
-	{
-		indent = mapIndentRow.at(ii);
-		if (indentHistory.size() <= indent) { indentHistory.push_back(ii); }
-		else
-		{
-			indentHistory[indent] = ii;
-			indentHistory.resize(indent + 1);
-		}
-
-		wsiTemp = model->item(ii, 0);
-		wsTemp = wsiTemp->text();
-		sHeader = wsTemp.toUTF8();
-		if (indent == 0) { jtRow.addChild(sHeader, -2, -1); }
-		else
-		{
-			wsiTemp = model->item(indentHistory[indentHistory.size() - 2], 0);
-			wsTemp = wsiTemp->text();
-			sParent = wsTemp.toUTF8();
-			jtRow.addChild(sHeader, -2, sParent);
-		}
-	}
-
-	if (rowFilterParent >= 0) 
-	{ 
-		wsiTemp = model->item(rowFilterParent, 0);
-		wsTemp = wsiTemp->text();
-		priorSel = wsTemp.toUTF8();
-	}
-	else { priorSel.clear(); }
-	return jtRow;
 }
 string WJTABLE::getUnit()
 {
@@ -430,7 +339,56 @@ void WJTABLE::headerSelect(int iCol)
 		wBox->setPadding(6.0, Wt::Side::Left);
 	}
 }
-void WJTABLE::init()
+void WJTABLE::init(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow, string sRegion)
+{
+	initValues();
+	initModel(vvsTable.size(), vvsTable[0].size() + 1);
+	modelSetTopLeft(sRegion);
+	modelSetTop(vsCol);
+	modelSetLeft(vsRow);
+	modelSetCore(vvsTable);
+
+	// Signal/function connection.
+	this->clicked().connect(this, std::bind(&WJTABLE::tableClicked, this, std::placeholders::_1, std::placeholders::_2));
+	this->headerClicked().connect(this, std::bind(&WJTABLE::tableHeaderClicked, this, std::placeholders::_1, std::placeholders::_2));
+	wjhDel->sigHeaderID().connect(this, std::bind(&WJTABLE::saveHeader, this, std::placeholders::_1, std::placeholders::_2));
+}
+void WJTABLE::initBlank()
+{
+	vector<vector<string>> vvsTable = { {"0"} };
+	vector<string> vsCol = { "NoCol" };
+	vector<string> vsRow = { "NoRow" };
+	initValues();
+	initModel(vvsTable.size(), vvsTable[0].size() + 1);
+	modelSetTopLeft("NoRegion");
+	modelSetTop(vsCol);
+	modelSetLeft(vsRow);
+	modelSetCore(vvsTable);
+}
+void WJTABLE::initModel(int numRow, int numCol)
+{
+	wjDel = make_shared<WJDELEGATE>(heightCell);
+	setItemDelegate(wjDel);
+	wjhDel = make_shared<WJHDELEGATE>(heightHeader);
+	setHeaderItemDelegate(wjhDel);
+	model = make_shared<Wt::WStandardItemModel>(numRow, numCol);
+	setModel(model);
+	setSortingEnabled(0);
+	setColumnResizeEnabled(1);
+	setRowHeight(heightCell);
+	setHeaderHeight(heightHeader);
+	setPreloadMargin(60000.0);
+	setOverflow(Wt::Overflow::Auto);
+	for (int ii = 0; ii < numCol; ii++)
+	{
+		setHeaderWordWrap(ii, 1);
+		setHeaderAlignment(ii, Wt::AlignmentFlag::Top);
+		setColumnAlignment(ii, Wt::AlignmentFlag::Top);
+		if (ii == 0) { setColumnWidth(ii, 200.0); }
+		else { setColumnWidth(ii, 170.0); }
+	}
+}
+void WJTABLE::initValues()
 {
 	// WColors used.
 	wcSelectedWeak.setRgb(200, 200, 255);
@@ -456,10 +414,6 @@ void WJTABLE::init()
 	setUnitPercent.emplace(" percentage");
 	setUnitPercent.emplace("Rate ");
 	setUnitPercent.emplace(" rate");
-
-	// Initial widget configuration.
-	this->clicked().connect(this, std::bind(&WJTABLE::tableClicked, this, std::placeholders::_1, std::placeholders::_2));
-	this->headerClicked().connect(this, std::bind(&WJTABLE::tableHeaderClicked, this, std::placeholders::_1, std::placeholders::_2));
 }
 void WJTABLE::modelSetCore(vector<vector<string>>& vvsData)
 {
@@ -476,23 +430,25 @@ void WJTABLE::modelSetCore(vector<vector<string>>& vvsData)
 		else { rowUnit = 0; }
 		for (int jj = 0; jj < vvsData[ii].size(); jj++)
 		{
-			if (!rowUnit && mapColUnit.count(jj + 1))
-			{
-				unit = mapColUnit.at(jj + 1);
-				temp = jf.numericToCommaString(vvsData[ii][jj], 1) + "\n(" + unit + ")";
-			}
-			else if (!rowUnit) 
+			if (!rowUnit && mapColUnit.count(jj + 1)) { unit = mapColUnit.at(jj + 1); }
+			else if (!rowUnit)  { unit = "# of persons"; }
+
+			if (unit == "%") 
 			{ 
-				unit = "# of persons"; 
+				temp = jf.numericToCommaString(vvsData[ii][jj], 1) + "\n(" + unit + ")"; 
+			}
+			else
+			{
 				temp = jf.numericToCommaString(vvsData[ii][jj], 0) + "\n(" + unit + ")";
 			}
+
 			model->setData(ii, jj + 1, temp, Wt::ItemDataRole::Display);
 		}
 	}
 }
-int WJTABLE::modelSetLeft(vector<string>& vsRow)
+void WJTABLE::modelSetLeft(vector<string>& vsRow)
 {
-	int count, maxIndent = 0;
+	int count;
 	for (int ii = 0; ii < vsRow.size(); ii++)
 	{
 		mapRowIndex.emplace(vsRow[ii], ii);
@@ -500,14 +456,12 @@ int WJTABLE::modelSetLeft(vector<string>& vsRow)
 		model->setData(ii, 0, vsRow[ii], Wt::ItemDataRole::Display);
 		count = 0;
 		while (vsRow[ii][count] == '+') { count++; }
-		if (count > maxIndent) { maxIndent = count; }
 		mapIndentRow.emplace(ii, count);
 	}
-	return maxIndent;
 }
-int WJTABLE::modelSetTop(vector<string>& vsCol)
+void WJTABLE::modelSetTop(vector<string>& vsCol)
 {
-	int count, maxIndent = 0;
+	int count;
 	for (int ii = 0; ii < vsCol.size(); ii++)
 	{
 		mapColIndex.emplace(vsCol[ii], ii + 1);
@@ -516,42 +470,13 @@ int WJTABLE::modelSetTop(vector<string>& vsCol)
 		model->setHeaderData(ii + 1, Wt::Orientation::Horizontal, vsCol[ii], Wt::ItemDataRole::Display);
 		count = 0;
 		while (vsCol[ii][count] == '+') { count++; }
-		if (count > maxIndent) { maxIndent = count; }
 		mapIndentCol.emplace(ii + 1, count);
 	}
-	return maxIndent;
 }
 void WJTABLE::modelSetTopLeft(string sRegion)
 {
 	mapColValue.emplace(0, sRegion);
 	model->setHeaderData(0, Wt::Orientation::Horizontal, sRegion, Wt::ItemDataRole::Display);
-}
-void WJTABLE::reset()
-{
-	reset(1, 1);
-}
-void WJTABLE::reset(int numRow, int numCol)
-{
-	colFilterParent = 0;
-	rowFilterParent = -1;
-	mapColIndex.clear();
-	mapRowIndex.clear();
-	mapColUnit.clear();
-	mapRowUnit.clear();
-	mapHeaderID.clear();
-	mapColValue.clear();
-	selectedIndex = Wt::WModelIndex();  // Makes it invalid.
-
-	auto sptrModel = make_shared<Wt::WStandardItemModel>(numRow, numCol);
-	swap(model, sptrModel);
-	auto wjd = make_shared<WJDELEGATE>(heightCell);
-	swap(wjDel, wjd);
-	setItemDelegate(wjDel);
-	auto wjhd = make_shared<WJHDELEGATE>(heightHeader);
-	swap(wjhDel, wjhd);
-	setHeaderItemDelegate(wjhDel);
-
-	wjhDel->sigHeaderID().connect(this, std::bind(&WJTABLE::saveHeader, this, std::placeholders::_1, std::placeholders::_2));
 }
 void WJTABLE::saveHeader(const int& iCol, const string& sID)
 {
@@ -637,108 +562,6 @@ void WJTABLE::setRowUnit(string& rowHeader, int index)
 		if (unit.size() > 0) { mapRowUnit.emplace(index, unit); }
 	}
 }
-void WJTABLE::setSubsectionFilterCol(int iCol)
-{
-	colFilterParent = iCol;
-	setSubsectionFilter(rowFilterParent, iCol);
-}
-void WJTABLE::setSubsectionFilterRow(int iRow)
-{
-	rowFilterParent = iRow;
-	setSubsectionFilter(iRow, colFilterParent);
-}
-void WJTABLE::setSubsectionFilter(int iRow, int iCol)
-{
-	// Only iRow/iCol and their descendents will be visible on the table. 
-	if (iRow < 0 && iCol <= 0) 
-	{ 
-		setModel(model); 
-		return;
-	}
-
-	int numRow = model->rowCount();
-	int numIndent = mapIndentRow.size();
-	if (numIndent != numRow) { jf.err("Row map size mismatch-wjtable.setSubsectionFilter"); }
-
-	int numCol = model->columnCount();
-	numIndent = mapIndentCol.size();
-	if (numIndent + 1 != numCol) { jf.err("Column map size mismatch-wjtable.setSubsectionFilter"); }
-
-	int indent, index;
-	vector<int> viCol, viRow;
-
-	if (iRow >= 0)
-	{
-		int indentIRow = mapIndentRow.at(iRow);
-		viRow = { iRow };
-		for (int ii = iRow + 1; ii < numRow; ii++)
-		{
-			indent = mapIndentRow.at(ii);
-			if (indent > indentIRow) { viRow.push_back(ii); }
-			else { break; }
-		}
-	}
-	else 
-	{ 
-		viRow.resize(numRow);
-		for (int ii = 0; ii < numRow; ii++)
-		{
-			viRow[ii] = ii;
-		}
-	}
-
-	if (iCol >= 1)
-	{
-		int indentICol = mapIndentCol.at(iCol);
-		viCol = { iCol };
-		for (int ii = iCol + 1; ii < numCol; ii++)
-		{
-			indent = mapIndentCol.at(ii);
-			if (indent > indentICol) { viCol.push_back(ii); }
-			else { break; }
-		}
-	}
-	else
-	{
-		viCol.resize(numCol - 1);
-		for (int ii = 1; ii < numCol; ii++)
-		{
-			viCol[ii - 1] = ii;
-		}
-	}
-
-	auto modelTemp = make_shared<Wt::WStandardItemModel>(numRow, numCol);
-	string temp = mapColValue.at(0);
-	modelTemp->setHeaderData(0, Wt::Orientation::Horizontal, temp, Wt::ItemDataRole::Display);
-	index = 1;
-	for (int ii = 0; ii < viCol.size(); ii++)
-	{
-		temp = mapColValue.at(viCol[ii]);
-		modelTemp->setHeaderData(index, Wt::Orientation::Horizontal, temp, Wt::ItemDataRole::Display);
-		index++;
-	}
-
-	Wt::WString wsTemp;
-	Wt::WStandardItem* wsiOld;
-	for (int ii = 0; ii < viRow.size(); ii++)
-	{
-		wsiOld = model->item(viRow[ii], 0);
-		wsTemp = wsiOld->text();
-		auto wsiNew = make_unique<Wt::WStandardItem>(wsTemp);
-		modelTemp->setItem(viRow[ii], 0, move(wsiNew));
-		index = 1;
-		for (int jj = 0; jj < viCol.size(); jj++)
-		{
-			wsiOld = model->item(viRow[ii], viCol[jj]);
-			wsTemp = wsiOld->text();
-			auto wsiNew = make_unique<Wt::WStandardItem>(wsTemp);
-			modelTemp->setItem(viRow[ii], viCol[jj], move(wsiNew));
-		}
-	}
-	
-	swap(modelTemp, modelFiltered);
-	setModel(modelFiltered);
-}
 void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent)
 {
 	// Triggered in response to a user click.
@@ -747,12 +570,13 @@ void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent
 	cellSelect(wmIndex);
 	int iRow = wmIndex.row();
 	int iCol = wmIndex.column();
-	timerSignal_.emit(iRow, iCol);
+	headerSignal_.emit(iRow, iCol);
 }
 void WJTABLE::tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent)
 {
 	// Triggered in response to a user click.
 	jf.timerStart();
 	headerSelect(iCol);
-	vClick().emit(WJTABLE::ColRowSel);
+	int iRow = selectedIndex.row();
+	headerSignal_.emit(iRow, iCol);
 }

@@ -225,6 +225,7 @@ vector<vector<double>> WTPAINT::getScaleValues(int numTicks)
 	int iMin = floor(dMin);
 	int iMax = ceil(dMax);
 
+	/*
 	if (sUnit == "%")  // Only possible when the raw table data is already a percentage.
 	{
 		ticks[0][0] = 0.0;
@@ -236,6 +237,7 @@ vector<vector<double>> WTPAINT::getScaleValues(int numTicks)
 		}
 		return ticks;
 	}
+	*/
 
 	int iNum = iMin;
 	int minDigits = 1;
@@ -417,11 +419,30 @@ vector<vector<double>> WTPAINT::getScaleValues(int numTicks)
 void WTPAINT::makeAreas()
 {
 	Wt::WString wTemp;
+	string suffix, value;
+	double dAreaValue;
+	int iAreaValue;
 	clearAreas();
+	prepareActiveData();
 	for (int ii = 0; ii < border.size(); ii++)
 	{
+		value = areaName[ii] + "\n";
+		dAreaValue = activeData->at(ii);
+		if (dAreaValue > 101.0)
+		{
+			iAreaValue = int(round(dAreaValue));
+			value += jf.intToCommaString(iAreaValue);
+		}
+		else { value += jf.doubleToCommaString(dAreaValue, 1); }
+		if (legendTickLines == 1) { suffix = " (" + sUnit + ")"; }
+		else
+		{
+			if (displayData.size() == 1) { suffix = "\n(" + sUnit + ")"; }  // # of persons
+			else { suffix = " %\n(of population)"; }
+		}
+		wTemp = Wt::WString::fromUTF8(value + suffix);
+
 		auto wpArea = make_unique<Wt::WPolygonArea>(border[ii]);
-		wTemp = Wt::WString::fromUTF8(areaName[ii]);
 		wpArea->setToolTip(wTemp);
 		area.push_back(wpArea.get());
 		this->addArea(move(wpArea));
@@ -487,7 +508,8 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	Wt::WRectF rectColour, rectColourParent, rectWhiteParent, rectDot;
 	Wt::WGradient wGrad, wGradParent;
 	Wt::WColor wColour;
-	Wt::WString wsValue, wsUnit, wsTemp;
+	Wt::WString wsName, wsValue, wsUnit, wsTemp;
+	vector<string> vsList, vsListCentered;
 	string temp, displayUnit, suffix;
 	int widthDiff;
 
@@ -920,55 +942,27 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	}
 	else if (legendBarDouble == 2)
 	{
-		temp = areaName[areaName.size() - 1];
-		if (legendTickLines == 1)
-		{
-			temp += suffix;
-			wsValue = Wt::WString::fromUTF8(temp);
-		}
-		else if (displayUnit == "(of population)")
-		{
-			wsValue = Wt::WString::fromUTF8(temp);
-			displayUnit = "(% of population)";
-			wsUnit = Wt::WString::fromUTF8(displayUnit);
-			widthDiff = abs((int)displayUnit.size() - (int)temp.size());
-			widthDiff /= 2;
-			wsTemp = "";
-			for (int jj = 0; jj < widthDiff; jj++)
-			{
-				wsTemp += " ";
-			}
-		}
-		else
-		{
-			wsValue = Wt::WString::fromUTF8(temp);
-			wsUnit = Wt::WString::fromUTF8(displayUnit);
-			widthDiff = abs((int)displayUnit.size() - (int)temp.size());
-			widthDiff /= 2;
-			wsTemp = "";
-			for (int jj = 0; jj < widthDiff; jj++)
-			{
-				wsTemp += " ";
-			}
-		}
-
 		double parentValue = activeData->at(activeData->size() - 1);
-		dTemp = (parentValue - (double)scaleValues[0][0]) / (double)(scaleValues[0][scaleValues[0].size() - 1] - scaleValues[0][0]);
+		dTemp = (parentValue - (double)scaleValues[0][0]) / (double)(scaleValues[0][scaleValues[0].size() - 1] - scaleValues[0][0]);	
 		if (parentValue < 0.0) { gameOn = 0; }
+		vsList = { areaName[areaName.size() - 1] };
+
+		if (parentValue > 101.0)
+		{
+			int iParentValue = int(round(parentValue));
+			temp = jf.intToCommaString(iParentValue) + suffix;
+		}
+		else { temp = jf.doubleToCommaString(parentValue, 1) + suffix; }
+		vsList.push_back(temp);
+
+		if (legendTickLines != 1)
+		{
+			vsList.push_back(displayUnit);
+		}
 
 		if (barVertical && gameOn)
 		{
-			if (legendTickLines > 1)
-			{
-				if (temp.size() < displayUnit.size())
-				{
-					wsValue = wsTemp + wsValue;
-				}
-				else
-				{
-					wsUnit = wsTemp + wsUnit;
-				}
-			}
+			vsListCentered = jf.horizontalCentering(vsList);
 
 			tickXP = barTLBR[0][0] + barNumberWidth + (1.5 * barThickness);
 			tickYP = wGradY0 - (dTemp * dLen) + 1.0;
@@ -976,11 +970,11 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 
 			xCoord = tickXP + (0.5 * barThickness) + 2.0;
 			yCoord = tickYP - (0.5 * (double)legendTickLines * barNumberHeight);
-			painter.drawText(xCoord, yCoord, barNumberWidth, barNumberHeight, Wt::AlignmentFlag::Left, wsValue);
-			if (legendTickLines > 1)
+			for (int ii = 0; ii < vsListCentered.size(); ii++)
 			{
+				wsTemp = Wt::WString::fromUTF8(vsListCentered[ii]);
+				painter.drawText(xCoord, yCoord, barNumberWidth, barNumberHeight, Wt::AlignmentFlag::Left, wsTemp);
 				yCoord += barNumberHeight;
-				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Left, wsUnit);
 			}
 
 			double dRadius = (barThickness - 6.0) / 2.0;
@@ -999,12 +993,11 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 			if (xCoord < coordMin) { xCoord = coordMin; }
 			coordMax = barTLBR[1][0] - barNumberWidth;
 			if (xCoord > coordMax) { xCoord = coordMax; }
-
-			painter.drawText(xCoord, yCoord, barNumberWidth, barNumberHeight, Wt::AlignmentFlag::Center, wsValue);
-			if (legendTickLines > 1)
+			for (int ii = 0; ii < vsList.size(); ii++)
 			{
+				wsTemp = Wt::WString::fromUTF8(vsList[ii]);
+				painter.drawText(xCoord, yCoord, barNumberWidth, barNumberHeight, Wt::AlignmentFlag::Center, wsTemp);
 				yCoord += barNumberHeight;
-				painter.drawText(xCoord, yCoord, barNumberWidth, barThickness, Wt::AlignmentFlag::Center, wsUnit);
 			}
 
 			double dRadius = (barThickness - 6.0) / 2.0;
