@@ -8,6 +8,7 @@
 #include "jtree.h"
 #include "sqlfunc.h"
 #include "winfunc.h"
+#include "wjbargraph.h"
 #include "wjconfig.h"
 #include "wjpdf.h"
 #include "wjtable.h"

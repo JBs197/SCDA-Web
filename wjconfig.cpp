@@ -1,5 +1,56 @@
 #include "wjconfig.h"
 
+void WJPANEL::applyFilter(int cbIndex, vector<int>& viFilter)
+{
+	Wt::WString wsTemp;
+	int currentIndex, indent;
+	int keepIndex = -1;
+	switch (cbIndex)
+	{
+	case 0:
+	{
+		currentIndex = cbTitle->currentIndex();
+		cbTitle->clear();
+		mapTitleIndex.clear();
+		mapTitleIndent.clear();
+		for (int ii = 0; ii < viFilter.size(); ii++)
+		{
+			if (viFilter[ii] == currentIndex) { keepIndex = ii; }
+			mapTitleIndex.emplace(vsTitle[viFilter[ii]], ii);
+			indent = 0;
+			while (vsTitle[viFilter[ii]][indent] == '+') { indent++; }
+			mapTitleIndent.emplace(ii, indent);
+			wsTemp = Wt::WString::fromUTF8(vsTitle[viFilter[ii]]);
+			cbTitle->addItem(wsTemp);
+		}
+		if (keepIndex >= 0) { cbTitle->setCurrentIndex(keepIndex); }
+		else { cbTitle->setCurrentIndex(0); }
+		cbTitle->setHidden(0);
+		break;
+	}
+	case 1:
+	{
+		currentIndex = cbMID->currentIndex();
+		cbMID->clear();
+		mapMIDIndex.clear();
+		mapMIDIndent.clear();
+		for (int ii = 0; ii < viFilter.size(); ii++)
+		{
+			if (viFilter[ii] == currentIndex) { keepIndex = ii; }
+			mapMIDIndex.emplace(vsMID[viFilter[ii]], ii);
+			indent = 0;
+			while (vsMID[viFilter[ii]][indent] == '+') { indent++; }
+			mapMIDIndent.emplace(ii, indent);
+			wsTemp = Wt::WString::fromUTF8(vsMID[viFilter[ii]]);
+			cbMID->addItem(wsTemp);
+		}
+		if (keepIndex >= 0) { cbMID->setCurrentIndex(keepIndex); }
+		else { cbMID->setCurrentIndex(0); }
+		cbMID->setHidden(0);
+		break;
+	}
+	}
+}
 void WJPANEL::clear()
 {
 	mapMIDIndex.clear();
@@ -101,6 +152,30 @@ void WJPANEL::unhighlight(int widgetIndex)
 		break;
 	}
 }
+void WJPANEL::resetMapIndex(int cbIndex)
+{
+	switch (cbIndex)
+	{
+	case 0:
+	{
+		mapTitleIndex.clear();
+		for (int ii = 0; ii < vsTitle.size(); ii++)
+		{
+			mapTitleIndex.emplace(vsTitle[ii], ii);
+		}
+		break;
+	}
+	case 1:
+	{
+		mapMIDIndex.clear();
+		for (int ii = 0; ii < vsMID.size(); ii++)
+		{
+			mapMIDIndex.emplace(vsMID[ii], ii);
+		}
+		break;
+	}
+	}
+}
 void WJPANEL::setCB(int cbIndex, vector<string>& vsList)
 {
 	int index = 0;
@@ -117,6 +192,7 @@ void WJPANEL::setCB(int cbIndex, vector<string>& vsList, int iActive)
 		cbTitle->clear();
 		mapTitleIndex.clear();
 		mapTitleIndent.clear();
+		vsTitle = vsList;
 		for (int ii = 0; ii < vsList.size(); ii++)
 		{
 			mapTitleIndex.emplace(vsList[ii], ii);
@@ -135,6 +211,7 @@ void WJPANEL::setCB(int cbIndex, vector<string>& vsList, int iActive)
 		cbMID->clear();
 		mapMIDIndex.clear();
 		mapMIDIndent.clear();
+		vsMID = vsList;
 		for (int ii = 0; ii < vsList.size(); ii++)
 		{
 			mapMIDIndex.emplace(vsList[ii], ii);
@@ -161,6 +238,7 @@ void WJPANEL::setCB(int cbIndex, vector<string>& vsList, string sActive)
 		cbTitle->clear();
 		mapTitleIndex.clear();
 		mapTitleIndent.clear();
+		vsTitle = vsList;
 		int index = 0;
 		for (int ii = 0; ii < vsList.size(); ii++)
 		{
@@ -181,6 +259,7 @@ void WJPANEL::setCB(int cbIndex, vector<string>& vsList, string sActive)
 		cbMID->clear();
 		mapMIDIndex.clear();
 		mapMIDIndent.clear();
+		vsMID = vsList;
 		int index = 0;
 		for (int ii = 0; ii < vsList.size(); ii++)
 		{
@@ -355,22 +434,28 @@ void WJCONFIG::demographicChanged()
 	if (wsTemp == wsNoneSel) { wjpDemo->highlight(0); }
 	else { wjpDemo->unhighlight(0); }
 
-	vector<string> prompt(3);
-	prompt[0] = "";
+	wsTemp = wjpYear->cbTitle->currentText();
+	vector<string> prompt = { "", wsTemp.toUTF8() };  // sID, sYear
 	vector<string> vsCata = getDemo();
 	if (vsCata.size() < 1) { return; }
 	else if (vsCata.size() == 1)
 	{
+		prompt.resize(6);
 		size_t pos1 = vsCata[0].find('@');
-		prompt[1] = vsCata[0].substr(0, pos1);
-		prompt[2] = vsCata[0].substr(pos1 + 1);
+		prompt[1] = vsCata[0].substr(0, pos1);  // Internal year.
+		prompt[5] = vsCata[0].substr(pos1 + 1);  // sCata
+		wsTemp = wjpCategory->cbTitle->currentText();
+		prompt[2] = wsTemp.toUTF8();
+		wsTemp = wjpTopicCol->cbTitle->currentText();
+		prompt[3] = wsTemp.toUTF8();
+		wsTemp = wjpTopicRow->cbTitle->currentText();
+		prompt[4] = wsTemp.toUTF8();
 		vector<vector<string>> vvsDummy;
-		setPrompt(prompt, vvsDummy);
-		pullSignal_.emit(4);  // Pull variable.
+		setPrompt(prompt, vvsDummy);  
+		pullSignal_.emit(4);  // Pull variable. Prompt has form [id, year, category, colTopic, rowTopic, activeCata].
 	}
 	else
 	{
-		prompt.resize(1);
 		vector<vector<string>> vvsCata = getDemoSplit(vsCata);
 		setPrompt(prompt, vvsCata);
 		pullSignal_.emit(1);  // Pull differentiator.
@@ -387,23 +472,25 @@ void WJCONFIG::dialogSubsectionFilterCol()
 	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
 	auto treeRoot = treeRootUnique.get();
-	Wt::WTreeNode* nodeSel = nullptr;
+	treeNodeSel = nullptr;
 	if (sFilterCol.size() > 0)
 	{
-		nodeSel = populateTree(jtCol, treeRoot, sFilterCol);
-		if (nodeSel == nullptr) { jf.err("Failed to locate previous tree node-wjconfig.dialogSubsectionFilterCol"); }
+		populateTree(jtCol, treeRoot, sFilterCol);
+		if (treeNodeSel == nullptr) { jf.err("Failed to locate previous tree node-wjconfig.dialogSubsectionFilterCol"); }
 	}
 	else { populateTree(jtCol, treeRoot); }
+	treeRootUnique->setNodeVisible(0);
 
 	auto tree = make_unique<Wt::WTree>();
 	tree->setSelectionMode(Wt::SelectionMode::Single);
-	treeRootUnique->setNodeVisible(0);
 	tree->setTreeRoot(move(treeRootUnique));
-	if (nodeSel != nullptr) { tree->select(nodeSel); }
+	if (treeNodeSel != nullptr) { tree->select(treeNodeSel); }
 
 	tree->itemSelectionChanged().connect(this, &WJCONFIG::dialogSubsectionFilterColEnd);
 	treeDialogCol = tree.get();
 	auto wBox = wDialog->contents();
+	wBox->setMaximumSize(wlAuto, 600.0);
+	wBox->setOverflow(Wt::Overflow::Auto);
 	wBox->addWidget(move(tree));
 	wDialog->show();
 	swap(wDialog, wdFilter);
@@ -422,15 +509,17 @@ void WJCONFIG::dialogSubsectionFilterColEnd()
 	swap(wdFilter, wdDummy);
 
 	vector<string> vsChildren;
-	jtCol.listChildren(sFilterCol, vsChildren);
-	m_prompt.lock();
+	jtCol.listChildrenAll(sFilterCol, vsChildren);
+	wjpTopicCol->resetMapIndex(1);
+	m_config.lock();
 	viFilterCol.resize(vsChildren.size() + 1);
 	viFilterCol[0] = wjpTopicCol->mapMIDIndex.at(sFilterCol);
 	for (int ii = 0; ii < vsChildren.size(); ii++)
 	{
 		viFilterCol[ii + 1] = wjpTopicCol->mapMIDIndex.at(vsChildren[ii]);
 	}
-	m_prompt.unlock();
+	m_config.unlock();
+	wjpTopicCol->applyFilter(1, viFilterCol);
 	filterSignal_.emit();
 }
 void WJCONFIG::dialogSubsectionFilterRow()
@@ -444,22 +533,25 @@ void WJCONFIG::dialogSubsectionFilterRow()
 	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
 	auto treeRoot = treeRootUnique.get();
-	Wt::WTreeNode* nodeSel = nullptr;
+	treeNodeSel = nullptr;
 	if (sFilterRow.size() > 0)
 	{
-		nodeSel = populateTree(jtRow, treeRoot, sFilterRow);
-		if (nodeSel == nullptr) { jf.err("Failed to locate previous tree node-wjconfig.dialogSubsectionFilterRow"); }
+		populateTree(jtRow, treeRoot, sFilterRow);
+		if (treeNodeSel == nullptr) { jf.err("Failed to locate previous tree node-wjconfig.dialogSubsectionFilterRow"); }
 	}
 	else { populateTree(jtRow, treeRoot); }
+	treeRootUnique->setNodeVisible(0);
 
 	auto tree = make_unique<Wt::WTree>();
 	tree->setSelectionMode(Wt::SelectionMode::Single);
 	tree->setTreeRoot(move(treeRootUnique));
-	if (nodeSel != nullptr) { tree->select(nodeSel); }
+	if (treeNodeSel != nullptr) { tree->select(treeNodeSel); }
 
 	tree->itemSelectionChanged().connect(this, &WJCONFIG::dialogSubsectionFilterRowEnd);
 	treeDialogRow = tree.get();
 	auto wBox = wDialog->contents();
+	wBox->setMaximumSize(wlAuto, 600.0);
+	wBox->setOverflow(Wt::Overflow::Auto);
 	wBox->addWidget(move(tree));
 	wDialog->show();
 	swap(wDialog, wdFilter);
@@ -478,15 +570,17 @@ void WJCONFIG::dialogSubsectionFilterRowEnd()
 	swap(wdFilter, wdDummy);
 
 	vector<string> vsChildren;
-	jtRow.listChildren(sFilterRow, vsChildren);
-	m_prompt.lock();
+	jtRow.listChildrenAll(sFilterRow, vsChildren);
+	wjpTopicRow->resetMapIndex(1);
+	m_config.lock();
 	viFilterRow.resize(vsChildren.size() + 1);
 	viFilterRow[0] = wjpTopicRow->mapMIDIndex.at(sFilterRow);
 	for (int ii = 0; ii < vsChildren.size(); ii++)
 	{
 		viFilterRow[ii + 1] = wjpTopicRow->mapMIDIndex.at(vsChildren[ii]);
 	}
-	m_prompt.unlock();
+	m_config.unlock();
+	wjpTopicRow->applyFilter(1, viFilterRow);
 	filterSignal_.emit();
 }
 void WJCONFIG::diffTitleChanged(string id)
@@ -572,20 +666,20 @@ vector<vector<int>> WJCONFIG::getFilterTable()
 {
 	// Return form [row, col][permitted indices].
 	vector<vector<int>> vviFilter(2, vector<int>());
-	m_prompt.lock();
+	m_config.lock();
 	vviFilter[0] = viFilterRow;
 	vviFilter[1] = viFilterCol;
-	m_prompt.unlock();
+	m_config.unlock();
 	return vviFilter;
 }
 void WJCONFIG::getPrompt(vector<string>& vsP)
 {
-	lock_guard<mutex> lg(m_prompt);
+	lock_guard<mutex> lg(m_config);
 	vsP = vsPrompt;
 }
 void WJCONFIG::getPrompt(vector<string>& vsP, vector<vector<string>>& vvsP)
 {
-	lock_guard<mutex> lg(m_prompt);
+	lock_guard<mutex> lg(m_config);
 	vsP = vsPrompt;
 	vvsP = vvsPrompt;
 }
@@ -917,12 +1011,11 @@ void WJCONFIG::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 		node->addChildNode(move(childUnique));
 	}
 }
-Wt::WTreeNode* WJCONFIG::populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName)
+void WJCONFIG::populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName)
 {
 	// Recursive function that takes an existing node and makes its children.
 	// This variant will return a pointer to the node with name sName.
 	vector<string> vsChildren;
-	Wt::WTreeNode* nodeSel = nullptr;
 	Wt::WString wTemp = node->label()->text();
 	string sNode = wTemp.toUTF8();
 	if (jt.isExpanded(sNode)) { node->expand(); }
@@ -934,14 +1027,13 @@ Wt::WTreeNode* WJCONFIG::populateTree(JTREE& jt, Wt::WTreeNode*& node, string sN
 		wTemp = Wt::WString::fromUTF8(vsChildren[ii]);
 		auto childUnique = make_unique<Wt::WTreeNode>(wTemp);
 		auto child = childUnique.get();
-		nodeSel = populateTree(jt, child, sName);
+		populateTree(jt, child, sName);
 		if (vsChildren[ii] == sName)
 		{
-			nodeSel = node->addChildNode(move(childUnique));
+			treeNodeSel = node->addChildNode(move(childUnique));
 		}
 		else { node->addChildNode(move(childUnique)); }
 	}
-	return nodeSel;
 }
 void WJCONFIG::removeDifferentiators()
 {
@@ -1004,13 +1096,13 @@ void WJCONFIG::resetVariables(int plus)
 }
 void WJCONFIG::setPrompt(vector<string>& vsP)
 {
-	lock_guard<mutex> lg(m_prompt);
+	lock_guard<mutex> lg(m_config);
 	vsPrompt = vsP;
 	vvsPrompt.clear();
 }
 void WJCONFIG::setPrompt(vector<string>& vsP, vector<vector<string>>& vvsP)
 {
-	lock_guard<mutex> lg(m_prompt);
+	lock_guard<mutex> lg(m_config);
 	vsPrompt = vsP;
 	vvsPrompt = vvsP;
 }

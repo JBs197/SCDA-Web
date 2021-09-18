@@ -13,6 +13,7 @@
 #include "jtree.h"
 
 using namespace std;
+extern mutex m_config;
 
 struct WJPANEL : public Wt::WPanel
 {
@@ -23,14 +24,17 @@ struct WJPANEL : public Wt::WPanel
 	unordered_map<string, int> mapMIDIndex, mapTitleIndex;  // sValue -> index within CB 
 	Wt::WComboBox* cbMID = nullptr;
 	Wt::WComboBox* cbTitle = nullptr;
+	Wt::WPushButton* pbDialog = nullptr;
+	vector<string> vsTitle, vsMID;
 	Wt::WColor wcBorder, wcOffWhite, wcSelectedWeak, wcWhite;
 	Wt::WBorder wbDefaultCB;
-	Wt::WPushButton* pbDialog = nullptr;
 
+	void applyFilter(int cbIndex, vector<int>& viFilter);
 	void clear();
 	void highlight(int widgetIndex);
 	void init();
 	void unhighlight(int widgetIndex);
+	void resetMapIndex(int cbIndex);
 	void setCB(int cbIndex, vector<string>& vsList);
 	void setCB(int cbIndex, vector<string>& vsList, int iActive);
 	void setCB(int cbIndex, vector<string>& vsList, string sActive);
@@ -41,12 +45,12 @@ class WJCONFIG : public Wt::WContainerWidget
 {
 	JTREE jtCol, jtRow;
 	unordered_map<string, int> mapDiffIndex, mapVarIndex;  // sID -> var/diff index
-	mutex m_prompt;
 	Wt::Signal<int, int> headerSignal_;
 	Wt::Signal<> filterSignal_;
 	Wt::Signal<int> pullSignal_, resetSignal_;
 	string sFilterCol, sFilterRow;
 	Wt::WTree *treeDialogCol = nullptr, *treeDialogRow = nullptr;
+	Wt::WTreeNode *treeNodeSel = nullptr;
 	vector<int> viFilterCol, viFilterRow;
 	vector<string> vsPrompt;
 	vector<vector<string>> vvsPrompt;
@@ -102,7 +106,7 @@ public:
 	unique_ptr<WJPANEL> makePanelTopicRow();
 	unique_ptr<WJPANEL> makePanelYear(vector<string> vsYear);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
-	Wt::WTreeNode* populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName);
+	void populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName);
 	void removeDifferentiators();
 	void removeVariable(int varIndex);
 	void resetTopicSel();

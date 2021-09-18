@@ -1169,18 +1169,24 @@ void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 	addFrameKM(areas, vsGeoCode, prompt[1]);  // Final two coordinates (for the parent region) are the frame TLBR.
 
 	// Determine the data's unit.
-	vector<string> vsDim = vvsDIM.back();  // Form [column DIMIndex title, dimIndex(1, ...)].
+	vector<string> vsDim = vvsDIM.back();  // Form [column dim title, column dim MID].
 	vvsDIM.pop_back();
 	string sUnit = wjTable[clientIndex]->getUnit(vvsDIM[vvsDIM.size() - 1][1]);  // Firstly, check the row header.
 	if (sUnit.size() < 1)  // Secondly, check the column header. 
 	{
-		sUnit = getUnit(clientIndex, prompt[1], prompt[2], vsDim[1]);
+		sUnit = wjTable[clientIndex]->getUnit(vsDim[1]);
 	}
 
 	// Retrieve the unique DataIndex needed for this row of data. 
 	vector<string> vsDataIndex = getDataIndex(prompt[1], prompt[2], vvsDIM);
 	if (vsDataIndex.size() != 1) { jf.err("Failed to return one DataIndex-SCDAserver.pullMap"); }
-	vsDataIndex.push_back("dim" + vsDim[1]);  // Now has form [dataIndex, dimTitle].
+	result.clear();
+	string tname = "Census$" + prompt[1] + "$" + prompt[2] + "$Dim";
+	search = { "MID" };
+	conditions = { "Dim LIKE " + vsDim[1] };
+	sf.select(search, tname, result, conditions);
+	if (result.size() < 1) { jf.err("Failed to determine Dim's MID-SCDAserver.pullMap"); }
+	vsDataIndex.push_back("dim" + result);  // Now has form [dataIndex, dimTitle].
 
 	// Get all the table data cells. If unit is "persons" then also return region's 
 	// population. 

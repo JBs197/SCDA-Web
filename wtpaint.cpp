@@ -184,6 +184,28 @@ vector<vector<int>> WTPAINT::getFrame(vector<Wt::WPointF>& path)
 	jf.toInt(TLBRd, TLBR);
 	return TLBR;
 }
+vector<vector<string>> WTPAINT::getGraphData()
+{
+	// Return form [region index][sRegion, sData]
+	vector<vector<string>> vvsData(areaName.size(), vector<string>(2));
+	double dNum;
+	for (int ii = 0; ii < vvsData.size(); ii++)
+	{
+		if (ii < vvsData.size() - 1)
+		{
+			vvsData[ii + 1][0] = areaName[ii];
+			dNum = activeData->at(ii);
+			vvsData[ii + 1][1] = to_string(dNum);
+		}
+		else  // Parent region.
+		{
+			vvsData[0][0] = areaName[ii];
+			dNum = activeData->at(ii);
+			vvsData[0][1] = to_string(dNum);
+		}
+	}
+	return vvsData;
+}
 vector<vector<double>> WTPAINT::getParentFrameKM(vector<vector<vector<double>>>& vvvdBorder)
 {
 	vector<vector<double>> parentFrameKM;

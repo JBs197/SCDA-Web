@@ -68,6 +68,7 @@ public:
 	void initColour();
 	vector<double> getChildTL(vector<vector<double>>& vpfBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM);
 	vector<vector<int>> getFrame(vector<Wt::WPointF>& path);
+	vector<vector<string>> getGraphData();
 	vector<vector<double>> getParentFrameKM(vector<vector<vector<double>>>& vvvdBorder);
 	vector<vector<double>> getScaleValues(int numTicks);
 	void makeAreas();

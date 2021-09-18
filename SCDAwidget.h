@@ -14,6 +14,7 @@
 #include <Wt/WTabWidget.h>
 #include <Wt/WStackedWidget.h>
 #include <Wt/WMenuItem.h>
+#include <Wt/WToolBar.h>
 #include <Wt/WImage.h>
 #include <Wt/WEvent.h>
 #include <Wt/WJavaScript.h>
@@ -48,17 +49,18 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	const Wt::WString wsAll = Wt::WString("All");
 	const Wt::WString wsNoneSel = Wt::WString("[None selected]");
 
+	WJBARGRAPH* wjBarGraph = nullptr;
 	WJCONFIG* wjConfig = nullptr;
 	WJTABLE* tableData = nullptr;
 	WTPAINT* wtMap = nullptr;
 
 	Wt::WColor wcGrey, wcSelectedStrong, wcSelectedWeak, wcWhite;
-	Wt::WContainerWidget *boxConfig, *boxData, *boxDownload, *boxMap, *boxMapAll;
-	Wt::WContainerWidget *boxMapOption, *boxTable, *boxTextLegend;
+	Wt::WContainerWidget *boxBarGraph, *boxConfig, *boxData, *boxDownload, *boxMap;
+	Wt::WContainerWidget *boxMapAll, *boxMapOption, *boxTable, *boxTextLegend;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
 	Wt::WPopupMenu *popupUnit;
-	Wt::WPushButton *pbDownloadPDF, *pbUnit;
+	Wt::WPushButton *pbDownloadPDF, *pbPin, *pbPinReset, *pbUnit;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
 	Wt::WStackedWidget* stackedTabData;
@@ -68,12 +70,12 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 
 	vector<Wt::WPushButton*> allPB;
 
+	void addBarToGraph();
 	void cleanUnit(string& unit);
 	void connect();
 	void downloadMap();
 	int getHeight();
-	vector<string> getNextCBLayer(Wt::WComboBox*& wCB);
-	Wt::WString getTextLegend(Wt::WPanel*& wPanel);
+	vector<Wt::WString> getMapParameterList();
 	string getUnit();
 	int getWidth();
 	void incomingFilterSignal();
@@ -100,6 +102,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventTable(vector<vector<string>>& vvsTable, vector<string>& vsCol, vector<string>& vsRow, string& sRegion);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
 	void processEventTree(JTREE jt);
+	void resetBarGraph();
 	void resetMap();
 	void resetTable();
 	void resetTree();
@@ -108,6 +111,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void toggleMobile();
 	void treeClicked();
 	void treeClicked(int& geoCode, string& sRegion);
+	void updatePinButtons(string mapUnit);
 	void updateTextCata(int numCata);
 	void updateUnit(string sUnit);
 

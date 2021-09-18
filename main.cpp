@@ -1,7 +1,7 @@
 #include "SCDAwidget.h"
 
 using namespace std;
-mutex m_err, m_server;
+mutex m_config, m_err, m_server;
 const string sroot = "E:";
 
 class SCDAapp : public Wt::WApplication
