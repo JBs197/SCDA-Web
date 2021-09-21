@@ -21,6 +21,102 @@ void SCDAserver::addFrameKM(vector<vector<vector<double>>>& borderKM, vector<str
 		}
 	}
 }
+int SCDAserver::applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsDIM)
+{
+	// vvsCata has form [year index][sYear, sCata0, sCata1, ...]
+	// vvsDIM has form [untracked index][DIM title, MID].
+	// Returns the number of surviving catalogues. 
+	int numCata = 0;
+	if (vvsDIM.size() < 1)
+	{
+		for (int ii = 0; ii < vvsCata.size(); ii++)
+		{
+			numCata += vvsCata[ii].size() - 1;
+		}
+		return numCata;
+	}
+
+	int index;
+	string result, tname;
+	vector<vector<string>> vvsResult;
+	vector<string> conditions, search = { "DIMIndex" };
+
+	// Eliminate catalogues which do not have each required DIM title.
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		for (int jj = 1; jj < vvsCata[ii].size(); jj++)
+		{
+			index = vvsResult.size();
+			vvsResult.push_back(vector<string>(vvsDIM.size()));
+			tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIMIndex";
+			for (int kk = 0; kk < vvsDIM.size(); kk++)
+			{
+				conditions = { "DIM LIKE " + vvsDIM[kk][0] };
+				sf.select(search, tname, vvsResult[index][kk], conditions);
+				if (vvsResult[index][kk].size() < 1)
+				{
+					vvsCata[ii].erase(vvsCata[ii].begin() + jj);
+					vvsResult.pop_back();
+					jj--;
+					break;
+				}
+			}
+		}
+		if (vvsCata[ii].size() < 2)
+		{
+			vvsCata.erase(vvsCata.begin() + ii);
+			ii--;
+		}
+	}
+
+	// Eliminate catalogues which do not have each required MID.
+	index = 0;
+	search = { "MID" };
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		for (int jj = 1; jj < vvsCata[ii].size(); jj++)
+		{
+			jf.isort_ilist(vvsResult[index], 0);  // Ascending DIMIndex.
+			for (int kk = 0; kk < vvsResult[index].size(); kk++)
+			{
+				if (vvsDIM[kk][1] == "*") { continue; }
+
+				if (kk < vvsResult[index].size() - 1)
+				{
+					tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIM$" + vvsResult[index][kk];
+				}
+				else
+				{
+					tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$Dim";
+				}
+				conditions = { "DIM LIKE " + vvsDIM[kk][1] };
+				result.clear();
+				sf.select(search, tname, result, conditions);
+				if (result.size() < 1)
+				{
+					vvsCata[ii].erase(vvsCata[ii].begin() + jj);
+					vvsResult.erase(vvsResult.begin() + index);
+					index--;
+					jj--;
+					break;
+				}
+			}
+			index++;
+		}
+		if (vvsCata[ii].size() < 2)
+		{
+			vvsCata.erase(vvsCata.begin() + ii);
+			ii--;
+		}
+	}
+
+	// Count and return the number of surviving catalogues.
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		numCata += vvsCata[ii].size() - 1;
+	}
+	return numCata;
+}
 vector<vector<int>> SCDAserver::binMapBorder(string& tname0)
 {
 	string tname = tname0 + "border";
@@ -799,6 +895,318 @@ string SCDAserver::getLinearizedColTitle(string& sCata, string& rowTitle, string
 	LCT += colTitle;
 	return LCT;
 }
+vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed)
+{
+	// This function is meant to differentitate between catalogue candidates, if parameter
+	// title-based differentiation has already failed. vsFixed is a list of Diff 
+	// parameter titles already chosen by the user. 
+	vector<string> vsDiff;  // Form [MIDp, MIDq, ..., varTitle]
+
+	// Linearize unique catalogue names.
+	vector<string> vsYearCata;
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		for (int jj = 1; jj < vvsCata[ii].size(); jj++)
+		{
+			vsYearCata.push_back(vvsCata[ii][0] + "$" + vvsCata[ii][jj]);
+		}
+	}
+
+	// Firstly, try to differentiate catalogues based upon the user-chosen differentiator titles.
+	string result, sHave, sNotHave, temp, tname;
+	string orderby = "MID ASC";
+	vector<string> conditions, search;
+	set<string> setFixed, setMID;
+	vector<vector<string>> vvsMID(vsYearCata.size());  // Form [candidate index][MID1, MID2, ...]
+	vector<vector<string>> vvsHaveNotHave;  // Form [candidate index][MID, sYear$sCataHave, sYear$sCataNotHave]
+	for (int ii = 0; ii < vvsFixed.size(); ii++)  // For every user-chosen Diff title...
+	{
+		// Populate each catalogue's list of MIDs.
+		for (int jj = 0; jj < vsYearCata.size(); jj++)
+		{
+			search = { "DIMIndex" };
+			tname = "Census$" + vsYearCata[jj] + "$DIMIndex";
+			conditions = { "DIM LIKE " + vvsFixed[ii][0] };
+			result.clear();
+			sf.select(search, tname, result, conditions);
+			if (result.size() < 1) { jf.err("No DIMIndex found-SCDAserver.getMIDDifferentiator"); }
+
+			search = { "DIM" };
+			vvsMID[jj].clear();
+			tname = "Census$" + vsYearCata[jj] + "$DIM$" + result;
+			sf.selectOrderBy(search, tname, vvsMID[jj], orderby);
+			if (vvsMID[jj].size() < 1) { jf.err("No MIDs found-SCDAserver.getMIDDifferentiator"); }
+		}
+		
+		vvsHaveNotHave.clear();  // Populate this in the form [candidate index][MID, sYear$sCataHave, sYear$sCataNotHave]
+		for (int jj = 0; jj < vsYearCata.size(); jj++)
+		{
+			setMID.clear();
+			for (int kk = 0; kk < vvsMID[jj].size(); kk++)
+			{
+				setMID.emplace(vvsMID[jj][kk]);
+			}
+			for (int kk = 0; kk < vsYearCata.size(); kk++)
+			{
+				if (jj == kk) { continue; }
+				for (int ll = 0; ll < vvsMID[kk].size(); ll++)
+				{
+					if (!setMID.count(vvsMID[kk][ll]))  // A difference, potentially useful. 
+					{
+						vvsHaveNotHave.push_back({ vvsMID[kk][ll], vsYearCata[kk], vsYearCata[jj] });
+					}
+				}
+			}
+		}
+		if (vvsHaveNotHave.size() > 1) // We need a symmetric pair. 
+		{ 
+			vsDiff.clear();
+			for (int jj = 0; jj < vvsHaveNotHave.size(); jj++)
+			{
+				sHave = vvsHaveNotHave[jj][1];
+				sNotHave = vvsHaveNotHave[jj][2];
+				for (int kk = 0; kk < vvsHaveNotHave.size(); kk++)
+				{
+					if (jj == kk) { continue; }
+					if (vvsHaveNotHave[kk][1] == sNotHave && vvsHaveNotHave[kk][2] == sHave)  // Jackpot !
+					{
+						vsDiff.push_back(vvsHaveNotHave[jj][0]);
+					}
+				}
+			}
+			if (vsDiff.size() > 1)  // Success
+			{
+				vsDiff.push_back(vvsFixed[ii][0]);
+				return vsDiff;
+			}
+		}
+		setFixed.emplace(vvsFixed[ii][0]);
+	}
+
+	// If the pre-existing Diff titles have no MIDs useful for differentiation, try the other Diff title MIDs.
+	unordered_map<string, int> mapDIMCount;
+	vector<string> vsResult;
+	int count;
+	for (int ii = 0; ii < vsYearCata.size(); ii++)
+	{
+		tname = "Census$" + vsYearCata[ii] + "$DIMIndex";
+		search = { "DIM" };
+		vsResult.clear();
+		sf.select(search, tname, vsResult);
+		if (vsResult.size() < 1) { jf.err("No DIMIndices found-SCDAserver.getDifferentiatorMID"); }
+		
+		for (int jj = 0; jj < vsResult.size(); jj++)
+		{
+			if (setFixed.count(vsResult[jj])) { continue; }
+			if (mapDIMCount.count(vsResult[jj]))
+			{
+				count = mapDIMCount.at(vsResult[jj]);
+				count++;
+				mapDIMCount.erase(vsResult[jj]);
+			}
+			else { count = 1; }
+			mapDIMCount.emplace(vsResult[jj], count);
+		}
+	}
+	vector<string> vsDIM;  // List of common (unexamined) DIMs.
+	for (auto mapIt = mapDIMCount.begin(); mapIt != mapDIMCount.end(); mapIt++)
+	{
+		count = mapIt->second;
+		if (count == vsYearCata.size())
+		{
+			vsDIM.push_back(mapIt->first);
+		}
+	}
+	for (int ii = 0; ii < vsDIM.size(); ii++)  // For every user-chosen Diff title...
+	{
+		// Populate each catalogue's list of MIDs.
+		for (int jj = 0; jj < vsYearCata.size(); jj++)
+		{
+			search = { "DIMIndex" };
+			tname = "Census$" + vsYearCata[jj] + "$DIMIndex";
+			conditions = { "DIM LIKE " + vsDIM[ii] };
+			result.clear();
+			sf.select(search, tname, result, conditions);
+			if (result.size() < 1) { jf.err("No DIMIndex found-SCDAserver.getMIDDifferentiator"); }
+			
+			vvsMID[jj].clear();
+			if (ii < vsDIM.size() - 1) 
+			{ 
+				tname = "Census$" + vsYearCata[jj] + "$DIM$" + result; 
+				search = { "DIM" };
+			}
+			else 
+			{ 
+				tname = "Census$" + vsYearCata[jj] + "$Dim"; 
+				search = { "Dim" };
+			}
+			sf.selectOrderBy(search, tname, vvsMID[jj], orderby);
+			if (vvsMID[jj].size() < 1) { jf.err("No MIDs found-SCDAserver.getMIDDifferentiator"); }
+		}
+		vvsHaveNotHave.clear();  // Populate this in the form [candidate index][MID, sYear$sCataHave, sYear$sCataNotHave]
+		for (int jj = 0; jj < vsYearCata.size(); jj++)
+		{
+			setMID.clear();
+			for (int kk = 0; kk < vvsMID[jj].size(); kk++)
+			{
+				setMID.emplace(vvsMID[jj][kk]);
+			}
+			for (int kk = 0; kk < vsYearCata.size(); kk++)
+			{
+				if (jj == kk) { continue; }
+				for (int ll = 0; ll < vvsMID[kk].size(); ll++)
+				{
+					if (!setMID.count(vvsMID[kk][ll]))  // A difference, potentially useful. 
+					{
+						vvsHaveNotHave.push_back({ vvsMID[kk][ll], vsYearCata[kk], vsYearCata[jj] });
+					}
+				}
+			}
+		}
+		if (vvsHaveNotHave.size() > 1) // We need a symmetric pair. 
+		{
+			vsDiff.clear();
+			setMID.clear();
+			for (int jj = 0; jj < vvsHaveNotHave.size(); jj++)
+			{
+				sHave = vvsHaveNotHave[jj][1];
+				sNotHave = vvsHaveNotHave[jj][2];
+				for (int kk = 0; kk < vvsHaveNotHave.size(); kk++)
+				{
+					if (jj == kk) { continue; }
+					if (vvsHaveNotHave[kk][1] == sNotHave && vvsHaveNotHave[kk][2] == sHave)  // Jackpot !
+					{
+						if (!setMID.count(vvsHaveNotHave[jj][0]))  // Unique values only.
+						{
+							vsDiff.push_back(vvsHaveNotHave[jj][0]);
+							setMID.emplace(vvsHaveNotHave[jj][0]);
+						}						
+					}
+				}
+			}
+			if (vsDiff.size() > 1)  // Success
+			{
+				vsDiff.push_back(vsDIM[ii]);
+				return vsDiff;
+			}
+		}
+	}
+	jf.err("Failed to differentiate catalogues-SCDAserver.getDifferentiatorMID");
+	return vsDiff;
+}
+vector<string> SCDAserver::getDifferentiatorTitle(vector<vector<string>>& vvsCata, vector<string>& vsFixed)
+{
+	// Return a parameter list of DIMs which will differentiate between the 
+	// remaining catalogues. Return form [DIMtitle0, DIMtitle1, ...].
+	// vsFixed is a list of such DIMs already chosen by the user.
+	int numCata = 0, index = 0;
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		numCata += vvsCata[ii].size() - 1;
+	}
+	vector<vector<string>> vvsDIM(numCata, vector<string>());  // Form [catalogue index][DIM0, DIM1, ...].
+	vector<string> vsCandidate, conditions;
+	string tname, sCataHave, sCataNotHave;
+	set<string> setDIM, setFixed;
+	bool letmeout;
+	unordered_map<int, string> mapIndexDIM;
+	vector<string> search = { "DIM" };
+	string orderby = "DIMIndex ASC";
+	for (int ii = 0; ii < vsFixed.size(); ii++)
+	{
+		setFixed.emplace(vsFixed[ii]);
+	}
+	for (int ii = 0; ii < vvsCata.size(); ii++)
+	{
+		for (int jj = 1; jj < vvsCata[ii].size(); jj++)
+		{
+			mapIndexDIM.emplace(index, vvsCata[ii][jj]);
+			tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIMIndex";
+			sf.selectOrderBy(search, tname, vvsDIM[index], orderby);
+			vvsDIM[index].resize(vvsDIM[index].size() - 2);  // Remove the row/col DIMs.
+			letmeout = 0;
+			for (int kk = 0; kk < vsFixed.size(); kk++)
+			{
+				for (int ll = 0; ll < vvsDIM[index].size(); ll++)
+				{
+					if (vvsDIM[index][ll] == vsFixed[kk]) { break; }
+					else if (ll == vvsDIM[index].size() - 1)  // Catalogue fails to meet criteria.
+					{
+						vvsCata[ii].erase(vvsCata[ii].begin() + jj);
+						jj--;
+						numCata--;
+						vvsDIM.erase(vvsDIM.begin() + index);
+						index--;
+						letmeout = 1;
+						break;
+					}
+				}
+				if (letmeout) { break; }
+			}
+			index++;
+		}
+		if (vvsCata[ii].size() < 2)
+		{
+			vvsCata.erase(vvsCata.begin() + ii);
+			ii--;
+		}
+	}
+
+	// Determine if there are a minimum of two catalogues that lack a partner catalogue's DIM.
+	vector<vector<string>> haveNotHave;  // Form [DIM][DIM title, sCata has, sCata does not have].
+	for (int ii = 0; ii < vvsDIM.size(); ii++)
+	{
+		for (int jj = 0; jj < vvsDIM[ii].size(); jj++)
+		{
+			if (setFixed.count(vvsDIM[ii][jj]))  // Ignore DIMs already chosen earlier.
+			{
+				vvsDIM[ii].erase(vvsDIM[ii].begin() + jj);
+				jj--;
+			}
+			else if (!setDIM.count(vvsDIM[ii][jj]))  // Examine each DIM only once.
+			{
+				setDIM.emplace(vvsDIM[ii][jj]);
+				for (int kk = 0; kk < vvsDIM.size(); kk++)
+				{
+					if (kk == ii) { continue; }
+					for (int ll = 0; ll < vvsDIM[kk].size(); ll++)
+					{
+						if (vvsDIM[kk][ll] == vvsDIM[ii][jj]) { break; }
+						else if (ll == vvsDIM[kk].size() - 1)
+						{
+							sCataHave = mapIndexDIM.at(ii);
+							sCataNotHave = mapIndexDIM.at(kk);
+							haveNotHave.push_back({ vvsDIM[ii][jj], sCataHave, sCataNotHave });
+						}
+					}
+				}
+			}
+		}
+	}
+	if (haveNotHave.size() < 2) { return vsCandidate; }  // Empty, failure.
+	setDIM.clear();
+	for (int ii = 0; ii < haveNotHave.size(); ii++)
+	{
+		sCataHave = haveNotHave[ii][1];
+		sCataNotHave = haveNotHave[ii][2];
+		for (int jj = 0; jj < haveNotHave.size(); jj++)
+		{
+			if (jj == ii) { continue; }
+			if (haveNotHave[jj][1] == sCataNotHave && haveNotHave[jj][2] == sCataHave)  // Jackpot !
+			{
+				setDIM.emplace(haveNotHave[ii][0]);
+				break;
+			}
+		}
+	}
+	if (setDIM.size() < 1) { return vsCandidate; }  // Empty, failure.
+
+	for (auto setIt = setDIM.begin(); setIt != setDIM.end(); setIt++)
+	{
+		vsCandidate.push_back(*setIt);
+	}
+	return vsCandidate;
+}
 vector<vector<string>> SCDAserver::getParameter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed)
 {
 	// This "variable" function is meant for situations wherein the catalogue is 
@@ -939,119 +1347,6 @@ string SCDAserver::getUnit(int clientIndex, string sYear, string sCata, string s
 	unit = wjTable[clientIndex]->getUnit(result);
 	return unit;
 }
-vector<string> SCDAserver::getVariable(vector<vector<string>>& vvsCata, vector<string>& vsFixed)
-{
-	// Return a parameter list of DIMs which will differentiate between the 
-	// remaining catalogues. Return form [MID1, MID2, ..., DIM title].
-	// vsFixed is a list of such DIMs already chosen by the user.
-	int numCata = 0, index = 0;
-	for (int ii = 0; ii < vvsCata.size(); ii++)
-	{
-		numCata += vvsCata[ii].size() - 1;
-	}
-	vector<vector<string>> vvsDIM(numCata, vector<string>());
-	vector<string> vsCandidate, conditions;
-	string tname, sCataHave, sCataNotHave;
-	set<string> setDIM, setFixed;
-	bool letmeout;
-	unordered_map<int, string> mapIndexDIM;
-	vector<string> search = { "DIM" };
-	string orderby = "DIMIndex ASC";
-	for (int ii = 0; ii < vsFixed.size(); ii++)
-	{
-		setFixed.emplace(vsFixed[ii]);
-	}
-	for (int ii = 0; ii < vvsCata.size(); ii++)
-	{
-		for (int jj = 1; jj < vvsCata[ii].size(); jj++)
-		{
-			mapIndexDIM.emplace(index, vvsCata[ii][jj]);
-			tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIMIndex";
-			sf.selectOrderBy(search, tname, vvsDIM[index], orderby);
-			vvsDIM[index].resize(vvsDIM[index].size() - 2);  // Remove the row/col DIMs.
-			letmeout = 0;
-			for (int kk = 0; kk < vsFixed.size(); kk++)
-			{
-				for (int ll = 0; ll < vvsDIM[index].size(); ll++)
-				{
-					if (vvsDIM[index][ll] == vsFixed[kk]) { break; }
-					else if (ll == vvsDIM[index].size() - 1)  // Catalogue fails to meet criteria.
-					{
-						vvsCata[ii].erase(vvsCata[ii].begin() + jj);
-						jj--;
-						numCata--;
-						vvsDIM.erase(vvsDIM.begin() + index);
-						index--;
-						letmeout = 1;
-						break;
-					}
-				}
-				if (letmeout) { break; }
-			}
-			index++;
-		}
-		if (vvsCata[ii].size() < 2)
-		{
-			vvsCata.erase(vvsCata.begin() + ii);
-			ii--;
-		}
-	}
-
-	// Determine if there are a minimum of two catalogues that lack a partner catalogue's DIM.
-	vector<vector<string>> haveNotHave;  // Form [DIM][DIM title, sCata has, sCata does not have].
-	for (int ii = 0; ii < vvsDIM.size(); ii++)
-	{
-		for (int jj = 0; jj < vvsDIM[ii].size(); jj++)
-		{
-			if (setFixed.count(vvsDIM[ii][jj]))  // Ignore DIMs already chosen earlier.
-			{
-				vvsDIM[ii].erase(vvsDIM[ii].begin() + jj);
-				jj--;
-			}
-			else if (!setDIM.count(vvsDIM[ii][jj]))  // Examine each DIM only once.
-			{
-				setDIM.emplace(vvsDIM[ii][jj]);
-				for (int kk = 0; kk < vvsDIM.size(); kk++)
-				{ 
-					if (kk == ii) { continue; }
-					for (int ll = 0; ll < vvsDIM[kk].size(); ll++)
-					{
-						if (vvsDIM[kk][ll] == vvsDIM[ii][jj]) { break; }
-						else if (ll == vvsDIM[kk].size() - 1)
-						{
-							sCataHave = mapIndexDIM.at(ii);
-							sCataNotHave = mapIndexDIM.at(kk);
-							haveNotHave.push_back({ vvsDIM[ii][jj], sCataHave, sCataNotHave });
-						}
-					}
-				}
-			}
-		}
-	}
-	if (haveNotHave.size() < 2) { return vsCandidate; }  // Empty, failure.
-	setDIM.clear();
-	for (int ii = 0; ii < haveNotHave.size(); ii++)
-	{
-		sCataHave = haveNotHave[ii][1];
-		sCataNotHave = haveNotHave[ii][2];
-		for (int jj = 0; jj < haveNotHave.size(); jj++)
-		{
-			if (jj == ii) { continue; }
-			if (haveNotHave[jj][1] == sCataNotHave && haveNotHave[jj][2] == sCataHave)  // Jackpot !
-			{
-				setDIM.emplace(haveNotHave[ii][0]);
-				break;
-			}
-		}
-	}
-	if (setDIM.size() < 1) { return vsCandidate; }  // Empty, failure.
-	
-	for (auto setIt = setDIM.begin(); setIt != setDIM.end(); setIt++)
-	{
-		vsCandidate.push_back(*setIt);
-	}
-	return vsCandidate;
-}
 vector<string> SCDAserver::getYear(string sYear)
 {
 	// Returns a list of internal years represented by a single external year. 
@@ -1108,33 +1403,60 @@ void SCDAserver::pullCategory(vector<string> prompt)
 	}
 	postDataEvent(DataEvent(DataEvent::Category, prompt[0], numCata, vsTopic), prompt[0]);
 }
-void SCDAserver::pullDifferentiator(vector<string> prompt, vector<vector<string>> vvsCata)
+void SCDAserver::pullDifferentiator(string prompt, vector<vector<string>> vvsCata, vector<vector<string>> vvsDiff)
 {
 	// Creates a "variable" event from the given "ForWhom" description.
-	// Prompt has form [id, sFixed0, sFixed1, ...].
+	// Prompt has form [id].
 	// vvsCata has form [year index][sYear, sCata0, sCata1, ...].
+	// vvsDiff has form [diff index][diff title, diff MID].
 
-	string sYear;
-	string sID = prompt[0];
-	prompt.erase(prompt.begin());
-	vector<string> vsVariable = getVariable(vvsCata, prompt);
-	if (vsVariable.size() > 0) 
+	size_t pos1;
+	string sTitle, sYear;
+	vector<string> vsDiff, vsCandidate;
+
+	int numCata = applyCataFilter(vvsCata, vvsDiff);
+	if (numCata == 1) 
 	{ 
-		int numCata = 0;
-		for (int ii = 0; ii < vvsCata.size(); ii++)
-		{
-			numCata += vvsCata[ii].size() - 1;
-		}
-		postDataEvent(DataEvent(DataEvent::Differentiation, sID, numCata, vsVariable), sID);
+		postDataEvent(DataEvent(DataEvent::Catalogue, prompt, vvsCata[0][0], vvsCata[0][1]), prompt); 
+		return;
 	}
-	else if (vvsCata.size() < 1)
+	else if (numCata < 1) { jf.err("No catalogues remaining after Diff filter-SCDAserver.pullDifferentiator"); }
+
+	// Examine cases where no MID filters have been applied.
+	if (vvsDiff.size() < 1)
 	{
-		jf.err("Failed to differentiate between catalogues-SCDAserver.pullDifferentiator");
+		vsCandidate = getDifferentiatorTitle(vvsCata, vsDiff);
+		if (vsCandidate.size() > 1)
+		{
+			sTitle = "sTitle";
+			postDataEvent(DataEvent(DataEvent::Differentiation, prompt, numCata, vsCandidate, sTitle), prompt);
+			return;
+		}
 	}
 	else
 	{
-		postDataEvent(DataEvent(DataEvent::Catalogue, sID, vvsCata[0][0], vvsCata[0][1]), sID);
+		for (int ii = 0; ii < vvsDiff.size(); ii++)
+		{
+			if (vvsDiff[ii][1] != "*") { break; }
+			else if (ii == vvsDiff.size() - 1)
+			{
+				vsCandidate = getDifferentiatorTitle(vvsCata, vsDiff);
+				if (vsCandidate.size() > 1)
+				{
+					sTitle = "sTitle";
+					postDataEvent(DataEvent(DataEvent::Differentiation, prompt, numCata, vsCandidate, sTitle), prompt);
+					return;
+				}
+			}
+		}
 	}
+
+	// Examine cases with MID filters, or if no DIM title filters are useful.
+	vsCandidate = getDifferentiatorMID(vvsCata, vvsDiff);
+	sTitle = vsCandidate.back();
+	vsCandidate.pop_back();
+	postDataEvent(DataEvent(DataEvent::Differentiation, prompt, numCata, vsCandidate, sTitle), prompt);
+
 }
 void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 {
@@ -1380,14 +1702,10 @@ void SCDAserver::pullVariable(vector<string> prompt, vector<vector<string>> vvsF
 	{
 		vvsCata = getCatalogue(prompt, vvsFixed);
 	}	
-	int numCata = 0, partialVariable = 0;
+	int numCata = 0;
 	for (int ii = 0; ii < vvsCata.size(); ii++)
 	{
 		numCata += vvsCata[ii].size() - 1;
-	}
-	for (int ii = 0; ii < vvsFixed.size(); ii++)
-	{
-		if (vvsFixed[ii][1] == "*") { partialVariable = 1; }
 	}
 
 	vector<vector<string>> vvsTemp;
@@ -1397,22 +1715,20 @@ void SCDAserver::pullVariable(vector<string> prompt, vector<vector<string>> vvsF
 		vvsVariable = getParameter(vvsCata, vvsFixed);
 		vector<string> DIMIndex = getDIMIndex(vvsCata);
 		postDataEvent(DataEvent(DataEvent::Parameter, sID, numCata, vvsVariable, vvsCata, DIMIndex), sID);
+		return;
 	}
-	else
+
+	// For the first differentiation, try Demographic.
+	if (vvsFixed.size() < 1) 
 	{
-		if (vvsFixed.size() < 1)  // First differentiation, try Demographic.
-		{
-			vvsVariable = getForWhom(vvsCata);
-			postDataEvent(DataEvent(DataEvent::Demographic, sID, numCata, vvsVariable), sID);
+		vvsVariable = getForWhom(vvsCata);
+		if (vvsVariable.size() > 1) 
+		{ 
+			postDataEvent(DataEvent(DataEvent::Demographic, sID, numCata, vvsVariable), sID); 
 			return;
 		}
-		vector<string> vsFixed(vvsFixed.size());
-		for (int ii = 0; ii < vvsFixed.size(); ii++)
-		{
-			vsFixed[ii] = vvsFixed[ii][0];
-		}
-		vector<string> vsVariable = getVariable(vvsCata, vsFixed);
-		if (vsVariable.size() < 1) { jf.err("Failed to differentiate between catalogues-SCDAserver.pullDifferentiator"); }
-		postDataEvent(DataEvent(DataEvent::Differentiation, sID, numCata, vsVariable), sID);
-	}	
+	}
+
+	// Apply differentiators.
+	pullDifferentiator(sID, vvsCata, vvsFixed);
 }

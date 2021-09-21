@@ -20,10 +20,10 @@ void SCDAwidget::addBarToGraph()
 	}
 
 	vector<vector<string>> vvsData = wtMap->getGraphData();
-	vector<Wt::WString> vwsParameter = getMapParameterList();
-	wjBarGraph->addDataset(vvsData, vwsParameter);
-
+	vector<string> vsParameter = getMapParameterList();
+	wjBarGraph->addDataset(vvsData, vsParameter);
 	wjBarGraph->display();
+
 	tabData->setTabEnabled(3, 1);
 	tabData->setCurrentIndex(3);
 }
@@ -89,18 +89,19 @@ int SCDAwidget::getHeight()
 	if (iHeight < 0) { jf.err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
 	return iHeight;
 }
-vector<Wt::WString> SCDAwidget::getMapParameterList()
+vector<string> SCDAwidget::getMapParameterList()
 {
 	vector<Wt::WWidget*> vWText = boxTextLegend->children();
 	if (vWText.size() < 1) { jf.err("No boxTextLegend widgets found-SCDAwidget.getMapParameterList"); }
 	Wt::WText* wText = nullptr;
-	vector<Wt::WString> vwsParameter(vWText.size());
-	for (int ii = 0; ii < vwsParameter.size(); ii++)
+
+	vector<string> vsParameter(vWText.size());
+	for (int ii = 0; ii < vsParameter.size(); ii++)
 	{
 		wText = (Wt::WText*)vWText[ii];
-		vwsParameter[ii] = wText->text();
+		vsParameter[ii] = wText->text().toUTF8();
 	}
-	return vwsParameter;
+	return vsParameter;
 }
 string SCDAwidget::getUnit()
 {
@@ -241,9 +242,10 @@ void SCDAwidget::incomingPullSignal(const int& pullType)
 {
 	auto app = Wt::WApplication::instance();
 	string sessionID = app->sessionId();
+	string sPrompt;
 	Wt::WString wsTemp;
 	vector<string> vsPrompt;
-	vector<vector<string>> vvsPrompt;
+	vector<vector<string>> vvsCata, vvsPrompt;
 	switch (pullType)
 	{
 	case 0:  // Pull category.
@@ -254,9 +256,9 @@ void SCDAwidget::incomingPullSignal(const int& pullType)
 		sRef.pullCategory(vsPrompt);
 		break;
 	case 1:  // Pull differentiator.
-		wjConfig->getPrompt(vsPrompt, vvsPrompt);
-		vsPrompt[0] = sessionID;
-		sRef.pullDifferentiator(vsPrompt, vvsPrompt);
+		wjConfig->getPrompt(sPrompt, vvsCata, vvsPrompt);
+		sPrompt = sessionID;
+		sRef.pullDifferentiator(sPrompt, vvsCata, vvsPrompt);
 		break;
 	case 2:  // Pull table.
 	{
@@ -301,6 +303,8 @@ void SCDAwidget::init()
 	this->clear();
 	screenWidth = getWidth();
 	screenHeight = getHeight();
+	wlDataFrameWidth = Wt::WLength(screenWidth - 490);
+	wlDataFrameHeight = Wt::WLength(screenHeight - 90);
 	vector<string> vsYear = { "2016" };
 
 	auto hLayout = make_unique<Wt::WHBoxLayout>();
@@ -308,7 +312,7 @@ void SCDAwidget::init()
 	wjConfig = wjConfigUnique.get();
 	hLayout->addWidget(move(wjConfigUnique));
 	auto boxDataUnique = makeBoxData();
-	hLayout->addWidget(move(boxDataUnique));
+	boxData = hLayout->addWidget(move(boxDataUnique));
 	this->setLayout(move(hLayout));
 
 	connect();
@@ -353,7 +357,7 @@ void SCDAwidget::initUI()
 	wcGrey.setRgb(210, 210, 210);
 	wcSelectedWeak.setRgb(200, 200, 255);
 	wcSelectedStrong.setRgb(150, 150, 192);
-	wcWhite.setRgb(255, 255, 255, 255);
+	wcWhite.setRgb(255, 255, 255);
 
 	// Widget names.
 	boxData->setObjectName("boxData");
@@ -361,7 +365,7 @@ void SCDAwidget::initUI()
 	treeRegion->setObjectName("treeRegion");
 
 	// Initial values for box sizes.
-	boxData->setMaximumSize(len800p, wlAuto);
+	boxData->setMaximumSize(screenWidth - 480, wlAuto);
 
 	// Initialize often-used decoration styles.
 	wcssDefault = Wt::WCssDecorationStyle();
@@ -382,7 +386,7 @@ void SCDAwidget::initUI()
 	treeRegion->itemSelectionChanged().connect(fnTree);
 
 	// Initial values for the table tab.
-	boxTable->setMaximumSize(790.0, screenHeight - 90);
+	boxTable->setMaximumSize(wlDataFrameWidth, wlDataFrameHeight);
 	boxTable->setOverflow(Wt::Overflow::Hidden, Wt::Orientation::Horizontal | Wt::Orientation::Vertical);
 
 	// Initial values for the map tab.
@@ -474,9 +478,7 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 	auto boxMapUnique = makeBoxMap();
 	tabData->addTab(move(boxMapUnique), "Data Map", Wt::ContentLoading::Eager);
 
-	//auto boxBarGraphUnique = make_unique<Wt::WContainerWidget>();
-	//boxBarGraph = boxBarGraphUnique.get();
-	auto wjBarGraphUnique = make_unique<WJBARGRAPH>();
+	auto wjBarGraphUnique = make_unique<WJBARGRAPH>(wlDataFrameHeight);
 	wjBarGraph = wjBarGraphUnique.get();
 	tabData->addTab(move(wjBarGraphUnique), "Bar Graph", Wt::ContentLoading::Eager);
 
@@ -618,7 +620,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		break;
 	case 4:  // Differentiation: create a single parameter panel, chosen to specify the catalogue.
 		updateTextCata(event.getNumCata());
-		wjConfig->addDifferentiator(event.get_list());
+		processEventDifferentiation(event.get_list(), event.getTitle());
 		break;
 	case 5:  // Map: display it on the painter widget.
 		processEventMap(event.get_list(), event.get_areas(), event.getRegionData());
@@ -674,14 +676,14 @@ void SCDAwidget::processEventDemographic(vector<vector<string>> vvsDemo)
 	wjConfig->vvsDemographic = vvsDemo;
 	wjConfig->resetVariables(1);
 	if (vvsDemo.size() > 1) { wjConfig->addDemographic(vvsDemo); }
-	else
-	{
-		Wt::WApplication* app = Wt::WApplication::instance();
-		vector<string> prompt = { app->sessionId() };
-		vector<string> vsCata;
-		//vsCata.assign(vvsDemo[0].begin() + 1, vvsDemo[0].end());
-		sRef.pullDifferentiator(prompt, vvsDemo);
-	}
+	else { jf.err("Invalid Demographic list-SCDAwidget.processEventDemographic"); }
+}
+void SCDAwidget::processEventDifferentiation(vector<string> vsDiff, string sTitle)
+{
+	// If the list contains DIM titles, then its last element must be "sTitle". Otherwise, 
+	// the list contains MID elements for an existing Diff title.
+	if (sTitle == "sTitle") { wjConfig->addDifferentiator(vsDiff); }
+	else { wjConfig->addDifferentiator(vsDiff, sTitle); }
 }
 void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData)
 {
@@ -965,7 +967,6 @@ void SCDAwidget::processEventTree(JTREE jt)
 
 void SCDAwidget::resetBarGraph()
 {
-	vvsBarGraph.clear();
 	wjBarGraph->reset();
 	Wt::WString wsTemp = textUnit->text();
 	string mapUnit = wsTemp.toUTF8();
@@ -1058,28 +1059,28 @@ void SCDAwidget::toggleMobile()
 	if (mobile)
 	{
 		mobile = 0;
-		boxConfig->setMaximumSize(len200p, wlAuto);
-		boxData->setMaximumSize(len800p, wlAuto);
-		//widgetMobile();
 		auto hLayout = make_unique<Wt::WHBoxLayout>();
-		auto boxConfigUnique = this->removeWidget(boxConfig);
+		auto wjConfigUnique = this->removeWidget(wjConfig);
 		auto boxDataUnique = this->removeWidget(boxData);
-		hLayout->addWidget(move(boxConfigUnique));
-		hLayout->addWidget(move(boxDataUnique));
+		wjConfig = hLayout->addWidget(move(wjConfigUnique));
+		boxData = hLayout->addWidget(move(boxDataUnique));		
 		this->setLayout(move(hLayout));
+		wjConfig->setMaximumSize(200.0, wlAuto);
+		boxData->setMaximumSize(screenWidth - 480, wlAuto);
+		widgetMobile();
 	}
 	else
 	{
 		mobile = 1;
-		boxConfig->setMaximumSize(wlAuto, wlAuto);
-		boxData->setMaximumSize(wlAuto, wlAuto);
-		//widgetMobile();
 		auto vLayout = make_unique<Wt::WVBoxLayout>();
-		auto boxConfigUnique = this->removeWidget(boxConfig);
+		auto wjConfigUnique = this->removeWidget(wjConfig);
 		auto boxDataUnique = this->removeWidget(boxData);
-		vLayout->addWidget(move(boxConfigUnique));
-		vLayout->addWidget(move(boxDataUnique));
+		wjConfig = vLayout->addWidget(move(wjConfigUnique));
+		boxData = vLayout->addWidget(move(boxDataUnique));
 		this->setLayout(move(vLayout));
+		wjConfig->setMaximumSize(wlAuto, wlAuto);
+		boxData->setMaximumSize(wlAuto, wlAuto);
+		widgetMobile();
 	}
 }
 void SCDAwidget::treeClicked()
@@ -1147,4 +1148,40 @@ void SCDAwidget::updateUnit(string sUnit)
 	else { viIndex = { 0 }; }
 	wtMap->updateDisplay(viIndex);
 }
-
+void SCDAwidget::widgetMobile()
+{
+	if (mobile)
+	{
+		for (int ii = 0; ii < allPB.size(); ii++)
+		{
+			if (allPB[ii] != nullptr)
+			{
+				allPB[ii]->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+				allPB[ii]->setMinimumSize(wlAuto, 50.0);
+			}
+		}
+		if (tabData != nullptr)
+		{
+			tabData->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+			tabData->setMinimumSize(wlAuto, 50.0);
+		}
+		wjConfig->widgetMobile(1);
+	}
+	else
+	{
+		for (int ii = 0; ii < allPB.size(); ii++)
+		{
+			if (allPB[ii] != nullptr)
+			{
+				allPB[ii]->decorationStyle().font().setSize(Wt::FontSize::Medium);
+				allPB[ii]->setMinimumSize(wlAuto, wlAuto);
+			}
+		}
+		if (tabData != nullptr)
+		{
+			tabData->decorationStyle().font().setSize(Wt::FontSize::Medium);
+			tabData->setMinimumSize(wlAuto, wlAuto);
+		}
+		wjConfig->widgetMobile(0);
+	}
+}

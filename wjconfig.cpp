@@ -277,6 +277,57 @@ void WJPANEL::setCB(int cbIndex, vector<string>& vsList, string sActive)
 	}
 	}
 }
+void WJPANEL::toggleMobile(bool mobile)
+{
+	if (mobile)
+	{
+		Wt::WPanel::decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+		cbTitle->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+		cbMID->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+		pbDialog->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+		if (!pbDialog->isHidden()) 
+		{ 
+			Wt::WPanel::setMinimumSize(wlAuto, 350.0); 
+			cbMID->setMinimumSize(wlAuto, 75.0);
+			cbTitle->setMinimumSize(wlAuto, 75.0);
+		}
+		else if (!cbMID->isHidden()) 
+		{ 
+			Wt::WPanel::setMinimumSize(wlAuto, 275.0);
+			cbMID->setMinimumSize(wlAuto, 75.0);
+			cbTitle->setMinimumSize(wlAuto, 75.0);
+		}
+		else if (!cbTitle->isHidden()) 
+		{ 
+			Wt::WPanel::setMinimumSize(wlAuto, 200.0); 
+			cbTitle->setMinimumSize(wlAuto, 75.0);
+		}
+	}
+	else
+	{
+		Wt::WPanel::decorationStyle().font().setSize(Wt::FontSize::Medium);
+		cbTitle->decorationStyle().font().setSize(Wt::FontSize::Medium);
+		cbMID->decorationStyle().font().setSize(Wt::FontSize::Medium);
+		pbDialog->decorationStyle().font().setSize(Wt::FontSize::Medium);
+		if (!pbDialog->isHidden()) 
+		{ 
+			Wt::WPanel::setMinimumSize(wlAuto, wlAuto); 
+			cbMID->setMinimumSize(wlAuto, wlAuto);
+			cbTitle->setMinimumSize(wlAuto, wlAuto);
+		}
+		else if (!cbMID->isHidden()) 
+		{ 
+			Wt::WPanel::setMinimumSize(wlAuto, wlAuto); 
+			cbMID->setMinimumSize(wlAuto, wlAuto);
+			cbTitle->setMinimumSize(wlAuto, wlAuto);
+		}
+		else if (!cbTitle->isHidden()) 
+		{ 
+			Wt::WPanel::setMinimumSize(wlAuto, wlAuto);
+			cbTitle->setMinimumSize(wlAuto, wlAuto);
+		}
+	}
+}
 
 void WJCONFIG::addDemographic(vector<vector<string>>& vvsDemo)
 {
@@ -304,7 +355,6 @@ void WJCONFIG::addDifferentiator(vector<string> vsDiff)
 	// Create a normal-looking Parameter panel, containing differentiating 
 	// DIM titles to try and pinpoint a catalogue. 
 	int index = diffWJP.size();
-
 	auto wjpUnique = make_unique<WJPANEL>();
 	diffWJP.push_back(wjpUnique.get());
 	string temp = wjpUnique->id();
@@ -315,10 +365,57 @@ void WJCONFIG::addDifferentiator(vector<string> vsDiff)
 	vsDiff.insert(vsDiff.begin(), sTitle);
 	diffWJP[index]->setCB(0, vsDiff);
 
-	function<void()> fnDiffTitle = bind(&WJCONFIG::diffTitleChanged, this, temp);
+	function<void()> fnDiffTitle = bind(&WJCONFIG::diffChanged, this, temp);
 	diffWJP[index]->cbTitle->changed().connect(fnDiffTitle);
 
 	diffWJP[index]->highlight(0);
+	vLayout->addWidget(move(wjpUnique));
+}
+void WJCONFIG::addDifferentiator(vector<string> vsDiff, string sTitle)
+{
+	// Add this list of MIDs to an existing Diff panel with selected DIM title "sTitle".
+	if (diffWJP.size() < 1) { jf.err("No Diff panels found, cannot add MIDs-wjconfig.addDifferentiator"); }
+	Wt::WString wsTemp;
+	Wt::WString wsTitle = Wt::WString::fromUTF8(sTitle);
+	for (int ii = 0; ii < diffWJP.size(); ii++)
+	{
+		wsTemp = diffWJP[ii]->cbTitle->currentText();
+		if (wsTemp == wsTitle)
+		{
+			diffWJP[ii]->setCB(1, vsDiff);
+			return;
+		}
+	}
+
+	// If no existing Diff panel matches the given sTitle, then make a new one. 
+	int index = diffWJP.size();
+	auto wjpUnique = make_unique<WJPANEL>();
+	diffWJP.push_back(wjpUnique.get());
+	string temp = wjpUnique->id();
+	mapDiffIndex.emplace(temp, index);
+	diffWJP[index]->setTitle("Parameter");
+
+	vector<string> vsTemp = { sTitle };
+	diffWJP[index]->setCB(0, vsTemp);
+	diffWJP[index]->cbTitle->setEnabled(0);
+
+	string sDefaultMID = "[None selected]";
+	vsDiff.insert(vsDiff.begin(), sDefaultMID);
+	diffWJP[index]->setCB(1, vsDiff);
+	diffWJP[index]->cbMID->setHidden(0);
+
+	function<void()> fnDiffMID = bind(&WJCONFIG::diffChanged, this, temp);
+	diffWJP[index]->cbMID->changed().connect(fnDiffMID);
+
+	if (index > 0)
+	{
+		if (!diffWJP[index - 1]->cbMID->isHidden())
+		{
+			diffWJP[index - 1]->unhighlight(1);
+		}
+		diffWJP[index - 1]->unhighlight(0);
+	}
+	diffWJP[index]->highlight(1);
 	vLayout->addWidget(move(wjpUnique));
 }
 void WJCONFIG::addVariable(vector<string>& vsVariable)
@@ -429,13 +526,14 @@ void WJCONFIG::demographicChanged()
 	resetSignal_.emit(1);  // Reset table.
 	resetSignal_.emit(2);  // Reset tree.
 	resetTopicSel();
+	resetVariables(1);
 
 	Wt::WString wsTemp = wjpDemo->cbTitle->currentText();
 	if (wsTemp == wsNoneSel) { wjpDemo->highlight(0); }
 	else { wjpDemo->unhighlight(0); }
 
 	wsTemp = wjpYear->cbTitle->currentText();
-	vector<string> prompt = { "", wsTemp.toUTF8() };  // sID, sYear
+	vector<string> prompt = { "" };  // sID
 	vector<string> vsCata = getDemo();
 	if (vsCata.size() < 1) { return; }
 	else if (vsCata.size() == 1)
@@ -456,8 +554,10 @@ void WJCONFIG::demographicChanged()
 	}
 	else
 	{
+		string temp = "";
 		vector<vector<string>> vvsCata = getDemoSplit(vsCata);
-		setPrompt(prompt, vvsCata);
+		vector<vector<string>> vvsDummy;
+		setPrompt(temp, vvsCata, vvsDummy);
 		pullSignal_.emit(1);  // Pull differentiator.
 	}
 }
@@ -583,26 +683,24 @@ void WJCONFIG::dialogSubsectionFilterRowEnd()
 	wjpTopicRow->applyFilter(1, viFilterRow);
 	filterSignal_.emit();
 }
-void WJCONFIG::diffTitleChanged(string id)
+void WJCONFIG::diffChanged(string id)
 {
 	int index = mapDiffIndex.at(id);
 	Wt::WString wsTemp = diffWJP[index]->cbTitle->currentText();
 	if (wsTemp == wsNoneSel)
 	{
-		diffWJP[index]->highlight(0);
-		return;
+		for (int ii = diffWJP.size() - 1; ii >= 0; ii--)
+		{
+			vLayout->removeWidget(diffWJP[ii]);
+			diffWJP.pop_back();
+		}		
 	}
 	
 	string sTitle = wsTemp.toUTF8();
-	vector<vector<string>> vvsFixed = getVariable();
-	vector<string> prompt(vvsFixed.size() + 1);
-	prompt[0] = "";
-	for (int ii = 0; ii < vvsFixed.size(); ii++)
-	{
-		prompt[ii + 1] = vvsFixed[ii][0];
-	}
+	vector<vector<string>> vvsDiff = getVariable();
+	string prompt = "";
 	vector<vector<string>> vvsCata = getDemoSplit();
-	setPrompt(prompt, vvsCata);
+	setPrompt(prompt, vvsCata, vvsDiff);
 	pullSignal_.emit(1);  // Pull differentiator.
 }
 vector<string> WJCONFIG::getDemo()
@@ -657,6 +755,7 @@ vector<vector<string>> WJCONFIG::getDemoSplit(vector<string>& vsCata)
 			else if (jj == vvsCata.size() - 1)
 			{
 				vvsCata.push_back({ sYear, sCata });
+				break;
 			}
 		}
 	}
@@ -682,6 +781,13 @@ void WJCONFIG::getPrompt(vector<string>& vsP, vector<vector<string>>& vvsP)
 	lock_guard<mutex> lg(m_config);
 	vsP = vsPrompt;
 	vvsP = vvsPrompt;
+}
+void WJCONFIG::getPrompt(string& sP, vector<vector<string>>& vvsP1, vector<vector<string>>& vvsP2)
+{
+	lock_guard<mutex> lg(m_config);
+	sP = sPrompt;
+	vvsP1 = vvsCata;
+	vvsP2 = vvsPrompt;
 }
 vector<Wt::WString> WJCONFIG::getTextLegend()
 {
@@ -817,11 +923,17 @@ vector<vector<string>> WJCONFIG::getVariable()
 	{
 		numVar = diffWJP.size();
 		vvsVariable.resize(numVar);
-		sMID = "*";
+		
 		for (int ii = 0; ii < numVar; ii++)
 		{
 			wsTemp = diffWJP[ii]->cbTitle->currentText();
 			sTitle = wsTemp.toUTF8();
+			if (diffWJP[ii]->cbMID->isHidden()) { sMID = "*"; }
+			else
+			{
+				wsTemp = diffWJP[ii]->cbMID->currentText();
+				sMID = wsTemp.toUTF8();
+			}
 			vvsVariable[ii] = { sTitle, sMID };
 		}
 	}
@@ -1106,6 +1218,13 @@ void WJCONFIG::setPrompt(vector<string>& vsP, vector<vector<string>>& vvsP)
 	vsPrompt = vsP;
 	vvsPrompt = vvsP;
 }
+void WJCONFIG::setPrompt(string& sP, vector<vector<string>>& vvsC, vector<vector<string>>& vvsP)
+{
+	lock_guard<mutex> lg(m_config);
+	sPrompt = sP;
+	vvsCata = vvsC;
+	vvsPrompt = vvsP;
+}
 void WJCONFIG::topicSelChanged()
 {
 	// Use the current col/row MID selections to update the table's selected cell.
@@ -1272,4 +1391,52 @@ void WJCONFIG::varTitleChanged(string id)
 	varWJP[index]->setCB(1, vsMID);
 	varWJP[index]->setTitle("Parameter");
 	varMIDChanged();
+}
+void WJCONFIG::widgetMobile(bool mobile)
+{
+	if (mobile)
+	{
+		if (pbMobile != nullptr)
+		{
+			pbMobile->setMinimumSize(wlAuto, 50.0);
+			pbMobile->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+		}
+		if (textCata != nullptr)
+		{
+			textCata->setMinimumSize(wlAuto, 150.0);
+			textCata->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+		}
+	}
+	else
+	{
+		if (pbMobile != nullptr)
+		{
+			pbMobile->setMinimumSize(wlAuto, wlAuto);
+			pbMobile->decorationStyle().font().setSize(Wt::FontSize::Medium);
+		}
+		if (textCata != nullptr)
+		{
+			textCata->setMinimumSize(wlAuto, wlAuto);
+			textCata->decorationStyle().font().setSize(Wt::FontSize::Medium);
+		}
+	}
+
+	for (int ii = 0; ii < basicWJP.size(); ii++)
+	{
+		if (basicWJP[ii] == nullptr) { continue; }
+		basicWJP[ii]->toggleMobile(mobile);
+	}
+	for (int ii = 0; ii < diffWJP.size(); ii++)
+	{
+		if (diffWJP[ii] == nullptr) { continue; }
+		if (diffWJP[ii] == nullptr) { continue; }
+		diffWJP[ii]->toggleMobile(mobile);
+	}
+	for (int ii = 0; ii < varWJP.size(); ii++)
+	{
+		if (varWJP[ii] == nullptr) { continue; }
+		if (varWJP[ii] == nullptr) { continue; }
+		varWJP[ii]->toggleMobile(mobile);
+	}
+	if (wjpDemo != nullptr) { wjpDemo->toggleMobile(mobile); }
 }

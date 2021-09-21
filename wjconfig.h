@@ -22,12 +22,12 @@ struct WJPANEL : public Wt::WPanel
 
 	unordered_map<int, int> mapMIDIndent, mapTitleIndent;  // index -> indentation within hierarchy
 	unordered_map<string, int> mapMIDIndex, mapTitleIndex;  // sValue -> index within CB 
-	Wt::WComboBox* cbMID = nullptr;
-	Wt::WComboBox* cbTitle = nullptr;
+	Wt::WComboBox* cbMID = nullptr, *cbTitle = nullptr;
 	Wt::WPushButton* pbDialog = nullptr;
 	vector<string> vsTitle, vsMID;
 	Wt::WColor wcBorder, wcOffWhite, wcSelectedWeak, wcWhite;
 	Wt::WBorder wbDefaultCB;
+	Wt::WLength wlAuto = Wt::WLength::Auto;
 
 	void applyFilter(int cbIndex, vector<int>& viFilter);
 	void clear();
@@ -38,7 +38,7 @@ struct WJPANEL : public Wt::WPanel
 	void setCB(int cbIndex, vector<string>& vsList);
 	void setCB(int cbIndex, vector<string>& vsList, int iActive);
 	void setCB(int cbIndex, vector<string>& vsList, string sActive);
-
+	void toggleMobile(bool mobile);
 };
 
 class WJCONFIG : public Wt::WContainerWidget
@@ -49,11 +49,12 @@ class WJCONFIG : public Wt::WContainerWidget
 	Wt::Signal<> filterSignal_;
 	Wt::Signal<int> pullSignal_, resetSignal_;
 	string sFilterCol, sFilterRow;
+	string sPrompt;
 	Wt::WTree *treeDialogCol = nullptr, *treeDialogRow = nullptr;
 	Wt::WTreeNode *treeNodeSel = nullptr;
 	vector<int> viFilterCol, viFilterRow;
 	vector<string> vsPrompt;
-	vector<vector<string>> vvsPrompt;
+	vector<vector<string>> vvsCata, vvsPrompt;
 	Wt::WBorder wbDotted, wbSolid;
 	Wt::WColor wcSelectedStrong, wcSelectedWeak, wcWhite;
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
@@ -81,6 +82,7 @@ public:
 
 	void addDemographic(vector<vector<string>>& vvsDemo);
 	void addDifferentiator(vector<string> vsDiff);
+	void addDifferentiator(vector<string> vsDiff, string sTitle);
 	void addVariable(vector<string>& vsVariable);
 	void categoryChanged();
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem);
@@ -90,13 +92,14 @@ public:
 	void dialogSubsectionFilterColEnd();
 	void dialogSubsectionFilterRow();
 	void dialogSubsectionFilterRowEnd();
-	void diffTitleChanged(string id);
+	void diffChanged(string id);
 	vector<string> getDemo();
 	vector<vector<string>> getDemoSplit();
 	vector<vector<string>> getDemoSplit(vector<string>& vsDemo);
 	vector<vector<int>> getFilterTable();
 	void getPrompt(vector<string>& vsP);
 	void getPrompt(vector<string>& vsP, vector<vector<string>>& vvsP);
+	void getPrompt(string& sP, vector<vector<string>>& vvsP1, vector<vector<string>>& vvsP2);
 	vector<Wt::WString> getTextLegend();
 	vector<vector<string>> getVariable();
 	void init(vector<string> vsYear);
@@ -114,12 +117,14 @@ public:
 	void resetVariables(int plus);
 	void setPrompt(vector<string>& vsP);
 	void setPrompt(vector<string>& vsP, vector<vector<string>>& vvsP);
+	void setPrompt(string& sP, vector<vector<string>>& vvsC, vector<vector<string>>& vvsP);
 	void topicSelChanged();
 	void topicSelClicked();
 	void topicTitleChanged(string id);
 	void varMIDChanged();
 	void varMIDClicked();
 	void varTitleChanged(string id);
+	void widgetMobile(bool mobile);
 	void yearChanged() { pullSignal_.emit(0); }
 
 	Wt::WLength wlAuto = Wt::WLength();

@@ -55,7 +55,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	WTPAINT* wtMap = nullptr;
 
 	Wt::WColor wcGrey, wcSelectedStrong, wcSelectedWeak, wcWhite;
-	Wt::WContainerWidget *boxBarGraph, *boxConfig, *boxData, *boxDownload, *boxMap;
+	Wt::WContainerWidget *boxBarGraph, *boxData, *boxDownload, *boxMap;
 	Wt::WContainerWidget *boxMapAll, *boxMapOption, *boxTable, *boxTextLegend;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
@@ -75,7 +75,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void connect();
 	void downloadMap();
 	int getHeight();
-	vector<Wt::WString> getMapParameterList();
+	vector<string> getMapParameterList();
 	string getUnit();
 	int getWidth();
 	void incomingFilterSignal();
@@ -97,6 +97,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventCatalogue(string sYear, string sCata);
 	void processEventCategory(vector<string> vsCategory);
 	void processEventDemographic(vector<vector<string>> vvsDemo);
+	void processEventDifferentiation(vector<string> vsDiff, string sTitle);
 	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData);
 	void processEventParameter(vector<vector<string>> vvsVariable, vector<vector<string>> vvsCata, vector<string> vsDIMIndex);
 	void processEventTable(vector<vector<string>>& vvsTable, vector<string>& vsCol, vector<string>& vsRow, string& sRegion);
@@ -114,6 +115,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void updatePinButtons(string mapUnit);
 	void updateTextCata(int numCata);
 	void updateUnit(string sUnit);
+	void widgetMobile();
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver), jsInfo(this, "jsInfo", 1), jsTWidth(this, "jsTWidth", 1)
@@ -130,15 +132,6 @@ public:
 	Wt::JSignal<double> jsTWidth;
 	
 	Wt::WLength wlAuto = Wt::WLength::Auto;
-	Wt::WLength len5p = Wt::WLength("5px");
-	Wt::WLength len50p = Wt::WLength("50px");
-	Wt::WLength len150p = Wt::WLength("150px");
-	Wt::WLength len200p = Wt::WLength("200px");
-	Wt::WLength len250p = Wt::WLength("250px");
-	Wt::WLength len300p = Wt::WLength("300px");
-	Wt::WLength len600p = Wt::WLength("600px");
-	Wt::WLength len700p = Wt::WLength("700px");
-	Wt::WLength len780p = Wt::WLength("780px");
-	Wt::WLength len800p = Wt::WLength("800px");
+	Wt::WLength wlDataFrameWidth, wlDataFrameHeight;
 };
 
