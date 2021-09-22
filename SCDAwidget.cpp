@@ -10,13 +10,16 @@ void SCDAwidget::addBarToGraph()
 		wjBarGraph->activeCata = activeCata;
 	}
 
-	if (wjBarGraph->unit == "")
+	if (wjBarGraph->unit == "" || wjBarGraph->region == "")
 	{
 		wsTemp = textUnit->text();
 		temp = wsTemp.toUTF8();
 		size_t pos1 = temp.find(':');
 		if (pos1 < temp.size()) { wjBarGraph->unit = temp.substr(pos1 + 2); }
 		else { wjBarGraph->unit = temp; }
+
+		string sRegion = tableData->getCell(-1, 0);
+		wjBarGraph->region = sRegion;
 	}
 
 	vector<vector<string>> vvsData = wtMap->getGraphData();
@@ -202,8 +205,9 @@ void SCDAwidget::incomingFilterSignal()
 	auto tableDataUnique = make_unique<WJTABLE>(vvsTable, vsCol, vsRow, tableRegion);
 	tableData = tableDataUnique.get();
 	boxTable->addWidget(move(tableDataUnique));
-	tableData->setMaximumSize(780.0, screenHeight - 100);
+	tableData->setMaximumSize(Wt::WLength(screenWidth - 500), wlDataFrameHeight);
 	tableData->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
+	tabData->setCurrentIndex(1);
 
 	tableData->jf.timerStart();
 	auto app = Wt::WApplication::instance();
@@ -288,12 +292,21 @@ void SCDAwidget::incomingResetSignal(const int& resetType)
 	switch (resetType)
 	{
 	case 0:
-		resetMap();
+		resetBarGraph();
 		break;
 	case 1:
-		resetTable();
+		resetDownload();
 		break;
 	case 2:
+		resetMap();
+		break;
+	case 3:
+		resetTabAll();
+		break;
+	case 4:
+		resetTable();
+		break;
+	case 5:
 		resetTree();
 		break;
 	}
@@ -304,7 +317,7 @@ void SCDAwidget::init()
 	screenWidth = getWidth();
 	screenHeight = getHeight();
 	wlDataFrameWidth = Wt::WLength(screenWidth - 490);
-	wlDataFrameHeight = Wt::WLength(screenHeight - 90);
+	wlDataFrameHeight = Wt::WLength(screenHeight - 130);
 	vector<string> vsYear = { "2016" };
 
 	auto hLayout = make_unique<Wt::WHBoxLayout>();
@@ -345,6 +358,12 @@ void SCDAwidget::initMaps()
 
 	Wt::WString wsTooltip = "Single-click a table cell to highlight it.\nDouble-click a table cell to load a new map using that column and row.";
 	mapTooltip.emplace("table", wsTooltip);
+	wsTooltip = "Displayed region does not match the pinned region.";
+	mapTooltip.emplace("pinRegion", wsTooltip);
+	wsTooltip = "Displayed data unit does not match the pinned data unit.";
+	mapTooltip.emplace("pinUnit", wsTooltip);
+	wsTooltip = "Displayed region and data unit do not match the\npinned region and data unit.";
+	mapTooltip.emplace("pinRegionUnit", wsTooltip);
 
 	mapUnit.emplace("percentage", "%");
 	mapUnit.emplace("number", "#");
@@ -388,16 +407,15 @@ void SCDAwidget::initUI()
 	// Initial values for the table tab.
 	boxTable->setMaximumSize(wlDataFrameWidth, wlDataFrameHeight);
 	boxTable->setOverflow(Wt::Overflow::Hidden, Wt::Orientation::Horizontal | Wt::Orientation::Vertical);
+	textUnit->decorationStyle().font().setSize(Wt::FontSize::Large);
 
 	// Initial values for the map tab.
 	textUnit->setTextAlignment(Wt::AlignmentFlag::Middle);
 	boxMap->setContentAlignment(Wt::AlignmentFlag::Center);
+	allPB.push_back(pbPin);
+	allPB.push_back(pbPinReset);
 
-	// Initial values for the download tab.
-	//pbDownloadPDF->clicked().connect(this, std::bind(&SCDAwidget::downloadMap, this));
-
-	// Initial values for the miscellaneous buttons.
-
+	// Initial values for miscellaneous things.
 
 }
 
@@ -482,22 +500,14 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 	wjBarGraph = wjBarGraphUnique.get();
 	tabData->addTab(move(wjBarGraphUnique), "Bar Graph", Wt::ContentLoading::Eager);
 
-	auto boxDownloadUnique = makeBoxDownload();
-	tabData->addTab(move(boxDownloadUnique), "Download", Wt::ContentLoading::Eager);
+	auto wjDownloadUnique = make_unique<WJDOWNLOAD>();
+	wjDownload = wjDownloadUnique.get();
+	tabData->addTab(move(wjDownloadUnique), "Download", Wt::ContentLoading::Eager);
 
 	stackedTabData = tabData->contentsStack();
 	layout->addWidget(move(tabDataUnique));
 	boxDataUnique->setLayout(move(layout));
 	return boxDataUnique;
-}
-unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxDownload()
-{
-	auto boxDownloadUnique = make_unique<Wt::WContainerWidget>();
-	boxDownload = boxDownloadUnique.get();
-	auto pbDownloadPDFUnique = make_unique<Wt::WPushButton>("PDF");
-	pbDownloadPDF = pbDownloadPDFUnique.get();
-	boxDownloadUnique->addWidget(move(pbDownloadPDFUnique));
-	return boxDownloadUnique;
 }
 unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxMap()
 {
@@ -718,20 +728,20 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		{
 			wtMap->setUnit(sUnit, { 0 });
 			wsUnit = "Unit: " + sUnit;
-			updatePinButtons(sUnit);  // Enable or disable as appropriate.
+			updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
 		}
 		else  // Default to this unit.
 		{
 			wtMap->setUnit(sUnit, { 0, 1 });
 			wsUnit = "Unit: " + temp;
-			updatePinButtons(temp);  // Enable or disable as appropriate.
+			updatePinButtons(temp, vsRegion[0]);  // Enable or disable as appropriate.
 		}
 	}
 	else 
 	{ 
 		wtMap->setUnit(sUnit, { 0 }); 
 		wsUnit = "Unit: " + sUnit;
-		updatePinButtons(sUnit);  // Enable or disable as appropriate.
+		updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
 	}
 	textUnit->setText(wsUnit);
 
@@ -851,7 +861,7 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<stri
 	auto tableDataUnique = make_unique<WJTABLE>(vvsTable, vsCol, vsRow, sRegion);
 	tableData = tableDataUnique.get();
 	boxTable->addWidget(move(tableDataUnique));
-	tableData->setMaximumSize(780.0, screenHeight - 100);
+	tableData->setMaximumSize(Wt::WLength(screenWidth - 500), wlDataFrameHeight);
 	tableData->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
 
 	// Populate cbColTopicSel and cbRowTopicSel if necessary.
@@ -967,21 +977,36 @@ void SCDAwidget::processEventTree(JTREE jt)
 
 void SCDAwidget::resetBarGraph()
 {
+	string sRegion;
+	if (tableData == nullptr) { sRegion = ""; }
+	else { sRegion = tableData->getCell(-1, 0); }
 	wjBarGraph->reset();
 	Wt::WString wsTemp = textUnit->text();
 	string mapUnit = wsTemp.toUTF8();
 	size_t pos1 = mapUnit.find(':');
-	if (pos1 < mapUnit.size()) { updatePinButtons(mapUnit.substr(pos1 + 2)); }
-	else { updatePinButtons(mapUnit); }
+	if (pos1 < mapUnit.size()) { updatePinButtons(mapUnit.substr(pos1 + 2), sRegion); }
+	else { updatePinButtons(mapUnit, sRegion); }
 	tabData->setTabEnabled(3, 0);
+}
+void SCDAwidget::resetDownload()
+{
+	if (boxDownload != nullptr) { boxDownload->clear(); }
+	tabData->setTabEnabled(4, 0);
 }
 void SCDAwidget::resetMap()
 {
 	first = 1;
 	boxMap->clear();
 	tabData->setTabEnabled(2, 0);
-	//tabData->setTabEnabled(3, 0);
 	tabData->setCurrentIndex(0);
+}
+void SCDAwidget::resetTabAll()
+{
+	resetDownload();
+	resetBarGraph();
+	resetMap();
+	resetTable();
+	resetTree();
 }
 void SCDAwidget::resetTable()
 {
@@ -1065,8 +1090,9 @@ void SCDAwidget::toggleMobile()
 		wjConfig = hLayout->addWidget(move(wjConfigUnique));
 		boxData = hLayout->addWidget(move(boxDataUnique));		
 		this->setLayout(move(hLayout));
-		wjConfig->setMaximumSize(200.0, wlAuto);
+		wjConfig->setMaximumSize(300.0, wlAuto);
 		boxData->setMaximumSize(screenWidth - 480, wlAuto);
+		wjBarGraph->setMaximumSize(screenWidth - 490, wlAuto);
 		widgetMobile();
 	}
 	else
@@ -1080,6 +1106,7 @@ void SCDAwidget::toggleMobile()
 		this->setLayout(move(vLayout));
 		wjConfig->setMaximumSize(wlAuto, wlAuto);
 		boxData->setMaximumSize(wlAuto, wlAuto);
+		wjBarGraph->setMaximumSize(wlAuto, wlAuto);
 		widgetMobile();
 	}
 }
@@ -1106,23 +1133,35 @@ void SCDAwidget::treeClicked(int& geoCode, string& sRegion)
 	sRegion = wTemp.toUTF8();
 	geoCode = jtRegion.getIName(sRegion);
 }
-void SCDAwidget::updatePinButtons(string mapUnit)
+void SCDAwidget::updatePinButtons(string mapUnit, string sRegion)
 {
+	Wt::WString wsTemp;
 	string bgUnit = wjBarGraph->unit;
-	if (bgUnit == "")
+	string bgRegion = wjBarGraph->region;
+	if (bgUnit == "" || bgRegion == "")
 	{
 		pbPin->setEnabled(1);
+		pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
 		pbPinReset->setEnabled(0);
+		pbPinReset->decorationStyle().setBackgroundColor(wcWhite);
 	}
-	else if (bgUnit == mapUnit)
+	else if (bgUnit == mapUnit && bgRegion == sRegion)
 	{
 		pbPin->setEnabled(1);
+		pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
 		pbPinReset->setEnabled(1);
+		pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
 	}
 	else
 	{
 		pbPin->setEnabled(0);
+		pbPin->decorationStyle().setBackgroundColor(wcWhite);
 		pbPinReset->setEnabled(1);
+		pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		if (bgUnit == mapUnit) { wsTemp = mapTooltip.at("pinRegion"); }
+		else if (bgRegion == sRegion) { wsTemp = mapTooltip.at("pinUnit"); }
+		else { wsTemp = mapTooltip.at("pinRegionUnit"); }
+		pbPin->setToolTip(wsTemp);
 	}
 }
 void SCDAwidget::updateTextCata(int numCata)
@@ -1162,10 +1201,9 @@ void SCDAwidget::widgetMobile()
 		}
 		if (tabData != nullptr)
 		{
-			tabData->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+			tabData->decorationStyle().font().setSize(Wt::FontSize::XLarge);
 			tabData->setMinimumSize(wlAuto, 50.0);
 		}
-		wjConfig->widgetMobile(1);
 	}
 	else
 	{
@@ -1182,6 +1220,7 @@ void SCDAwidget::widgetMobile()
 			tabData->decorationStyle().font().setSize(Wt::FontSize::Medium);
 			tabData->setMinimumSize(wlAuto, wlAuto);
 		}
-		wjConfig->widgetMobile(0);
 	}
+	wjConfig->widgetMobile(mobile);
+	wjBarGraph->widgetMobile(mobile);
 }

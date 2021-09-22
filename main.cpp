@@ -28,7 +28,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	auto cssLink = Wt::WLink(docRoot() + "\\SCDA-Wt.css");
 	this->useStyleSheet(cssLink);
 
-	root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
+	//root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
 	this->globalKeyWentUp().connect(scdaWidget, &SCDAwidget::displayCata);
 }

@@ -984,9 +984,9 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 	}
 
 	// If the pre-existing Diff titles have no MIDs useful for differentiation, try the other Diff title MIDs.
-	unordered_map<string, int> mapDIMCount;
+	map<string, int> mapDIMCount;
 	vector<string> vsResult;
-	int count;
+	int count, iNum;
 	for (int ii = 0; ii < vsYearCata.size(); ii++)
 	{
 		tname = "Census$" + vsYearCata[ii] + "$DIMIndex";
@@ -1000,12 +1000,12 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 			if (setFixed.count(vsResult[jj])) { continue; }
 			if (mapDIMCount.count(vsResult[jj]))
 			{
-				count = mapDIMCount.at(vsResult[jj]);
+				auto mapIt = mapDIMCount.find(vsResult[jj]);
+				count = mapIt->second;
 				count++;
-				mapDIMCount.erase(vsResult[jj]);
+				mapIt->second = count;
 			}
-			else { count = 1; }
-			mapDIMCount.emplace(vsResult[jj], count);
+			else { mapDIMCount.emplace(vsResult[jj], 1); }		
 		}
 	}
 	vector<string> vsDIM;  // List of common (unexamined) DIMs.
@@ -1017,6 +1017,8 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 			vsDIM.push_back(mapIt->first);
 		}
 	}
+	
+	map<string, int> mapHaveCount;
 	for (int ii = 0; ii < vsDIM.size(); ii++)  // For every user-chosen Diff title...
 	{
 		// Populate each catalogue's list of MIDs.
@@ -1030,7 +1032,8 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 			if (result.size() < 1) { jf.err("No DIMIndex found-SCDAserver.getMIDDifferentiator"); }
 			
 			vvsMID[jj].clear();
-			if (ii < vsDIM.size() - 1) 
+			iNum = stoi(result);
+			if (iNum < vsDIM.size() - 1) 
 			{ 
 				tname = "Census$" + vsYearCata[jj] + "$DIM$" + result; 
 				search = { "DIM" };
@@ -1071,6 +1074,15 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 			{
 				sHave = vvsHaveNotHave[jj][1];
 				sNotHave = vvsHaveNotHave[jj][2];
+				if (mapHaveCount.count(sHave))  // Just in case it's needed later...
+				{
+					auto mapIt = mapHaveCount.find(sHave);
+					iNum = mapIt->second;
+					iNum++;
+					mapIt->second = iNum;
+				}
+				else { mapHaveCount.emplace(sHave, 1); }
+
 				for (int kk = 0; kk < vvsHaveNotHave.size(); kk++)
 				{
 					if (jj == kk) { continue; }
@@ -1091,7 +1103,39 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 			}
 		}
 	}
-	jf.err("Failed to differentiate catalogues-SCDAserver.getDifferentiatorMID");
+
+	// Differentiation has failed. Return the candidate with the greatest geographical articulation.
+	vector<int> viRegion(vsYearCata.size());
+	for (int ii = 0; ii < viRegion.size(); ii++)
+	{
+		tname = "Geo$" + vsYearCata[ii];
+		viRegion[ii] = sf.getNumRows(tname);
+	}
+	vector<int> viMinMax = jf.minMax(viRegion);
+	if (viMinMax[0] != viMinMax[1])
+	{
+		vsDiff = { vsYearCata[viMinMax[1]] };
+		return vsDiff;
+	}
+
+	// Geographical comparison has failed. Return the candidate with the greatest number of MID "haves".
+	int iMax = 0;
+	for (int ii = 0; ii < vsYearCata.size(); ii++)
+	{
+		iNum = mapHaveCount.at(vsYearCata[ii]);
+		if (iNum > iMax)
+		{
+			iMax = iNum;
+			vsDiff = { vsYearCata[ii] };
+		}
+		else if (iNum == iMax)
+		{
+			vsDiff.push_back(vsYearCata[ii]);
+		}
+	}
+	if (vsDiff.size() == 1) { return vsDiff; }
+
+	jf.err("Failed to differentiate catalogues-SCDAserver.getDifferentitatorMID");
 	return vsDiff;
 }
 vector<string> SCDAserver::getDifferentiatorTitle(vector<vector<string>>& vvsCata, vector<string>& vsFixed)
@@ -1453,10 +1497,20 @@ void SCDAserver::pullDifferentiator(string prompt, vector<vector<string>> vvsCat
 
 	// Examine cases with MID filters, or if no DIM title filters are useful.
 	vsCandidate = getDifferentiatorMID(vvsCata, vvsDiff);
-	sTitle = vsCandidate.back();
-	vsCandidate.pop_back();
-	postDataEvent(DataEvent(DataEvent::Differentiation, prompt, numCata, vsCandidate, sTitle), prompt);
-
+	if (vsCandidate.size() > 1)
+	{
+		sTitle = vsCandidate.back();
+		vsCandidate.pop_back();
+		postDataEvent(DataEvent(DataEvent::Differentiation, prompt, numCata, vsCandidate, sTitle), prompt);
+	}
+	else
+	{
+		pos1 = vsCandidate[0].find('$');
+		if (pos1 > vsCandidate[0].size()) { jf.err("Faulty return-SCDAserver.pullDifferentiator"); }
+		vvsCata[0][0] = vsCandidate[0].substr(0, pos1);
+		vvsCata[0][1] = vsCandidate[0].substr(pos1 + 1);
+		postDataEvent(DataEvent(DataEvent::Catalogue, prompt, vvsCata[0][0], vvsCata[0][1]), prompt);
+	}
 }
 void SCDAserver::pullMap(vector<string> prompt, vector<vector<string>> vvsDIM)
 {

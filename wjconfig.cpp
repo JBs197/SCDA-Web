@@ -462,11 +462,11 @@ void WJCONFIG::categoryChanged()
 {
 	// Populate the topic widgets with options for the user
 	// to choose column and row topics. 
-	resetSignal_.emit(0);  // Reset map.
-	resetSignal_.emit(1);  // Reset table.
-	resetSignal_.emit(2);  // Reset tree.
+	resetSignal_.emit(3);  // Reset all tabs.
 	resetVariables();
 	resetTopicSel();
+	sFilterCol.clear();
+	sFilterRow.clear();
 	Wt::WString wsYear = wjpYear->cbTitle->currentText();
 	int index = wjpCategory->cbTitle->currentIndex();
 	if (index == 0)
@@ -522,11 +522,11 @@ void WJCONFIG::demographicChanged()
 	wjpTopicRow->cbMID->setHidden(1);
 	wjpTopicRow->pbDialog->setHidden(1);
 
-	resetSignal_.emit(0);  // Reset map.
-	resetSignal_.emit(1);  // Reset table.
-	resetSignal_.emit(2);  // Reset tree.
+	resetSignal_.emit(3);  // Reset all tabs.
 	resetTopicSel();
 	resetVariables(1);
+	sFilterCol.clear();
+	sFilterRow.clear();
 
 	Wt::WString wsTemp = wjpDemo->cbTitle->currentText();
 	if (wsTemp == wsNoneSel) { wjpDemo->highlight(0); }
@@ -564,6 +564,7 @@ void WJCONFIG::demographicChanged()
 void WJCONFIG::dialogSubsectionFilterCol()
 {
 	auto wDialog = make_unique<Wt::WDialog>("Choose a column item to display exclusively with its interior items -");
+	wDialog->setClosable(1);
 
 	string sID;
 	jtCol.expandGeneration = -1;  // Expand all nodes automatically.
@@ -571,6 +572,7 @@ void WJCONFIG::dialogSubsectionFilterCol()
 	Wt::WString wsTemp = Wt::WString::fromUTF8(sRoot);
 	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
+	treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::XLarge);
 	auto treeRoot = treeRootUnique.get();
 	treeNodeSel = nullptr;
 	if (sFilterCol.size() > 0)
@@ -625,6 +627,7 @@ void WJCONFIG::dialogSubsectionFilterColEnd()
 void WJCONFIG::dialogSubsectionFilterRow()
 {
 	auto wDialog = make_unique<Wt::WDialog>("Choose a row item to display exclusively with its interior items -");
+	wDialog->setClosable(1);
 
 	string sID;
 	jtRow.expandGeneration = -1;  // Expand all nodes automatically.
@@ -632,6 +635,7 @@ void WJCONFIG::dialogSubsectionFilterRow()
 	Wt::WString wsTemp = Wt::WString::fromUTF8(sRoot);
 	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
+	treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::XLarge);
 	auto treeRoot = treeRootUnique.get();
 	treeNodeSel = nullptr;
 	if (sFilterRow.size() > 0)
@@ -1007,10 +1011,10 @@ void WJCONFIG::init(vector<string> vsYear)
 	sID = wjpTopicRow->id();
 	wjpTopicRow->cbTitle->changed().connect(this, std::bind(&WJCONFIG::topicTitleChanged, this, sID));
 
-	wjpTopicCol->cbMID->clicked().connect(this, &WJCONFIG::varMIDClicked);
-	wjpTopicCol->cbMID->changed().connect(this, &WJCONFIG::varMIDChanged);
-	wjpTopicRow->cbMID->clicked().connect(this, &WJCONFIG::varMIDClicked);
-	wjpTopicRow->cbMID->changed().connect(this, &WJCONFIG::varMIDChanged);
+	wjpTopicCol->cbMID->clicked().connect(this, &WJCONFIG::topicSelClicked);
+	wjpTopicCol->cbMID->changed().connect(this, &WJCONFIG::topicSelChanged);
+	wjpTopicRow->cbMID->clicked().connect(this, &WJCONFIG::topicSelClicked);
+	wjpTopicRow->cbMID->changed().connect(this, &WJCONFIG::topicSelChanged);
 
 	wjpTopicRow->pbDialog->clicked().connect(this, &WJCONFIG::dialogSubsectionFilterRow);
 	wjpTopicCol->pbDialog->clicked().connect(this, &WJCONFIG::dialogSubsectionFilterCol);
@@ -1119,6 +1123,10 @@ void WJCONFIG::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 		wTemp = Wt::WString::fromUTF8(vsChildren[ii]);
 		auto childUnique = make_unique<Wt::WTreeNode>(wTemp);
 		auto child = childUnique.get();
+		if (jt.fontRootSize >= 0)  // Apply decreasing font sizes.
+		{
+			child->decorationStyle().font().setSize(Wt::FontSize::Smaller);
+		}
 		populateTree(jt, child);
 		node->addChildNode(move(childUnique));
 	}
@@ -1139,6 +1147,10 @@ void WJCONFIG::populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName)
 		wTemp = Wt::WString::fromUTF8(vsChildren[ii]);
 		auto childUnique = make_unique<Wt::WTreeNode>(wTemp);
 		auto child = childUnique.get();
+		if (jt.fontRootSize >= 0)  // Apply decreasing font sizes.
+		{
+			child->decorationStyle().font().setSize(Wt::FontSize::Smaller);
+		}
 		populateTree(jt, child, sName);
 		if (vsChildren[ii] == sName)
 		{
@@ -1311,9 +1323,9 @@ void WJCONFIG::topicTitleChanged(string id)
 	}
 	if (prompt[3] == "*" && prompt[4] == "*")
 	{
-		resetSignal_.emit(0);  // Reset map.
-		resetSignal_.emit(1);  // Reset table.
-		resetSignal_.emit(2);  // Reset tree.
+		resetSignal_.emit(3);  // Reset all tabs.
+		sFilterCol.clear();
+		sFilterRow.clear();
 	}
 
 	// Query the server for the next stage, depending on the current state of specificity.
@@ -1403,7 +1415,7 @@ void WJCONFIG::widgetMobile(bool mobile)
 		}
 		if (textCata != nullptr)
 		{
-			textCata->setMinimumSize(wlAuto, 150.0);
+			textCata->setMinimumSize(wlAuto, 100.0);
 			textCata->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
 		}
 	}

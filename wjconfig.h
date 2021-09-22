@@ -53,13 +53,13 @@ class WJCONFIG : public Wt::WContainerWidget
 	Wt::WTree *treeDialogCol = nullptr, *treeDialogRow = nullptr;
 	Wt::WTreeNode *treeNodeSel = nullptr;
 	vector<int> viFilterCol, viFilterRow;
+	Wt::WVBoxLayout* vLayout = nullptr;
 	vector<string> vsPrompt;
 	vector<vector<string>> vvsCata, vvsPrompt;
 	Wt::WBorder wbDotted, wbSolid;
 	Wt::WColor wcSelectedStrong, wcSelectedWeak, wcWhite;
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
 	unique_ptr<Wt::WDialog> wdFilter = nullptr;
-	Wt::WVBoxLayout* vLayout = nullptr;
 
 public:
 	WJCONFIG(vector<string> vsYear) : Wt::WContainerWidget() {

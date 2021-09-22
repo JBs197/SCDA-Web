@@ -51,6 +51,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 
 	WJBARGRAPH* wjBarGraph = nullptr;
 	WJCONFIG* wjConfig = nullptr;
+	WJDOWNLOAD* wjDownload = nullptr;
 	WJTABLE* tableData = nullptr;
 	WTPAINT* wtMap = nullptr;
 
@@ -88,7 +89,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string jsMakeFunctionTableScrollTo(WJTABLE*& boxTable);
 	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
 	unique_ptr<Wt::WContainerWidget> makeBoxData();
-	unique_ptr<Wt::WContainerWidget> makeBoxDownload();
 	unique_ptr<Wt::WContainerWidget> makeBoxMap();
 	void mapAreaClicked(int areaIndex);
 	void populateTextLegend(Wt::WContainerWidget*& boxTextLegend);
@@ -104,7 +104,9 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
 	void processEventTree(JTREE jt);
 	void resetBarGraph();
+	void resetDownload();
 	void resetMap();
+	void resetTabAll();
 	void resetTable();
 	void resetTree();
 	void setMap(int iRow, int iCol, string sRegion);
@@ -112,7 +114,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void toggleMobile();
 	void treeClicked();
 	void treeClicked(int& geoCode, string& sRegion);
-	void updatePinButtons(string mapUnit);
+	void updatePinButtons(string mapUnit, string sRegion);
 	void updateTextCata(int numCata);
 	void updateUnit(string sUnit);
 	void widgetMobile();

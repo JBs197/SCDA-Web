@@ -3,7 +3,10 @@
 void WJPARAMPANEL::addEndspace()
 {
 	int numRow = gLayout->rowCount();
+	auto dummy = make_unique<Wt::WText>("");
+	gLayout->addWidget(move(dummy), numRow + 1, 1, Wt::AlignmentFlag::Bottom);
 	gLayout->setRowStretch(numRow, 1);
+	gLayout->setColumnStretch(1, 2);
 }
 void WJPARAMPANEL::addParameter(string sParameter, vector<Wt::WColor>& colours)
 {
@@ -49,13 +52,25 @@ void WJPARAMPANEL::addParameter(string sParameter, vector<Wt::WColor>& colours)
 		gLayout->addLayout(move(gcLayout), index, 0, Wt::AlignmentFlag::Right | Wt::AlignmentFlag::Middle);
 	}
 
-	auto parameterText = make_unique<Wt::WText>(sParameter);
+	auto parameterText = make_unique<Wt::WText>();
+	parameterText->setTextFormat(Wt::TextFormat::Plain);
 	parameterText->setWordWrap(0);
-	if (index % 2 == 1)
+	size_t pos1 = 0;
+	for (int ii = 0; ii < paramPerLine; ii++)
 	{
-		Wt::WCssDecorationStyle& style = parameterText->decorationStyle();
-		style.setBackgroundColor(wcGrey);
+		pos1 = sParameter.find('|', pos1 + 1);
+		if (pos1 > sParameter.size()) { break; }
+		else if (ii == paramPerLine - 1)
+		{
+			string nl = "\n  ";
+			pos1++;
+			//sParameter.insert(pos1, nl);
+		}
 	}
+	Wt::WString wsTemp = Wt::WString::fromUTF8(sParameter);
+	parameterText->setText(wsTemp);
+	Wt::WCssDecorationStyle& style = parameterText->decorationStyle();
+	style.font().setSize(Wt::FontSize::Large);
 	gLayout->addWidget(move(parameterText), index, 1, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Middle);
 }
 void WJPARAMPANEL::clear()
@@ -71,10 +86,10 @@ void WJPARAMPANEL::init(string sTitle)
 	setTitle(wsTemp);
 	auto boxUnique = make_unique<Wt::WContainerWidget>();
 	auto layoutUnique = make_unique<Wt::WGridLayout>();
-	layoutUnique->setColumnStretch(1, 1);
 	gLayout = boxUnique->setLayout(move(layoutUnique));
 	wBox = setCentralWidget(move(boxUnique));
-
+	wBox->setOverflow(Wt::Overflow::Auto);
+	
 	wlWidthColour = Wt::WLength(40.0);
 	wlHeightColour = Wt::WLength(25.0);
 	wbColour = Wt::WBorder(Wt::BorderStyle::Solid, Wt::BorderWidth::Medium, Wt::WColor(Wt::StandardColor::Black));
@@ -121,6 +136,16 @@ void WJBARGRAPH::configureChart()
 	Wt::Chart::WAxis& yAxis = chart->axis(Wt::Chart::Axis::Y);
 	yAxis.setLabelFormat("%.8g");
 	yAxis.setTitle(unit);
+	if (unit.size() > 1)
+	{
+		yAxis.setTitleOrientation(Wt::Orientation::Vertical);
+		chart->setPlotAreaPadding(120, Wt::Side::Left);
+	}
+	else
+	{
+		yAxis.setTitleOrientation(Wt::Orientation::Horizontal);
+		chart->setPlotAreaPadding(60, Wt::Side::Left);
+	}	
 
 	Wt::Chart::WAxis& xAxis = chart->axis(Wt::Chart::Axis::X);
 	auto orientation = chart->orientation();
@@ -128,7 +153,6 @@ void WJBARGRAPH::configureChart()
 	{ 
 		xAxis.setLabelAngle(30.0); 
 		chart->setPlotAreaPadding(120, Wt::Side::Bottom);
-		chart->setPlotAreaPadding(60, Wt::Side::Left);
 	}
 	else 
 	{ 
@@ -154,45 +178,10 @@ void WJBARGRAPH::display()
 	ppUnique = layout->addWidget(move(ppu));
 	ppDiff = layout->addWidget(move(ppd));
 	ppCommon = layout->addWidget(move(ppc));
+	layout->addStretch(1);
 
 	parameterPopulation();
 	parameterSorting(seriesColour);
-
-	/*
-	vector<Wt::WColor> colours;
-	string sParameter;
-	int count, countCommon = 0, countDiff = 0, countUnique = 0;
-	int numSeries = seriesColour.size();
-	for (int ii = 0; ii < vviParameter.size(); ii++)
-	{
-		count = 0;
-		colours.clear();
-		for (int jj = 0; jj < numSeries; jj++)
-		{
-			if (vviParameter[ii][jj] == 1)
-			{
-				count++;
-				colours.push_back(seriesColour[jj]);
-			}
-		}
-		sParameter = mapValueParameter.at(ii);
-		if (count == 1) 
-		{ 
-			ppu->addParameter(sParameter, colours); 
-			countUnique++;
-		}
-		else if (count == numSeries) 
-		{ 
-			ppc->addParameter(sParameter, colours); 
-			countCommon++;
-		}
-		else 
-		{ 
-			ppd->addParameter(sParameter, colours); 
-			countDiff++;
-		}
-	}
-	*/
 
 	this->setLayout(move(layout));
 }
@@ -366,4 +355,8 @@ void WJBARGRAPH::setModelValues()
 			model->setData(jj, ii + 1, vDataset[ii].vsData[jj], Wt::ItemDataRole::Display);
 		}
 	}
+}
+void WJBARGRAPH::widgetMobile(bool mobile)
+{
+
 }

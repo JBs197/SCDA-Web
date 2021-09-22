@@ -24,6 +24,7 @@ struct WJDATASET
 class WJPARAMPANEL : public Wt::WPanel
 {
 	Wt::WGridLayout* gLayout = nullptr;
+	int paramPerLine = 2;
 	Wt::WContainerWidget* wBox = nullptr;
 	Wt::WBorder wbColour;
 	Wt::WColor wcGrey;
@@ -60,7 +61,7 @@ public:
 
 	string activeCata;
 	JFUNC jf;
-	string unit = "";
+	string region = "", unit = "";
 
 	void addDataset(vector<vector<string>>& vvsData, vector<string>& vsParameter);
 	void configureChart();
@@ -72,6 +73,7 @@ public:
 	void parameterSorting(vector<Wt::WColor>& seriesColour);
 	void reset();
 	void setModelValues();
+	void widgetMobile(bool mobile);
 
 	Wt::WLength wlAuto = Wt::WLength::Auto;
 };

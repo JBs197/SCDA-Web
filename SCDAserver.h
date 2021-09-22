@@ -10,7 +10,7 @@
 #include "winfunc.h"
 #include "wjbargraph.h"
 #include "wjconfig.h"
-#include "wjpdf.h"
+#include "wjdownload.h"
 #include "wjtable.h"
 #include "wtpaint.h"
 
