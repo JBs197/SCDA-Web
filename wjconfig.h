@@ -6,10 +6,13 @@
 #include <Wt/WTreeNode.h>
 #include <Wt/WPushButton.h>
 #include <Wt/WVBoxLayout.h>
+#include <Wt/WHBoxLayout.h>
 #include <Wt/WComboBox.h>
 #include <Wt/WPanel.h>
 #include <Wt/WColor.h>
 #include <Wt/WDialog.h>
+#include <Wt/WPainter.h>
+#include <Wt/WSvgImage.h>
 #include "jtree.h"
 
 using namespace std;
@@ -20,46 +23,70 @@ struct WJPANEL : public Wt::WPanel
 	WJPANEL() : Wt::WPanel() { init(); }
 	~WJPANEL() {}
 
-	unordered_map<int, int> mapMIDIndent, mapTitleIndent;  // index -> indentation within hierarchy
-	unordered_map<string, int> mapMIDIndex, mapTitleIndex;  // sValue -> index within CB 
-	Wt::WComboBox* cbMID = nullptr, *cbTitle = nullptr;
-	Wt::WPushButton* pbDialog = nullptr;
+	JFUNC jf;
+	JTREE jtMID;
+
+	Wt::WContainerWidget *boxMID = nullptr;
+	Wt::WComboBox *cbTitle = nullptr;
+	unordered_map<int, int> mapFilterMID;  // JTREE index -> index within viFilter
+	unordered_map<string, int> mapIndexTitle;  // sTitle -> index within cbTitle 
+	Wt::WPushButton *pbMID = nullptr;
+	string selMID = "", selTitle = "";
+	Wt::WText *textMID = nullptr;
+	Wt::WTree *treeDialog = nullptr;
+	Wt::WTreeNode *treeNodeSel = nullptr;
+	vector<int> viFilter;                                 // JTREE indices of permitted items.
 	vector<string> vsTitle, vsMID;
-	Wt::WColor wcBorder, wcOffWhite, wcSelectedWeak, wcWhite;
+	Wt::WColor wcBorder, wcGrey, wcOffWhite, wcSelectedWeak, wcWhite;
 	Wt::WBorder wbDefaultCB;
+	unique_ptr<Wt::WDialog> wdTree = nullptr;
 	Wt::WLength wlAuto = Wt::WLength::Auto;
 
-	void applyFilter(int cbIndex, vector<int>& viFilter);
 	void clear();
+	void dialogFilter();
+	void dialogFilterEnd();
+	void dialogMID();
+	void dialogMIDEnd();
+	Wt::Signal<>& filterSignal() { return filterSignal_; }
+	int getIndexMID(int mode);
+	string getTextLegend();
 	void highlight(int widgetIndex);
 	void init();
-	void unhighlight(int widgetIndex);
-	void resetMapIndex(int cbIndex);
-	void setCB(int cbIndex, vector<string>& vsList);
-	void setCB(int cbIndex, vector<string>& vsList, int iActive);
-	void setCB(int cbIndex, vector<string>& vsList, string sActive);
+	void panelClicked() { jf.timerStart(); }
+	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
+	void populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName);
+	void resetMapIndex();
+	void setCB(vector<string>& vsList);
+	void setCB(vector<string>& vsList, int iActive);
+	void setCB(vector<string>& vsList, string sActive);
+	void setFilter(vector<int>& viFilter);
+	void setIndexMID(int indexMID);
+	void setTree(vector<string>& vsList);
 	void toggleMobile(bool mobile);
+	Wt::Signal<int>& topicSignal() { return topicSignal_; }
+	void unhighlight(int widgetIndex);
+	Wt::Signal<string>& varSignal() { return varSignal_; }
+
+private:
+	Wt::Signal<> filterSignal_;
+	Wt::Signal<int> topicSignal_;  // Form [basicWJP index].
+	Wt::Signal<string> varSignal_;  // Form [sID].
 };
 
 class WJCONFIG : public Wt::WContainerWidget
 {
-	JTREE jtCol, jtRow;
 	unordered_map<string, int> mapDiffIndex, mapVarIndex;  // sID -> var/diff index
 	Wt::Signal<int, int> headerSignal_;
-	Wt::Signal<> filterSignal_;
 	Wt::Signal<int> pullSignal_, resetSignal_;
-	string sFilterCol, sFilterRow;
 	string sPrompt;
-	Wt::WTree *treeDialogCol = nullptr, *treeDialogRow = nullptr;
-	Wt::WTreeNode *treeNodeSel = nullptr;
-	vector<int> viFilterCol, viFilterRow;
 	Wt::WVBoxLayout* vLayout = nullptr;
 	vector<string> vsPrompt;
 	vector<vector<string>> vvsCata, vvsPrompt;
-	Wt::WBorder wbDotted, wbSolid;
-	Wt::WColor wcSelectedStrong, wcSelectedWeak, wcWhite;
+	Wt::WBorder wbDefaultCB, wbDotted, wbSolid;
+	Wt::WColor wcBlack, wcBorder, wcOffWhite, wcSelectedStrong, wcSelectedWeak, wcWhite;
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
 	unique_ptr<Wt::WDialog> wdFilter = nullptr;
+	shared_ptr<Wt::WResource> wrIconMID = nullptr;
 
 public:
 	WJCONFIG(vector<string> vsYear) : Wt::WContainerWidget() {
@@ -68,14 +95,14 @@ public:
 	}
 	~WJCONFIG() {}
 
-	vector<WJPANEL*> basicWJP, diffWJP, varWJP;
+	vector<WJPANEL*> basicWJP, varWJP;
+	vector<Wt::WPanel*> diffWP;
 	JFUNC jf;
 	vector<vector<string>> vvsDemographic, vvsParameter;
 	WJPANEL *wjpCategory, *wjpDemo, *wjpTopicCol, *wjpTopicRow, *wjpYear;
 	Wt::WPushButton* pbMobile;
 	Wt::WText* textCata;
 
-	Wt::Signal<>& filterSignal() { return filterSignal_; }
 	Wt::Signal<int, int>& headerSignal() { return headerSignal_; }
 	Wt::Signal<int>& pullSignal() { return pullSignal_; }
 	Wt::Signal<int>& resetSignal() { return resetSignal_; }
@@ -88,10 +115,6 @@ public:
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem, string sActive);
 	void demographicChanged();
-	void dialogSubsectionFilterCol();
-	void dialogSubsectionFilterColEnd();
-	void dialogSubsectionFilterRow();
-	void dialogSubsectionFilterRowEnd();
 	void diffChanged(string id);
 	vector<string> getDemo();
 	vector<vector<string>> getDemoSplit();
@@ -102,25 +125,26 @@ public:
 	void getPrompt(string& sP, vector<vector<string>>& vvsP1, vector<vector<string>>& vvsP2);
 	vector<Wt::WString> getTextLegend();
 	vector<vector<string>> getVariable();
+	void highlightPanel(Wt::WPanel*& wPanel, int widgetIndex);
 	void init(vector<string> vsYear);
-	void initJTree(vector<string>& vsRow, vector<string>& vsCol);
+	shared_ptr<Wt::WResource> makeIconMID(int width);
 	unique_ptr<WJPANEL> makePanelCategory();
 	unique_ptr<WJPANEL> makePanelTopicCol();
 	unique_ptr<WJPANEL> makePanelTopicRow();
 	unique_ptr<WJPANEL> makePanelYear(vector<string> vsYear);
-	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
-	void populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName);
 	void removeDifferentiators();
 	void removeVariable(int varIndex);
-	void resetTopicSel();
+	void resetTopicMID();
 	void resetVariables();
 	void resetVariables(int plus);
 	void setPrompt(vector<string>& vsP);
 	void setPrompt(vector<string>& vsP, vector<vector<string>>& vvsP);
 	void setPrompt(string& sP, vector<vector<string>>& vvsC, vector<vector<string>>& vvsP);
+	void toggleMobilePanel(Wt::WPanel*& wPanel, bool mobile);
 	void topicSelChanged();
 	void topicSelClicked();
 	void topicTitleChanged(string id);
+	void unhighlightPanel(Wt::WPanel*& wPanel, int widgetIndex);
 	void varMIDChanged();
 	void varMIDClicked();
 	void varTitleChanged(string id);

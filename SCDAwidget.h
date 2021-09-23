@@ -61,13 +61,14 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
 	Wt::WPopupMenu *popupUnit;
-	Wt::WPushButton *pbDownloadPDF, *pbPin, *pbPinReset, *pbUnit;
+	Wt::WPushButton *pbDownloadPDF, *pbFilterCol, *pbFilterRow, *pbPin, *pbPinReset, *pbUnit;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
 	Wt::WStackedWidget* stackedTabData;
 	Wt::WTabWidget* tabData;
 	Wt::WText *textTable, *textUnit;
-	Wt::WTree *treeDialogCol, *treeDialogRow, *treeRegion;
+	Wt::WTree *treeDialog, *treeRegion;
+	Wt::WTreeNode *treeNodeSel;
 
 	vector<Wt::WPushButton*> allPB;
 
@@ -83,6 +84,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void incomingHeaderSignal(const int& iRow, const int& iCol);
 	void incomingPullSignal(const int& pullType);
 	void incomingResetSignal(const int& resetType);
+	void incomingTopicSignal(const int& basicWJPIndex);
+	void incomingVarSignal(const string& sID);
 	void init();
 	void initMaps();
 	void initUI();
@@ -90,6 +93,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
 	unique_ptr<Wt::WContainerWidget> makeBoxData();
 	unique_ptr<Wt::WContainerWidget> makeBoxMap();
+	unique_ptr<Wt::WContainerWidget> makeBoxTable();
 	void mapAreaClicked(int areaIndex);
 	void populateTextLegend(Wt::WContainerWidget*& boxTextLegend);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
