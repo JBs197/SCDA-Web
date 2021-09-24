@@ -31,11 +31,11 @@ struct WJPANEL : public Wt::WPanel
 	unordered_map<int, int> mapFilterMID;  // JTREE index -> index within viFilter
 	unordered_map<string, int> mapIndexTitle;  // sTitle -> index within cbTitle 
 	Wt::WPushButton *pbMID = nullptr;
-	string selMID = "", selTitle = "";
+	string selMID = "";
 	Wt::WText *textMID = nullptr;
 	Wt::WTree *treeDialog = nullptr;
 	Wt::WTreeNode *treeNodeSel = nullptr;
-	vector<int> viFilter;                                 // JTREE indices of permitted items.
+	vector<int> viFilter;                   // JTREE indices of permitted items.
 	vector<string> vsTitle, vsMID;
 	Wt::WColor wcBorder, wcGrey, wcOffWhite, wcSelectedWeak, wcWhite;
 	Wt::WBorder wbDefaultCB;
@@ -52,6 +52,7 @@ struct WJPANEL : public Wt::WPanel
 	string getTextLegend();
 	void highlight(int widgetIndex);
 	void init();
+	void initButtonMID(shared_ptr<Wt::WResource>& wrIconMID);
 	void panelClicked() { jf.timerStart(); }
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName);
@@ -61,22 +62,24 @@ struct WJPANEL : public Wt::WPanel
 	void setCB(vector<string>& vsList, string sActive);
 	void setFilter(vector<int>& viFilter);
 	void setIndexMID(int indexMID);
+	void setTextMID(string sMID);
 	void setTree(vector<string>& vsList);
 	void toggleMobile(bool mobile);
-	Wt::Signal<int>& topicSignal() { return topicSignal_; }
+	Wt::Signal<>& topicSignal() { return topicSignal_; }
 	void unhighlight(int widgetIndex);
-	Wt::Signal<string>& varSignal() { return varSignal_; }
+	Wt::Signal<>& varSignal() { return varSignal_; }
 
 private:
 	Wt::Signal<> filterSignal_;
-	Wt::Signal<int> topicSignal_;  // Form [basicWJP index].
-	Wt::Signal<string> varSignal_;  // Form [sID].
+	Wt::Signal<> topicSignal_;
+	Wt::Signal<> varSignal_;
 };
 
 class WJCONFIG : public Wt::WContainerWidget
 {
-	unordered_map<string, int> mapDiffIndex, mapVarIndex;  // sID -> var/diff index
 	Wt::Signal<int, int> headerSignal_;
+	unordered_map<string, int> mapDiffIndex, mapVarIndex;  // sID -> var/diff index
+	bool mobile = 0;
 	Wt::Signal<int> pullSignal_, resetSignal_;
 	string sPrompt;
 	Wt::WVBoxLayout* vLayout = nullptr;
@@ -111,6 +114,7 @@ public:
 	void addDifferentiator(vector<string> vsDiff);
 	void addDifferentiator(vector<string> vsDiff, string sTitle);
 	void addVariable(vector<string>& vsVariable);
+	void addVariable(string& sTitle, vector<string>& vsMID);
 	void categoryChanged();
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem, string sActive);
@@ -131,12 +135,14 @@ public:
 	unique_ptr<WJPANEL> makePanelCategory();
 	unique_ptr<WJPANEL> makePanelTopicCol();
 	unique_ptr<WJPANEL> makePanelTopicRow();
+	unique_ptr<WJPANEL> makePanelVariable();
 	unique_ptr<WJPANEL> makePanelYear(vector<string> vsYear);
 	void removeDifferentiators();
 	void removeVariable(int varIndex);
 	void resetTopicMID();
 	void resetVariables();
 	void resetVariables(int plus);
+	void setMobile(bool goMobile);
 	void setPrompt(vector<string>& vsP);
 	void setPrompt(vector<string>& vsP, vector<vector<string>>& vvsP);
 	void setPrompt(string& sP, vector<vector<string>>& vvsC, vector<vector<string>>& vvsP);

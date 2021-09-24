@@ -1300,7 +1300,6 @@ vector<vector<string>> SCDAserver::getParameter(vector<vector<string>>& vvsCata,
 			}
 		}
 	}
-	//if (vvsVariable.size() < 1) { jf.err("Zero variables remain-SCDAserver.getVariable"); }
 	return vvsVariable;
 }
 vector<double> SCDAserver::getPopulationFamily(string extYear, vector<string>& vsGeoCode)
@@ -1776,7 +1775,7 @@ void SCDAserver::pullVariable(vector<string> prompt, vector<vector<string>> vvsF
 	if (vvsFixed.size() < 1) 
 	{
 		vvsVariable = getForWhom(vvsCata);
-		if (vvsVariable.size() > 1) 
+		if (vvsVariable.size() > 0) 
 		{ 
 			postDataEvent(DataEvent(DataEvent::Demographic, sID, numCata, vvsVariable), sID); 
 			return;

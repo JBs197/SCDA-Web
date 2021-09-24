@@ -154,6 +154,7 @@ void WJTABLE::cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol)
 
 	// Update the saved selectedIndex.
 	selectedIndex = wmIndex;
+	scrollTo(wmIndex);
 }
 string WJTABLE::getCell(int iRow, int iCol)
 {
@@ -554,6 +555,8 @@ void WJTABLE::setRowUnit(string& rowHeader, int index)
 		pos2 = rowHeader.size() - 1;
 		pos1 = rowHeader.rfind('(') + 1;
 		unit = rowHeader.substr(pos1, pos2 - pos1);
+		pos1 = unit.find(' ');
+		if (pos1 < unit.size()) { return; }
 		if (!setUnitBreaker.count(unit)) { mapRowUnit.emplace(index, unit); }
 	}
 	else

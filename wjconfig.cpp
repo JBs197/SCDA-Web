@@ -8,6 +8,7 @@ void WJPANEL::clear()
 	jtMID.clear();
 	textMID->setText("");
 	viFilter.clear();
+	boxMID->setHidden(1);
 }
 void WJPANEL::dialogFilter()
 {
@@ -29,6 +30,7 @@ void WJPANEL::dialogFilter()
 	treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::Large);
 	auto treeRoot = treeRootUnique.get();
 
+	jtMID.setExpandGeneration(16);  // Expand generations without displaying more items than this.
 	treeNodeSel = nullptr;
 	if (viFilter.size() > 0)
 	{
@@ -100,14 +102,22 @@ void WJPANEL::dialogMID()
 	wDialog->setClosable(0);
 	wDialog->positionAt(this, Wt::Orientation::Horizontal);
 
-	string sRoot;
-	if (viFilter.size() < 1) { sRoot = jtMID.getRootName(); }
-	else { sRoot = jtMID.treePL[viFilter[0]]; }
+	jtMID.setExpandGeneration(16);  // Expand generations without displaying more items than this.
+	string sRoot = jtMID.getRootName();
 	Wt::WString wsTemp = Wt::WString::fromUTF8(sRoot);
 	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
-	treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::XLarge);
-	auto treeRoot = treeRootUnique.get();
+	treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::Large);
+
+	Wt::WTreeNode* treeRoot = nullptr;
+	if (viFilter.size() < 1) { treeRoot = treeRootUnique.get(); }
+	else
+	{
+		sRoot = jtMID.treePL[viFilter[0] + 1];
+		wsTemp = Wt::WString::fromUTF8(sRoot);
+		auto childUnique = make_unique<Wt::WTreeNode>(wsTemp);
+		treeRoot = treeRootUnique->addChildNode(move(childUnique));
+	}
 	treeNodeSel = nullptr;
 	if (selMID.size() > 0)
 	{
@@ -125,14 +135,17 @@ void WJPANEL::dialogMID()
 	tree->itemSelectionChanged().connect(this, &WJPANEL::dialogMIDEnd);
 	treeDialog = tree.get();
 
+	double dGuess = (double)jtMID.maxLength * 10.0;
+	tree->setMinimumSize(dGuess, wlAuto);
+
 	auto wBox = wDialog->contents();
 	wBox->setMaximumSize(wlAuto, wlAuto);
-	wBox->setOverflow(Wt::Overflow::Visible);
+	wBox->setOverflow(Wt::Overflow::Auto);
 	wBox->addWidget(move(tree));
 
-	wDialog->show();
-	wDialog->raiseToFront();
 	swap(wdTree, wDialog);
+	wdTree->show();
+	wdTree->raiseToFront();
 }
 void WJPANEL::dialogMIDEnd()
 {
@@ -142,26 +155,16 @@ void WJPANEL::dialogMIDEnd()
 	auto selIt = selSet.begin();
 	auto selNode = *selIt;
 	auto wTemp = selNode->label()->text();
-	textMID->setText(wTemp);
 	selMID = wTemp.toUTF8();
+	setTextMID(selMID);
 	wdTree->accept();
 	unique_ptr<Wt::WDialog> wdDummy = nullptr;
 	swap(wdTree, wdDummy);
 
-	int index;
 	string sPanel = objectName();
-	if (sPanel.size() < 1)  // Member of varWJP
-	{ 
-		sPanel = id(); 
-		varSignal_.emit(sPanel);
-	}
-	else  // Member of basicWJP
-	{
-		if (sPanel == "wjpTopicCol") { index = 2; }
-		else if (sPanel == "wjpTopicRow") { index = 3; }
-		else { jf.err("Unknown object name-wjpanel.dialogMIDEnd"); }
-		topicSignal_.emit(index);
-	}
+	size_t pos1 = sPanel.find("Variable");
+	if (pos1 < sPanel.size()) { varSignal_.emit(); }  // Member of varWJP
+	else { topicSignal_.emit(); }  // Member of basicWJP
 	jf.timerStart();
 }
 void WJPANEL::highlight(int widgetIndex)
@@ -201,7 +204,7 @@ int WJPANEL::getIndexMID(int mode)
 	int index = jtMID.getIndex(selMID) - 1;
 	if (mode == 1 && viFilter.size() > 0)
 	{
-		index = mapFilterMID.at(index + 1);
+		index = mapFilterMID.at(index);
 	}
 	return index;
 }
@@ -220,17 +223,17 @@ string WJPANEL::getTextLegend()
 	}
 	
 	size_t pos1;
-	vector<string> vsMID(1);
 	wsTemp = cbTitle->currentText();
 	sTitle = wsTemp.toUTF8();
 	sLegend = sTitle;
-	wsTemp = textMID->text();
-	vsMID[0] = wsTemp.toUTF8();
-	int index = jtMID.getIndex(vsMID[0]);  // JTREE index.
+	int index = jtMID.getIndex(selMID);  // JTREE index.
 	vector<int> viAncestry = jtMID.treeSTanc[index];
-	for (int ii = viAncestry.size() - 1; ii >= 0; ii--)
+	viAncestry.push_back(index);
+	for (int ii = 0; ii < viAncestry.size(); ii++)
 	{
 		temp = jtMID.treePL[viAncestry[ii]];
+		if (temp == "") { continue; }
+		while (temp[0] == '+') { temp.erase(temp.begin()); }
 		pos1 = temp.find("Total -");
 		if (pos1 > temp.size()) { sLegend += " | " + temp; }
 		else
@@ -244,38 +247,58 @@ string WJPANEL::getTextLegend()
 }
 void WJPANEL::init()
 {
-	auto wBox = make_unique<Wt::WContainerWidget>();
-	auto layout = make_unique<Wt::WVBoxLayout>();
-	cbTitle = layout->addWidget(make_unique<Wt::WComboBox>());
-
-	auto boxMIDUnique = make_unique<Wt::WContainerWidget>();
-	auto hLayout = make_unique<Wt::WHBoxLayout>();
-	auto textUnique = make_unique<Wt::WText>();
-	textMID = hLayout->addWidget(move(textUnique), 1);
-	auto pbUnique = make_unique<Wt::WPushButton>();
-	pbUnique->setMinimumSize(40.0, 40.0);
-	pbMID = hLayout->addWidget(move(pbUnique));
-	boxMIDUnique->setLayout(move(hLayout));
-	boxMID = layout->addWidget(move(boxMIDUnique));
-
-	wBox->setLayout(move(layout));
-	setCentralWidget(move(wBox));
-
-	cbTitle->clicked().connect(this, &WJPANEL::panelClicked);
-	
-	boxMID->setHidden(1);
-
 	wcBorder.setRgb(204, 204, 204);
 	wcGrey.setRgb(210, 210, 210);
 	wcOffWhite.setRgb(245, 245, 245);
 	wcSelectedWeak.setRgb(200, 200, 255);
 	wcWhite.setRgb(255, 255, 255);
 	wbDefaultCB = Wt::WBorder(Wt::BorderStyle::Solid, 1.0, wcBorder);
+
+	auto wBox = make_unique<Wt::WContainerWidget>();
+	auto layout = make_unique<Wt::WVBoxLayout>();
+	layout->setContentsMargins(4.0, 4.0, 4.0, 4.0);
+	cbTitle = layout->addWidget(make_unique<Wt::WComboBox>());
+
+	auto boxMIDUnique = make_unique<Wt::WContainerWidget>();
+	boxMIDUnique->setPadding(0.0);
+	auto boxTextUnique = make_unique<Wt::WContainerWidget>();
+	auto textUnique = make_unique<Wt::WText>();
+	//boxTextUnique->decorationStyle().setBorder(wbDefaultCB);
+	boxTextUnique->setPadding(6.0);
+	//boxTextUnique->addStyleClass("jbox");
+	textMID = boxTextUnique->addWidget(move(textUnique));
+	auto pbUnique = make_unique<Wt::WPushButton>();
+	pbUnique->setMinimumSize(40.0, 40.0);
+	pbUnique->setMaximumSize(40.0, 40.0);
+
+	auto hLayout = make_unique<Wt::WHBoxLayout>();
+	hLayout->addWidget(move(boxTextUnique), 1);
+	pbMID = hLayout->addWidget(move(pbUnique), 0, Wt::AlignmentFlag::Middle);
+	boxMIDUnique->setLayout(move(hLayout));
+
+	boxMID = layout->addWidget(move(boxMIDUnique));
+	wBox->setLayout(move(layout));
+	setCentralWidget(move(wBox));
+
+	cbTitle->clicked().connect(this, &WJPANEL::panelClicked);
+	
+	boxMID->setHidden(1);
+}
+void WJPANEL::initButtonMID(shared_ptr<Wt::WResource>& wrIconMID)
+{
+	// Set the button's background image and connect its signal.
+	if (pbMID == nullptr) { jf.err("Missing pbMID-wjpanel.initButtonMID"); }
+	Wt::WLink wlIcon = Wt::WLink(wrIconMID);
+	Wt::WFlags<Wt::Orientation> flags;
+	Wt::WCssDecorationStyle& style = pbMID->decorationStyle();
+	style.setBackgroundImage(wlIcon, flags, Wt::Side::CenterX | Wt::Side::CenterY);
+
+	pbMID->clicked().connect(this, &WJPANEL::dialogMID);
 }
 void WJPANEL::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 {
 	// Recursive function that takes an existing node and makes its children.
-	string sName = "";
+	string sName = "-1";
 	populateTree(jt, node, sName);
 }
 void WJPANEL::populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName)
@@ -285,7 +308,9 @@ void WJPANEL::populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName)
 	vector<string> vsChildren;
 	Wt::WString wsTemp = node->label()->text();
 	string sNode = wsTemp.toUTF8();
+	if (sNode == sName) { treeNodeSel = node; }
 	if (jt.isExpanded(sNode)) { node->expand(); }
+
 	jt.listChildren(sNode, vsChildren);
 	for (int ii = 0; ii < vsChildren.size(); ii++)
 	{
@@ -297,11 +322,7 @@ void WJPANEL::populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName)
 			child->decorationStyle().font().setSize(Wt::FontSize::Smaller);
 		}
 		populateTree(jt, child, sName);
-		if (vsChildren[ii] == sName)
-		{
-			treeNodeSel = node->addChildNode(move(childUnique));
-		}
-		else { node->addChildNode(move(childUnique)); }
+		node->addChildNode(move(childUnique));
 	}
 }
 void WJPANEL::resetMapIndex()
@@ -355,22 +376,33 @@ void WJPANEL::setFilter(vector<int>& filter)
 	{
 		mapFilterMID.emplace(viFilter[ii], ii);
 	}
+
+	// If the previous MID item is outside the new filter, default to filter index zero.
+	int index = jtMID.getIndex(selMID) - 1;
+	if (!mapFilterMID.count(index))
+	{
+		setIndexMID(viFilter[0]);
+	}
 }
 void WJPANEL::setIndexMID(int indexMID)
 {
-	selMID = jtMID.treePL[indexMID];
-	Wt::WString wsTemp = Wt::WString::fromUTF8(selMID);
+	selMID = jtMID.treePL[indexMID + 1];
+	setTextMID(selMID);
+}
+void WJPANEL::setTextMID(string sMID)
+{
+	while (sMID[0] == '+') { sMID.erase(sMID.begin()); }
+	Wt::WString wsTemp = Wt::WString::fromUTF8(sMID);
 	textMID->setText(wsTemp);
 }
 void WJPANEL::setTree(vector<string>& vsList)
 {
-	// Populate the panel's JTREE object. 
+	// Populate the panel's JTREE object, and its textMID widget. 
 	int indent;
 	string sParent;
 	vector<int> indentHistory;
 	jtMID.init("", -1);
-	jtMID.expandGeneration = -1;  // Expand all nodes automatically.
-	jtMID.fontRootSize = 5;  // Apply generationally-decreasing font size to children.
+	//jtMID.fontRootSize = 5;  // Apply generationally-decreasing font size to children.
 	for (int ii = 0; ii < vsList.size(); ii++)
 	{
 		indent = 0;
@@ -396,8 +428,9 @@ void WJPANEL::setTree(vector<string>& vsList)
 
 	// Display the first MID item as a default setting.
 	selMID = vsList[0];
-	Wt::WString wsTemp = Wt::WString::fromUTF8(selMID);
-	textMID->setText(wsTemp);
+	setTextMID(selMID);
+
+	boxMID->setHidden(0);
 }
 void WJPANEL::toggleMobile(bool mobile)
 {
@@ -479,11 +512,19 @@ void WJCONFIG::addDemographic(vector<vector<string>>& vvsDemo)
 	{
 		vsDemo.push_back(vvsDemo[ii][0]);
 	}
-	wjpDemo->setCB(vsDemo);
+	if (vvsDemo.size() == 1) { wjpDemo->setCB(vsDemo, 1); }
+	else { wjpDemo->setCB(vsDemo); }
 	wjpDemo->highlight(0);
 	wjpDemo->cbTitle->changed().connect(this, &WJCONFIG::demographicChanged);
 
-	vLayout->addWidget(move(demoPanelUnique));
+	int numItem = vLayout->count();
+	vLayout->insertWidget(numItem - 1, move(demoPanelUnique));
+	if (vvsDemo.size() == 1) 
+	{ 
+		wjpDemo->setHidden(1); 
+		demographicChanged();
+	}
+	widgetMobile(mobile);
 }
 void WJCONFIG::addDifferentiator(vector<string> vsDiff)
 {
@@ -517,7 +558,9 @@ void WJCONFIG::addDifferentiator(vector<string> vsDiff)
 	diffWP[index]->setCentralWidget(move(wBox));
 	highlightPanel(diffWP[index], 0);
 
-	vLayout->addWidget(move(wpUnique));
+	int numItem = vLayout->count();
+	vLayout->insertWidget(numItem - 1, move(wpUnique));
+	widgetMobile(mobile);
 }
 void WJCONFIG::addDifferentiator(vector<string> vsDiff, string sTitle)
 {
@@ -530,10 +573,13 @@ void WJCONFIG::addDifferentiator(vector<string> vsDiff, string sTitle)
 	Wt::WContainerWidget* wBox = nullptr;
 	Wt::WComboBox* wCB = nullptr;
 	Wt::WVBoxLayout* layout = nullptr;
+	Wt::WLayoutItem* layoutItem = nullptr;
 	for (int ii = 0; ii < diffWP.size(); ii++)
 	{
 		wBox = (Wt::WContainerWidget*)diffWP[ii]->centralWidget();
-		wCB = (Wt::WComboBox*)wBox->widget(0);
+		layout = (Wt::WVBoxLayout*)wBox->layout();
+		layoutItem = (Wt::WLayoutItem*)layout->itemAt(0);
+		wCB = (Wt::WComboBox*)layoutItem->widget();
 		wsTemp = wCB->currentText();
 		if (wsTemp == wsTitle)
 		{
@@ -582,7 +628,9 @@ void WJCONFIG::addDifferentiator(vector<string> vsDiff, string sTitle)
 	boxLayout->addWidget(move(cbMID));
 	box->setLayout(move(boxLayout));
 	wpUnique->setCentralWidget(move(box));
-	vLayout->addWidget(move(wpUnique));
+
+	int numItem = vLayout->count();
+	vLayout->insertWidget(numItem - 1, move(wpUnique));
 
 	highlightPanel(diffWP[index], 1);
 	if (index > 0)
@@ -590,10 +638,11 @@ void WJCONFIG::addDifferentiator(vector<string> vsDiff, string sTitle)
 		unhighlightPanel(diffWP[index - 1], 1);
 		unhighlightPanel(diffWP[index - 1], 0);
 	}
+	widgetMobile(mobile);
 }
 void WJCONFIG::addVariable(vector<string>& vsVariable)
 {
-	// This variant is for known values. vsVariable form [title, MID].
+	// This variant is for known values. vsVariable form [title, MID]. (OBSOLETE)
 	if (vsVariable.size() != 2) { jf.err("Missing prompt-SCDAwidget.addVariable"); }
 	Wt::WString wTemp;
 	string temp;
@@ -624,10 +673,30 @@ void WJCONFIG::addVariable(vector<string>& vsVariable)
 	varWJP[index]->cbTitle->changed().connect(fnVarTitle);
 
 	varWJP[index]->setTree(vsMID);
-	wTemp = Wt::WString::fromUTF8(vsVariable[1]);
-	varWJP[index]->textMID->setText(wTemp);
+	varWJP[index]->setTextMID(vsVariable[1]);
 
 	vLayout->addWidget(move(wjpUnique));
+}
+void WJCONFIG::addVariable(string& sTitle, vector<string>& vsMID)
+{
+	// Creates a new WJPANEL for a single DIM (sTitle) and its list of MIDs.
+	int index = varWJP.size();
+	auto wjpUnique = makePanelVariable();
+	varWJP.push_back(wjpUnique.get());
+	string sObjectName = varWJP[index]->objectName();
+	mapVarIndex.emplace(sObjectName, index);
+
+	vector<string> vsTitle = { sTitle };
+	varWJP[index]->setCB(vsTitle);
+	function<void()> fnVarTitle = bind(&WJCONFIG::varTitleChanged, this, sObjectName);
+	varWJP[index]->cbTitle->changed().connect(fnVarTitle);
+	varWJP[index]->cbTitle->setEnabled(0);
+
+	varWJP[index]->setTree(vsMID);
+	varWJP[index]->varSignal().connect(this, &WJCONFIG::varMIDChanged);
+
+	int numItem = vLayout->count();
+	vLayout->insertWidget(numItem - 1, move(wjpUnique));
 }
 void WJCONFIG::categoryChanged()
 {
@@ -725,7 +794,9 @@ void WJCONFIG::diffChanged(string id)
 {
 	int index = mapDiffIndex.at(id);
 	Wt::WContainerWidget* cwTemp = (Wt::WContainerWidget*)diffWP[index]->centralWidget();
-	Wt::WComboBox* cbTemp = (Wt::WComboBox*)cwTemp->widget(0);
+	Wt::WVBoxLayout* layout = (Wt::WVBoxLayout*)cwTemp->layout();
+	Wt::WLayoutItem* layoutItem = layout->itemAt(0);
+	Wt::WComboBox* cbTemp = (Wt::WComboBox*)layoutItem->widget();
 	Wt::WString wsTemp = cbTemp->currentText();
 	if (wsTemp == wsNoneSel)
 	{
@@ -866,6 +937,8 @@ vector<vector<string>> WJCONFIG::getVariable()
 	int numCB, numVar;
 	Wt::WString wsTemp;
 	Wt::WContainerWidget* cwTemp = nullptr;
+	Wt::WVBoxLayout* layout = nullptr;
+	Wt::WLayoutItem* layoutItem = nullptr;
 	Wt::WComboBox* cbTemp = nullptr;
 	if (diffWP.size() > 0)
 	{
@@ -874,15 +947,18 @@ vector<vector<string>> WJCONFIG::getVariable()
 		for (int ii = 0; ii < numVar; ii++)
 		{
 			cwTemp = (Wt::WContainerWidget*)diffWP[ii]->centralWidget();
-			cbTemp = (Wt::WComboBox*)cwTemp->widget(0);
+			layout = (Wt::WVBoxLayout*)cwTemp->layout();
+			layoutItem = layout->itemAt(0);
+			cbTemp = (Wt::WComboBox*)layoutItem->widget();
 			wsTemp = cbTemp->currentText();
 			sTitle = wsTemp.toUTF8();
 
-			numCB = cwTemp->count();
+			numCB = layout->count();
 			if (numCB < 2) { sMID = "*"; }
 			else
 			{
-				cbTemp = (Wt::WComboBox*)cwTemp->widget(1);
+				layoutItem = layout->itemAt(1);
+				cbTemp = (Wt::WComboBox*)layoutItem->widget();
 				wsTemp = cbTemp->currentText();
 				sMID = wsTemp.toUTF8();
 			}
@@ -896,10 +972,7 @@ vector<vector<string>> WJCONFIG::getVariable()
 		for (int ii = 0; ii < numVar; ii++)
 		{
 			wsTemp = varWJP[ii]->cbTitle->currentText();
-			sTitle = wsTemp.toUTF8();
-			wsTemp = varWJP[ii]->textMID->text();
-			sMID = wsTemp.toUTF8();
-			vvsVariable[ii] = { sTitle, sMID };
+			vvsVariable[ii] = { wsTemp.toUTF8(), varWJP[ii]->selMID };
 		}
 	}
 	return vvsVariable;
@@ -943,7 +1016,6 @@ void WJCONFIG::init(vector<string> vsYear)
 	wcssAttention.setBorder(wbDotted);
 	wcssHighlighted = wcssDefault;
 	wcssHighlighted.setBackgroundColor(wcSelectedWeak);
-	string docPath = Wt::WApplication::instance()->docRoot();
 	wrIconMID = makeIconMID(30);
 
 	// Insert the widgets into the layout.
@@ -963,16 +1035,10 @@ void WJCONFIG::init(vector<string> vsYear)
 	layout->addWidget(move(topicCol));
 	unique_ptr<WJPANEL> topicRow = makePanelTopicRow();
 	layout->addWidget(move(topicRow));
+	layout->addStretch(1);
 	this->setLayout(move(layout));
 
-	// Specify initial size limitations.
-	setMaximumSize(300.0, wlAuto);
-	wjpYear->setMaximumSize(wlAuto, 150.0);
-	wjpCategory->setMaximumSize(wlAuto, 150.0);
-	wjpTopicCol->setMaximumSize(wlAuto, 200.0);
-	wjpTopicRow->setMaximumSize(wlAuto, 200.0);
 	pbMobile->setEnabled(1);
-	pbMobile->setMaximumSize(wlAuto, 50.0);
 
 	// Connect signals to functions. 
 	string sID;
@@ -981,11 +1047,9 @@ void WJCONFIG::init(vector<string> vsYear)
 	wjpTopicCol->cbTitle->changed().connect(this, std::bind(&WJCONFIG::topicTitleChanged, this, sID));
 	sID = wjpTopicRow->id();
 	wjpTopicRow->cbTitle->changed().connect(this, std::bind(&WJCONFIG::topicTitleChanged, this, sID));
+	wjpTopicCol->topicSignal().connect(this, &WJCONFIG::topicSelChanged);
+	wjpTopicRow->topicSignal().connect(this, &WJCONFIG::topicSelChanged);
 
-	//wjpTopicCol->cbMID->clicked().connect(this, &WJCONFIG::topicSelClicked);
-	//wjpTopicCol->cbMID->changed().connect(this, &WJCONFIG::topicSelChanged);
-	//wjpTopicRow->cbMID->clicked().connect(this, &WJCONFIG::topicSelClicked);
-	//wjpTopicRow->cbMID->changed().connect(this, &WJCONFIG::topicSelChanged);
 }
 shared_ptr<Wt::WResource> WJCONFIG::makeIconMID(int width)
 {
@@ -1034,6 +1098,7 @@ unique_ptr<WJPANEL> WJCONFIG::makePanelTopicCol()
 	Wt::WLink wlIcon = Wt::WLink(wrIconMID);
 	Wt::WFlags<Wt::Orientation> flags;
 	style.setBackgroundImage(wlIcon, flags, Wt::Side::CenterX | Wt::Side::CenterY);
+	//wjpTopicCol->addStyleClass("jbox");
 	basicWJP.push_back(wjpTopicCol);
 	wjpTopicCol->setHidden(1);
 	return topicCol;
@@ -1051,6 +1116,20 @@ unique_ptr<WJPANEL> WJCONFIG::makePanelTopicRow()
 	basicWJP.push_back(wjpTopicRow);
 	wjpTopicRow->setHidden(1);
 	return topicRow;
+}
+unique_ptr<WJPANEL> WJCONFIG::makePanelVariable()
+{
+	auto variable = make_unique<WJPANEL>();
+	int index = varWJP.size();
+	string sName = "wjpVariable" + to_string(index);
+	variable->setObjectName(sName);
+	variable->setTitle("Parameter");
+	variable->setMaximumSize(wlAuto, 200.0);
+	Wt::WCssDecorationStyle& style = variable->pbMID->decorationStyle();
+	Wt::WLink wlIcon = Wt::WLink(wrIconMID);
+	Wt::WFlags<Wt::Orientation> flags;
+	style.setBackgroundImage(wlIcon, flags, Wt::Side::CenterX | Wt::Side::CenterY);
+	return variable;
 }
 unique_ptr<WJPANEL> WJCONFIG::makePanelYear(vector<string> vsYear)
 {
@@ -1127,6 +1206,11 @@ void WJCONFIG::resetVariables(int plus)
 		wjpDemo = nullptr;
 		vvsDemographic.clear();
 	}	
+}
+void WJCONFIG::setMobile(bool goMobile)
+{
+	mobile = goMobile;
+	widgetMobile(mobile);
 }
 void WJCONFIG::setPrompt(vector<string>& vsP)
 {
@@ -1374,6 +1458,7 @@ void WJCONFIG::widgetMobile(bool mobile)
 {
 	if (mobile)
 	{
+		setMaximumSize(wlAuto, wlAuto);
 		if (pbMobile != nullptr)
 		{
 			pbMobile->setMinimumSize(wlAuto, 50.0);
@@ -1387,6 +1472,7 @@ void WJCONFIG::widgetMobile(bool mobile)
 	}
 	else
 	{
+		setMaximumSize(300.0, wlAuto);
 		if (pbMobile != nullptr)
 		{
 			pbMobile->setMinimumSize(wlAuto, wlAuto);

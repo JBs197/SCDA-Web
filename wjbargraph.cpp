@@ -158,14 +158,15 @@ void WJBARGRAPH::configureChart()
 	{ 
 		xAxis.setLabelAngle(0.0);
 		chart->setPlotAreaPadding(40, Wt::Side::Bottom);
-		chart->setPlotAreaPadding(100, Wt::Side::Left);
+		chart->setPlotAreaPadding(120, Wt::Side::Left);
 	}
-	chart->setPlotAreaPadding(40, Wt::Side::Top);
+	chart->setPlotAreaPadding(45, Wt::Side::Top);
 	chart->setPlotAreaPadding(5, Wt::Side::Right);
 }
 void WJBARGRAPH::display()
 {
 	if (chart != nullptr) { removeWidget(chart); }
+	this->setOverflow(Wt::Overflow::Auto);
 	auto layout = make_unique<Wt::WVBoxLayout>();
 	auto chartUnique = makeChart();
 	chart = layout->addWidget(move(chartUnique));
@@ -208,6 +209,10 @@ unique_ptr<Wt::Chart::WCartesianChart> WJBARGRAPH::makeChart()
 	chartTemp->setModel(model);
 	chartTemp->setXSeriesColumn(0);
 	chartTemp->setMinimumSize(wlAuto, wlChartHeight);
+	chartTemp->setZoomEnabled(1);
+	chartTemp->setPanEnabled(1);
+	int numRow = model->rowCount();
+	if (numRow > 10) { chartTemp->setOrientation(Wt::Orientation::Horizontal); }
 	int numCol = model->columnCount();
 	for (int ii = 1; ii < numCol; ii++)
 	{
@@ -215,6 +220,9 @@ unique_ptr<Wt::Chart::WCartesianChart> WJBARGRAPH::makeChart()
 		series->setShadow(Wt::WShadow(3, 3, Wt::WColor(0, 0, 0, 127), 3));
 		chartTemp->addSeries(std::move(series));
 	}
+	bool a = chartTemp->isInteractive();
+	bool b = chartTemp->zoomEnabled();
+	bool c = chartTemp->panEnabled();
 	return chartTemp;
 }
 unique_ptr<WJPARAMPANEL> WJBARGRAPH::makeWJPP(WJPARAMPANEL*& wjpp, string sTitle)

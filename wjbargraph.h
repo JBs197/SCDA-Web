@@ -1,4 +1,5 @@
 #pragma once
+#include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WVBoxLayout.h>
 #include <Wt/WHBoxLayout.h>

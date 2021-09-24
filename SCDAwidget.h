@@ -27,6 +27,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
 	string activeCata, activeTableColTitle, activeTableRowTitle;
 	string db_path = sroot + "\\SCDA.db";
+	bool filtersEnabled = 0;
 	bool first = 1;
 	JFUNC jf;
 	bool jsEnabled = 0;
@@ -84,8 +85,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void incomingHeaderSignal(const int& iRow, const int& iCol);
 	void incomingPullSignal(const int& pullType);
 	void incomingResetSignal(const int& resetType);
-	void incomingTopicSignal(const int& basicWJPIndex);
-	void incomingVarSignal(const string& sID);
+	void incomingVarSignal();
 	void init();
 	void initMaps();
 	void initUI();
@@ -138,6 +138,6 @@ public:
 	Wt::JSignal<double> jsTWidth;
 	
 	Wt::WLength wlAuto = Wt::WLength::Auto;
-	Wt::WLength wlDataFrameWidth, wlDataFrameHeight;
+	Wt::WLength wlDataFrameWidth, wlDataFrameHeight, wlTableWidth, wlTableHeight;
 };
 
