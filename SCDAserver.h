@@ -2,6 +2,7 @@
 #include <Wt/WServer.h>
 #include <Wt/WCanvasPaintDevice.h>
 #include <Wt/WMeasurePaintDevice.h>
+#include <Wt/WMemoryResource.h>
 #include <Wt/WTree.h>
 #include <Wt/WTreeNode.h>
 #include <functional>
@@ -11,6 +12,7 @@
 #include "wjbargraph.h"
 #include "wjconfig.h"
 #include "wjdownload.h"
+#include "wjdrag.h"
 #include "wjtable.h"
 #include "wtpaint.h"
 
@@ -115,6 +117,7 @@ public:
 
 	const double cellMargin = 4.0;  // Unit of pixels, applied vertically and horizontally.
 	Wt::WFont wfTable = Wt::WFont();
+	JFUNC jf;
 
 	void addFrameKM(vector<vector<vector<double>>>& borderKM, vector<string>& vsGeoCode, string sYear);
 	int applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsDIM);
@@ -157,7 +160,6 @@ public:
 	void pullVariable(vector<string> prompt, vector<vector<string>> variable);
 
 private:
-	JFUNC jf;
 	JTREE jt;
 	SQLFUNC sf;
 	vector<shared_ptr<WJTABLE>> wjTable;

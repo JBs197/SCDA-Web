@@ -1,35 +1,5 @@
 #include "SCDAwidget.h"
 
-void SCDAwidget::addBarToGraph()
-{
-	Wt::WString wsTemp; 
-	string temp;
-	if (activeCata != wjBarGraph->activeCata)
-	{
-		wjBarGraph->reset();
-		wjBarGraph->activeCata = activeCata;
-	}
-
-	if (wjBarGraph->unit == "" || wjBarGraph->region == "")
-	{
-		wsTemp = textUnit->text();
-		temp = wsTemp.toUTF8();
-		size_t pos1 = temp.find(':');
-		if (pos1 < temp.size()) { wjBarGraph->unit = temp.substr(pos1 + 2); }
-		else { wjBarGraph->unit = temp; }
-
-		string sRegion = tableData->getCell(-1, 0);
-		wjBarGraph->region = sRegion;
-	}
-
-	vector<vector<string>> vvsData = wtMap->getGraphData();
-	vector<string> vsParameter = getMapParameterList();
-	wjBarGraph->addDataset(vvsData, vsParameter);
-	wjBarGraph->display();
-
-	tabData->setTabEnabled(3, 1);
-	tabData->setCurrentIndex(3);
-}
 void SCDAwidget::cleanUnit(string& unit)
 {
 	string temp;
@@ -47,7 +17,7 @@ void SCDAwidget::connect()
 		wjConfig->resetSignal().connect(this, bind(&SCDAwidget::incomingResetSignal, this, placeholders::_1));
 		wjConfig->pbMobile->clicked().connect(this, &SCDAwidget::toggleMobile);
 		wjConfig->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
-		pbPin->clicked().connect(this, bind(&SCDAwidget::addBarToGraph, this));
+		pbPin->clicked().connect(this, bind(&SCDAwidget::seriesAddToGraph, this));
 		pbPinReset->clicked().connect(this, bind(&SCDAwidget::resetBarGraph, this));
 		if (filtersEnabled)
 		{
@@ -515,6 +485,13 @@ string SCDAwidget::jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID)
 	return getInfo;
 }
 
+shared_ptr<Wt::WMemoryResource> SCDAwidget::loadIcon(vector<unsigned char>& binIcon)
+{
+	auto icon = make_shared<Wt::WMemoryResource>("binIcon");
+	int binSize = binIcon.size();
+	icon->setData(&binIcon[0], binSize);
+	return icon;
+}
 unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 {
 	auto boxDataUnique = make_unique<Wt::WContainerWidget>();
@@ -743,6 +720,12 @@ void SCDAwidget::processEventCatalogue(string sYear, string sCata)
 }
 void SCDAwidget::processEventCategory(vector<string> vsCategory)
 {
+	// Initialize custom icons.
+	wjConfig->linkIconChevronDown = Wt::WLink(iconChevronDown);
+	wjConfig->linkIconChevronRight = Wt::WLink(iconChevronRight);
+	wjConfig->wjpTopicCol->initStackedPB(wjConfig->linkIconChevronDown, wjConfig->linkIconChevronRight);
+	wjConfig->wjpTopicRow->initStackedPB(wjConfig->linkIconChevronDown, wjConfig->linkIconChevronRight);
+
 	wjConfig->wjpCategory->setHidden(0);
 	vsCategory.insert(vsCategory.begin(), "[Choose a topical category]");
 	wjConfig->wjpCategory->setCB(vsCategory);
@@ -1089,6 +1072,69 @@ void SCDAwidget::resetTree()
 	treeRegion->setTreeRoot(make_unique<Wt::WTreeNode>(""));
 }
 
+void SCDAwidget::seriesAddToGraph()
+{
+	Wt::WString wsTemp;
+	string temp;
+	if (activeCata != wjBarGraph->activeCata)
+	{
+		wjBarGraph->reset();
+		wjBarGraph->activeCata = activeCata;
+	}
+	if (wjBarGraph->unit == "" || wjBarGraph->region == "")
+	{
+		wsTemp = textUnit->text();
+		temp = wsTemp.toUTF8();
+		size_t pos1 = temp.find(':');
+		if (pos1 < temp.size()) { wjBarGraph->unit = temp.substr(pos1 + 2); }
+		else { wjBarGraph->unit = temp; }
+
+		string sRegion = tableData->getCell(-1, 0);
+		wjBarGraph->region = sRegion;
+	}
+	if (wjBarGraph->linkIconTrash.isNull())
+	{
+		wjBarGraph->linkIconTrash = Wt::WLink(iconTrash);
+	}
+	if (wjBarGraph->linkIconClose.isNull())
+	{
+		wjBarGraph->linkIconClose = Wt::WLink(iconClose);
+	}
+
+	vector<vector<string>> vvsData = wtMap->getGraphData();
+	vector<string> vsParameter = getMapParameterList();
+	wjBarGraph->addDataset(vvsData, vsParameter);
+	wjBarGraph->display();
+
+	if (!mobile && !setTip.count("barGraphWheel"))
+	{
+		wjBarGraph->tipSignal().connect(this, std::bind(&SCDAwidget::setTipAdd, this, std::placeholders::_1));
+		wjBarGraph->addTipWheel(1);
+	}
+	wjBarGraph->ppUnique->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
+	wjBarGraph->ppDiff->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
+	wjBarGraph->ppCommon->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
+
+	tabData->setTabEnabled(3, 1);
+	tabData->setCurrentIndex(3);
+}
+void SCDAwidget::seriesRemoveFromGraph(const int& seriesIndex)
+{
+	int numSeries = wjBarGraph->removeDataset(seriesIndex);
+	if (numSeries > 0)
+	{
+		wjBarGraph->display();
+		wjBarGraph->ppUnique->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
+		wjBarGraph->ppDiff->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
+		wjBarGraph->ppCommon->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
+	}
+	else
+	{
+		tabData->setTabEnabled(3, 0);
+		tabData->setCurrentIndex(2);
+	}
+}
+
 void SCDAwidget::setMap(int iRow, int iCol, string sRegion)
 {
 	// Assumes that all widgets have been updated already.
@@ -1195,6 +1241,35 @@ void SCDAwidget::treeClicked(int& geoCode, string& sRegion)
 	sRegion = wTemp.toUTF8();
 	geoCode = jtRegion.getIName(sRegion);
 }
+void SCDAwidget::updatePinButtons(string mapUnit)
+{
+	// This simplified variant is meant for unit changes from the map tab.
+	Wt::WString wsTemp;
+	string bgUnit = wjBarGraph->unit;
+	if (bgUnit == "")
+	{
+		pbPin->setEnabled(1);
+		pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		pbPinReset->setEnabled(0);
+		pbPinReset->decorationStyle().setBackgroundColor(wcWhite);
+	}
+	else if (bgUnit == mapUnit)
+	{
+		pbPin->setEnabled(1);
+		pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		pbPinReset->setEnabled(1);
+		pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+	}
+	else
+	{
+		pbPin->setEnabled(0);
+		pbPin->decorationStyle().setBackgroundColor(wcWhite);
+		pbPinReset->setEnabled(1);
+		pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wsTemp = mapTooltip.at("pinRegionUnit");
+		pbPin->setToolTip(wsTemp);
+	}
+}
 void SCDAwidget::updatePinButtons(string mapUnit, string sRegion)
 {
 	Wt::WString wsTemp;
@@ -1244,6 +1319,9 @@ void SCDAwidget::updateUnit(string sUnit)
 {
 	Wt::WString wTemp = Wt::WString::fromUTF8("Unit: " + sUnit);
 	textUnit->setText(wTemp);
+
+	if (wjBarGraph != nullptr) { updatePinButtons(sUnit); }
+
 	vector<int> viIndex;
 	if (sUnit == "% of population") { viIndex = { 0, 1 }; }
 	else { viIndex = { 0 }; }

@@ -2,6 +2,7 @@
 #include <Wt/WApplication.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WCssDecorationStyle.h>
+#include <Wt/WStackedWidget.h>
 #include <Wt/WTree.h>
 #include <Wt/WTreeNode.h>
 #include <Wt/WPushButton.h>
@@ -30,8 +31,9 @@ struct WJPANEL : public Wt::WPanel
 	Wt::WComboBox *cbTitle = nullptr;
 	unordered_map<int, int> mapFilterMID;  // JTREE index -> index within viFilter
 	unordered_map<string, int> mapIndexTitle;  // sTitle -> index within cbTitle 
-	Wt::WPushButton *pbMID = nullptr;
+	Wt::WPushButton *pbMIDclosed = nullptr, *pbMIDopened = nullptr, *pbMID;
 	string selMID = "";
+	Wt::WStackedWidget *stackedPB = nullptr;
 	Wt::WText *textMID = nullptr;
 	Wt::WTree *treeDialog = nullptr;
 	Wt::WTreeNode *treeNodeSel = nullptr;
@@ -47,12 +49,16 @@ struct WJPANEL : public Wt::WPanel
 	void dialogFilterEnd();
 	void dialogMID();
 	void dialogMIDEnd();
+	//void dialogMIDToggle();
+	void dialogMIDToggle(int stackedIndex);
+	Wt::Signal<string>& dialogOpenSignal() { return dialogOpenSignal_; }
 	Wt::Signal<>& filterSignal() { return filterSignal_; }
 	int getIndexMID(int mode);
 	string getTextLegend();
 	void highlight(int widgetIndex);
 	void init();
-	void initButtonMID(shared_ptr<Wt::WResource>& wrIconMID);
+	//void initButtonMID(shared_ptr<Wt::WResource>& wrIconMID);
+	void initStackedPB(Wt::WLink wlClosed, Wt::WLink wlOpened);
 	void panelClicked() { jf.timerStart(); }
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node, string sName);
@@ -70,6 +76,7 @@ struct WJPANEL : public Wt::WPanel
 	Wt::Signal<>& varSignal() { return varSignal_; }
 
 private:
+	Wt::Signal<string> dialogOpenSignal_;
 	Wt::Signal<> filterSignal_;
 	Wt::Signal<> topicSignal_;
 	Wt::Signal<> varSignal_;
@@ -101,6 +108,7 @@ public:
 	vector<WJPANEL*> basicWJP, varWJP;
 	vector<Wt::WPanel*> diffWP;
 	JFUNC jf;
+	Wt::WLink linkIconChevronDown = Wt::WLink(), linkIconChevronRight = Wt::WLink();
 	vector<vector<string>> vvsDemographic, vvsParameter;
 	WJPANEL *wjpCategory, *wjpDemo, *wjpTopicCol, *wjpTopicRow, *wjpYear;
 	Wt::WPushButton* pbMobile;
@@ -113,12 +121,12 @@ public:
 	void addDemographic(vector<vector<string>>& vvsDemo);
 	void addDifferentiator(vector<string> vsDiff);
 	void addDifferentiator(vector<string> vsDiff, string sTitle);
-	void addVariable(vector<string>& vsVariable);
 	void addVariable(string& sTitle, vector<string>& vsMID);
 	void categoryChanged();
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem);
 	void cbRenew(Wt::WComboBox*& cb, vector<string>& vsItem, string sActive);
 	void demographicChanged();
+	void dialogHighlander(const string& sObjectName);
 	void diffChanged(string id);
 	vector<string> getDemo();
 	vector<vector<string>> getDemoSplit();

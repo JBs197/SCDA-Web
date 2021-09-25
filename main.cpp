@@ -21,19 +21,27 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	auto BootstrapTheme = make_unique<Wt::WBootstrapTheme>();
 	BootstrapTheme->setVersion(Wt::BootstrapVersion::v3);
 	this->setTheme(move(BootstrapTheme));
-	// Background things ... ?
+	
+	vector<unsigned char> binIconChevronDown = serverRef.jf.loadBin(docRoot() + "/ChevronDown_Icon_16px.png");
+	vector<unsigned char> binIconChevronRight = serverRef.jf.loadBin(docRoot() + "/ChevronRight_Icon_16px.png");
+	vector<unsigned char> binIconClose = serverRef.jf.loadBin(docRoot() + "/Close_Icon_16px.png");
+	vector<unsigned char> binIconTrash = serverRef.jf.loadBin(docRoot() + "/DragIntoTrash_Icon_42px.png");
 
 	const string mrb = docRoot() + "\\SCDA-Wt";
 	this->messageResourceBundle().use(mrb);
-	auto cssLink = Wt::WLink(docRoot() + "\\SCDA-Wt.css");
-	this->useStyleSheet(cssLink);
+	//auto cssLink = Wt::WLink(docRoot() + "\\SCDA-Wt.css");
+	//this->useStyleSheet(cssLink);
 
 	//root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
+	scdaWidget->iconChevronDown = scdaWidget->loadIcon(binIconChevronDown);
+	scdaWidget->iconChevronRight = scdaWidget->loadIcon(binIconChevronRight);
+	scdaWidget->iconClose = scdaWidget->loadIcon(binIconClose);
+	scdaWidget->iconTrash = scdaWidget->loadIcon(binIconTrash);
 	this->globalKeyWentUp().connect(scdaWidget, &SCDAwidget::displayCata);
 }
 
-string getConfigPath(const string& execPath)
+string getDocPath(const string& execPath)
 {
 	size_t pos1 = execPath.rfind('\\');  // Deployment folder.
 	pos1 = execPath.rfind('\\', pos1 - 1); // Debug or release.
@@ -45,8 +53,8 @@ string getConfigPath(const string& execPath)
 		projDir[pos1] = '/';
 		pos1 = projDir.find('\\', pos1 + 1);
 	}
-	string configPath = projDir + "/html/wt_config.xml";
-	return configPath;
+	string docPath = projDir + "/html";
+	return docPath;
 }
 unique_ptr<Wt::WApplication> makeApp(const Wt::WEnvironment& env, SCDAserver& myServer)
 {
@@ -79,11 +87,10 @@ int main()
 {
 	JFUNC jf;
 	WINFUNC wf;
+	int signal;
 	const string execPath = wf.get_exec_path(), wtAppPath = "";
 	string dbPath = sroot + "\\SCDA.db";
 	const vector<string> args = make_wrun_args(execPath);
-	const string wtConfigPath = getConfigPath(execPath);
-	int signal;
 	Wt::WServer wtServer(execPath, args, wtAppPath);
 	SCDAserver myServer(wtServer, dbPath);
 	wtServer.addEntryPoint(Wt::EntryPointType::Application, bind(makeApp, placeholders::_1, ref(myServer)));
@@ -93,6 +100,5 @@ int main()
 		cerr << "wtServer is shutting down: " << signal << endl;
 		wtServer.stop();
 	}
-
 	return 0;
 }

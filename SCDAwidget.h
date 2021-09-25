@@ -41,6 +41,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	int screenWidth, screenHeight;         // Unit of pixels, measured from the client. 
 	Wt::WString selectedRegion, selectedFolder;
 	string sessionID, tableRegion;
+	unordered_set<string> setTip;         // List of helpful tips which have been dismissed by the user.
 	vector<string> tableCol, tableRow;    // Headers.
 	vector<vector<string>> tableCore;
 	int tableWidth, boxTableWidth;        // Used by JS functions.
@@ -73,7 +74,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 
 	vector<Wt::WPushButton*> allPB;
 
-	void addBarToGraph();
 	void cleanUnit(string& unit);
 	void connect();
 	void downloadMap();
@@ -113,11 +113,15 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void resetTabAll();
 	void resetTable();
 	void resetTree();
+	void seriesAddToGraph();
+	void seriesRemoveFromGraph(const int& seriesIndex);
 	void setMap(int iRow, int iCol, string sRegion);
 	void setTable(int geoCode, string sRegion);
+	void setTipAdd(const string& sTip) { setTip.emplace(sTip); }
 	void toggleMobile();
 	void treeClicked();
 	void treeClicked(int& geoCode, string& sRegion);
+	void updatePinButtons(string mapUnit);
 	void updatePinButtons(string mapUnit, string sRegion);
 	void updateTextCata(int numCata);
 	void updateUnit(string sUnit);
@@ -131,9 +135,11 @@ public:
 	}
 
 	void displayCata(const Wt::WKeyEvent& wKey);
+	shared_ptr<Wt::WMemoryResource> loadIcon(vector<unsigned char>& binIcon);
 	void tableReceiveDouble(const double& width);
 	void tableReceiveString(const string& sInfo);
 
+	shared_ptr<Wt::WMemoryResource> iconChevronDown, iconChevronRight, iconClose, iconTrash;
 	Wt::JSignal<string> jsInfo;
 	Wt::JSignal<double> jsTWidth;
 	

@@ -9,8 +9,10 @@
 #include <Wt/Chart/WDataSeries.h>
 #include <Wt/WStandardItemModel.h>
 #include <Wt/WStandardItem.h>
+#include <Wt/WPushButton.h>
 #include <Wt/WPanel.h>
 #include <Wt/WText.h>
+#include "wjdrag.h"
 #include "jfunc.h"
 
 using namespace std;
@@ -24,21 +26,27 @@ struct WJDATASET
 
 class WJPARAMPANEL : public Wt::WPanel
 {
-	Wt::WGridLayout* gLayout = nullptr;
+	Wt::Signal<int> deleteSignal_;
+	unordered_map<string, int> mapSeries;  // sID -> seriesIndex
 	int paramPerLine = 2;
-	Wt::WContainerWidget* wBox = nullptr;
+	const vector<Wt::WColor> seriesColour;
 	Wt::WBorder wbColour;
 	Wt::WColor wcGrey;
 	Wt::WLength wlWidthColour, wlHeightColour;
 
 public:
-	WJPARAMPANEL(string sTitle) : Wt::WPanel() { init(sTitle); }
+	WJPARAMPANEL(string sTitle, Wt::WLink linkTrash, vector<Wt::WColor> vColour) : Wt::WPanel(), seriesColour(vColour)
+	{ 
+		init(sTitle, linkTrash); 
+	}
 	~WJPARAMPANEL() {}
 
 	void addEndspace();
-	void addParameter(string sParameter, vector<Wt::WColor>& colours);
+	void addParameter(string sParameter, vector<int> vIndex);
 	void clear();
-	void init(string sTitle);
+	Wt::Signal<int>& deleteSignal() { return deleteSignal_; }
+	void init(string sTitle, Wt::WLink linkIconTrash);
+	void removeParameter(const string& sID);
 
 };
 
@@ -48,8 +56,7 @@ class WJBARGRAPH : public Wt::WContainerWidget
 	unordered_map<string, int> mapIndexParameter;
 	unordered_map<string, int> mapIndexRegion;
 	unordered_map<int, string> mapValueParameter;
-	shared_ptr<Wt::WStandardItemModel> model = nullptr;
-	WJPARAMPANEL *ppCommon = nullptr, *ppDiff = nullptr, *ppUnique = nullptr;
+	Wt::Signal<string> tipSignal_;
 	vector<WJDATASET> vDataset;
 	vector<string> vsRegion;
 	vector<vector<int>> vviParameter;  // Form [indexParameter][count in Dataset0, count in Dataset1, ...]
@@ -62,18 +69,25 @@ public:
 
 	string activeCata;
 	JFUNC jf;
+	Wt::WLink linkIconClose = Wt::WLink(), linkIconTrash = Wt::WLink();
+	shared_ptr<Wt::WStandardItemModel> model = nullptr;
+	WJPARAMPANEL* ppCommon = nullptr, * ppDiff = nullptr, * ppUnique = nullptr;
 	string region = "", unit = "";
 
 	void addDataset(vector<vector<string>>& vvsData, vector<string>& vsParameter);
+	void addTipWheel(int layoutIndex);
 	void configureChart();
 	void display();
 	vector<Wt::WColor> getSeriesColour();
 	unique_ptr<Wt::Chart::WCartesianChart> makeChart();
-	unique_ptr<WJPARAMPANEL> makeWJPP(WJPARAMPANEL*& wjpp, string sTitle);
+	unique_ptr<WJPARAMPANEL> makeWJPP(WJPARAMPANEL*& wjpp, string sTitle, vector<Wt::WColor>& seriesColour);
 	void parameterPopulation();
-	void parameterSorting(vector<Wt::WColor>& seriesColour);
+	void parameterSorting();
+	int removeDataset(int seriesIndex);
+	void removeTipWheel(int layoutIndex);
 	void reset();
 	void setModelValues();
+	Wt::Signal<string>& tipSignal() { return tipSignal_; }
 	void widgetMobile(bool mobile);
 
 	Wt::WLength wlAuto = Wt::WLength::Auto;
