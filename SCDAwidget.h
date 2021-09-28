@@ -55,15 +55,16 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	WJCONFIG* wjConfig = nullptr;
 	WJDOWNLOAD* wjDownload = nullptr;
 	WJTABLE* tableData = nullptr;
+	WJTABLEBOX* wjTableBox = nullptr;
 	WTPAINT* wtMap = nullptr;
 
 	Wt::WColor wcGrey, wcSelectedStrong, wcSelectedWeak, wcWhite;
-	Wt::WContainerWidget *boxBarGraph, *boxData, *boxDownload, *boxMap;
-	Wt::WContainerWidget *boxMapAll, *boxMapOption, *boxTable, *boxTextLegend;
+	Wt::WContainerWidget *boxBarGraph, *boxData, *boxMap;
+	Wt::WContainerWidget *boxMapAll, *boxMapOption, *boxTextLegend;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
 	Wt::WPopupMenu *popupUnit;
-	Wt::WPushButton *pbDownloadPDF, *pbFilterCol, *pbFilterRow, *pbPin, *pbPinReset, *pbUnit;
+	Wt::WPushButton *pbDownloadPDF, *pbPin, *pbPinReset, *pbUnit;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
 	Wt::WStackedWidget* stackedTabData;
@@ -81,8 +82,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	vector<string> getMapParameterList();
 	string getUnit();
 	int getWidth();
-	void incomingFilterSignal();
 	void incomingHeaderSignal(const int& iRow, const int& iCol);
+	void incomingPreviewSignal(const int& type);
 	void incomingPullSignal(const int& pullType);
 	void incomingResetSignal(const int& resetType);
 	void incomingVarSignal();
@@ -93,7 +94,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
 	unique_ptr<Wt::WContainerWidget> makeBoxData();
 	unique_ptr<Wt::WContainerWidget> makeBoxMap();
-	unique_ptr<Wt::WContainerWidget> makeBoxTable();
 	void mapAreaClicked(int areaIndex);
 	void populateTextLegend(Wt::WContainerWidget*& boxTextLegend);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
@@ -118,9 +118,11 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void setMap(int iRow, int iCol, string sRegion);
 	void setTable(int geoCode, string sRegion);
 	void setTipAdd(const string& sTip) { setTip.emplace(sTip); }
+	void tabChanged(const int& tabIndex);
 	void toggleMobile();
 	void treeClicked();
 	void treeClicked(int& geoCode, string& sRegion);
+	void updateDownloadTab();
 	void updatePinButtons(string mapUnit);
 	void updatePinButtons(string mapUnit, string sRegion);
 	void updateTextCata(int numCata);

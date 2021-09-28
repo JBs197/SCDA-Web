@@ -19,12 +19,13 @@ void SCDAwidget::connect()
 		wjConfig->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
 		pbPin->clicked().connect(this, bind(&SCDAwidget::seriesAddToGraph, this));
 		pbPinReset->clicked().connect(this, bind(&SCDAwidget::resetBarGraph, this));
+		wjDownload->previewSignal().connect(this, bind(&SCDAwidget::incomingPreviewSignal, this, placeholders::_1));
 		if (filtersEnabled)
 		{
-			wjConfig->wjpTopicRow->filterSignal().connect(this, bind(&SCDAwidget::incomingFilterSignal, this));
-			wjConfig->wjpTopicCol->filterSignal().connect(this, bind(&SCDAwidget::incomingFilterSignal, this));
-			pbFilterRow->clicked().connect(wjConfig->wjpTopicRow, &WJPANEL::dialogFilter);
-			pbFilterCol->clicked().connect(wjConfig->wjpTopicCol, &WJPANEL::dialogFilter);
+			//wjConfig->wjpTopicRow->filterSignal().connect(this, bind(&SCDAwidget::incomingFilterSignal, this));
+			//wjConfig->wjpTopicCol->filterSignal().connect(this, bind(&SCDAwidget::incomingFilterSignal, this));
+			wjTableBox->pbFilterRow->clicked().connect(wjConfig->wjpTopicRow, &WJPANEL::dialogFilter);
+			wjTableBox->pbFilterCol->clicked().connect(wjConfig->wjpTopicCol, &WJPANEL::dialogFilter);
 		}
 		if (jsEnabled)
 		{
@@ -106,92 +107,6 @@ int SCDAwidget::getWidth()
 	return iWidth;
 }
 
-void SCDAwidget::incomingFilterSignal()
-{
-	// A column or row filter has been set (or unset).
-	vector<vector<string>> vvsTable;
-	vector<string> vsCol, vsRow;
-	int indexCol, indexRow;
-	bool filterCol = 0, filterRow = 0;
-	vector<vector<int>> vviFilter = wjConfig->getFilterTable();
-	if (vviFilter[0].size() > 0)
-	{
-		filterRow = 1;
-		vsRow.resize(vviFilter[0].size());
-		indexRow = 0;
-		for (int ii = 0; ii < vsRow.size(); ii++)
-		{
-			vsRow[ii] = tableRow[vviFilter[0][indexRow]];
-			indexRow++;
-		}
-	}
-	else { vsRow = tableRow; }
-
-	if (vviFilter[1].size() > 0)
-	{
-		filterCol = 1;
-		vsCol.resize(vviFilter[1].size());
-		indexCol = 0;
-		for (int ii = 0; ii < vsCol.size(); ii++)
-		{
-			vsCol[ii] = tableCol[vviFilter[1][indexCol]];
-			indexCol++;
-		}
-	}
-	else { vsCol = tableCol; }
-
-	vvsTable.resize(vsRow.size(), vector<string>(vsCol.size()));
-	if (filterRow && filterCol)
-	{
-		indexRow = 0;
-		for (int ii = 0; ii < vsRow.size(); ii++)
-		{
-			indexCol = 0;
-			for (int jj = 0; jj < vsCol.size(); jj++)
-			{
-				vvsTable[ii][jj] = tableCore[vviFilter[0][indexRow]][vviFilter[1][indexCol]];
-				indexCol++;
-			}
-			indexRow++;
-		}
-	}
-	else if (filterCol)
-	{
-		for (int ii = 0; ii < vsRow.size(); ii++)
-		{
-			indexCol = 0;
-			for (int jj = 0; jj < vsCol.size(); jj++)
-			{
-				vvsTable[ii][jj] = tableCore[ii][vviFilter[1][indexCol]];
-				indexCol++;
-			}
-		}
-	}
-	else if (filterRow)
-	{
-		indexRow = 0;
-		for (int ii = 0; ii < vsRow.size(); ii++)
-		{
-			vvsTable[ii] = tableCore[vviFilter[0][indexRow]];
-			indexRow++;
-		}
-	}
-	else { vvsTable = tableCore; }
-
-	boxTable->clear();
-	auto tableDataUnique = make_unique<WJTABLE>(vvsTable, vsCol, vsRow, tableRegion);
-	tableData = tableDataUnique.get();
-	boxTable->addWidget(move(tableDataUnique));
-	tableData->setMaximumSize(Wt::WLength(screenWidth - 500), wlDataFrameHeight);
-	tableData->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
-	tabData->setCurrentIndex(1);
-
-	tableData->jf.timerStart();
-	auto app = Wt::WApplication::instance();
-	app->processEvents();
-	wjConfig->topicSelClicked();
-	wjConfig->topicSelChanged();
-}
 void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
 {
 	// Either the config CBs or the data table is reporting a change in selected headers. 
@@ -225,6 +140,18 @@ void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
 			iColSel = wjConfig->wjpTopicCol->getIndexMID(1);
 			setMap(iRow, iColSel, sRegion);
 		}
+	}
+}
+void SCDAwidget::incomingPreviewSignal(const int& type)
+{
+	switch (type)
+	{
+	case 4:
+	{
+		string tableCSV = wjTableBox->makeCSV();
+		wjDownload->displayCSV(tableCSV);
+		break;
+	}
 	}
 }
 void SCDAwidget::incomingPullSignal(const int& pullType)
@@ -295,6 +222,7 @@ void SCDAwidget::incomingResetSignal(const int& resetType)
 		resetTree();
 		break;
 	}
+
 }
 void SCDAwidget::incomingVarSignal()
 {
@@ -322,7 +250,7 @@ void SCDAwidget::init()
 	wlDataFrameHeight = Wt::WLength(screenHeight - 130);
 	wlTableWidth = Wt::WLength(screenWidth - 515);
 	if (filtersEnabled) { wlTableHeight = Wt::WLength(screenHeight - 180); }
-	else { wlTableHeight = Wt::WLength(screenHeight - 130); }
+	else { wlTableHeight = Wt::WLength(screenHeight - 140); }
 	vector<string> vsYear = { "2016" };
 
 	auto hLayout = make_unique<Wt::WHBoxLayout>();
@@ -411,6 +339,7 @@ void SCDAwidget::initUI()
 	treeRegion->itemSelectionChanged().connect(fnTree);
 
 	// Initial values for the table tab.
+	/*
 	boxTable->setMaximumSize(wlDataFrameWidth, wlDataFrameHeight);
 	boxTable->setOverflow(Wt::Overflow::Hidden, Wt::Orientation::Horizontal | Wt::Orientation::Vertical);
 	if (filtersEnabled)
@@ -418,6 +347,7 @@ void SCDAwidget::initUI()
 		pbFilterRow->setMaximumSize(wlAuto, 28.0);
 		pbFilterCol->setMaximumSize(wlAuto, 28.0);
 	}
+	*/
 
 	// Initial values for the map tab.
 	textUnit->decorationStyle().font().setSize(Wt::FontSize::Large);
@@ -505,8 +435,9 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 	treeRegion = treeRegionUnique.get();
 	tabData->addTab(move(treeRegionUnique), "Geographic Region", Wt::ContentLoading::Eager);
 
-	auto boxTableUnique = makeBoxTable();
-	tabData->addTab(move(boxTableUnique), "Data Table", Wt::ContentLoading::Eager);
+	auto wjBoxTableUnique = make_unique<WJTABLEBOX>();
+	wjTableBox = wjBoxTableUnique.get();
+	tabData->addTab(move(wjBoxTableUnique), "Data Table", Wt::ContentLoading::Eager);
 
 	auto boxMapUnique = makeBoxMap();
 	tabData->addTab(move(boxMapUnique), "Data Map", Wt::ContentLoading::Eager);
@@ -515,7 +446,7 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 	wjBarGraph = wjBarGraphUnique.get();
 	tabData->addTab(move(wjBarGraphUnique), "Bar Graph", Wt::ContentLoading::Eager);
 
-	auto wjDownloadUnique = make_unique<WJDOWNLOAD>();
+	auto wjDownloadUnique = make_unique<WJDOWNLOAD>(wlDataFrameWidth, wlDataFrameHeight);
 	wjDownload = wjDownloadUnique.get();
 	tabData->addTab(move(wjDownloadUnique), "Download", Wt::ContentLoading::Eager);
 
@@ -562,35 +493,6 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxMap()
 	boxMapAllUnique->setLayout(move(vLayoutMap));
 
 	return boxMapAllUnique;
-}
-unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxTable()
-{
-	auto boxTableAllUnique = make_unique<Wt::WContainerWidget>();
-	boxTableAllUnique->setPadding(2.0);
-	auto vLayout = make_unique<Wt::WVBoxLayout>();
-	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
-	boxTable = boxTableUnique.get();
-	if (filtersEnabled)
-	{
-		auto boxTableFilterUnique = make_unique<Wt::WContainerWidget>();
-		auto pbRowUnique = make_unique<Wt::WPushButton>("Apply Row Filter");
-		pbFilterRow = pbRowUnique.get();
-		allPB.push_back(pbFilterRow);
-		auto pbColUnique = make_unique<Wt::WPushButton>("Apply Column Filter");
-		pbFilterCol = pbColUnique.get();
-		allPB.push_back(pbFilterCol);
-
-		auto hLayout = make_unique<Wt::WHBoxLayout>();
-		hLayout->addWidget(move(pbRowUnique));
-		hLayout->addWidget(move(pbColUnique));
-		boxTableFilterUnique->setLayout(move(hLayout));
-
-		vLayout->addWidget(move(boxTableFilterUnique));
-	}
-	vLayout->addWidget(move(boxTableUnique));
-	vLayout->addStretch(1);
-	boxTableAllUnique->setLayout(move(vLayout));
-	return boxTableAllUnique;
 }
 
 void SCDAwidget::mapAreaClicked(int areaIndex)
@@ -803,6 +705,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		area[ii]->clicked().connect(fnArea);
 	}
 	tabData->setTabEnabled(2, 1);
+	updateDownloadTab();
 	if (first) { tabData->setCurrentIndex(2); }	
 	else if (tabData->currentIndex() == 3) { tabData->setCurrentIndex(2); }
 	first = 0;
@@ -896,18 +799,24 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<stri
 
 	// Prepare the table tab.
 	tabData->setTabEnabled(1, 1);
+
 	string temp = "Data Table (" + sRegion + ")";
 	Wt::WString wTemp = Wt::WString::fromUTF8(temp);
 	auto tab = tabData->itemAt(1);
 	tab->setText(wTemp);
 
 	// Make a new table widget.
-	boxTable->clear();
-	auto tableDataUnique = make_unique<WJTABLE>(vvsTable, vsCol, vsRow, sRegion);
-	tableData = tableDataUnique.get();
-	boxTable->addWidget(move(tableDataUnique));
+	tableData = wjTableBox->setTable(vvsTable, vsCol, vsRow, sRegion);
 	tableData->setMaximumSize(wlTableWidth, wlTableHeight);
 	tableData->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
+
+	// Add a helper tip, if necessary.
+	if (!setTip.count("tableWidth"))
+	{
+		if (wjTableBox->linkIconClose.isNull()) { wjTableBox->linkIconClose = Wt::WLink(iconClose); }
+		wjTableBox->addTipWidth();
+		wjTableBox->tipSignal().connect(this, std::bind(&SCDAwidget::setTipAdd, this, std::placeholders::_1));
+	}
 
 	// Populate ColTopicSel and RowTopicSel if necessary.
 	if (wjConfig->wjpTopicRow->boxMID->isHidden() || wjConfig->wjpTopicCol->boxMID->isHidden())
@@ -928,15 +837,10 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<stri
 	{
 		app->doJavaScript(app->javaScriptClass() + ".getInfo();");
 		double dBoxTableWidth = boxData->maximumWidth().value();
-		dBoxTableWidth += boxTable->padding(Wt::Side::Left).value() + boxTable->padding(Wt::Side::Right).value();
+		dBoxTableWidth += wjTableBox->padding(Wt::Side::Left).value() + wjTableBox->padding(Wt::Side::Right).value();
 		boxTableWidth = int(ceil(dBoxTableWidth));
 		app->doJavaScript(app->javaScriptClass() + ".scrollTo(0);");
 		app->triggerUpdate();
-	}
-	if (filtersEnabled)
-	{
-		pbFilterRow->setStyleClass("jbtn");
-		pbFilterCol->setStyleClass("jbtn");
 	}
 
 	// Select the correct table cell.
@@ -945,6 +849,8 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<stri
 	wjConfig->wjpTopicCol->panelClicked();
 	wjConfig->topicSelChanged();  // Triggers table current selection. 
 
+	// Update the download tab.
+	updateDownloadTab();
 }
 void SCDAwidget::processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic)
 {
@@ -1038,7 +944,7 @@ void SCDAwidget::resetBarGraph()
 }
 void SCDAwidget::resetDownload()
 {
-	if (boxDownload != nullptr) { boxDownload->clear(); }
+	//if (wjDownload != nullptr) { wjDownload->clear(); }
 	tabData->setTabEnabled(4, 0);
 }
 void SCDAwidget::resetMap()
@@ -1063,6 +969,7 @@ void SCDAwidget::resetTable()
 	Wt::WString wTemp("Data Table");
 	auto tab = tabData->itemAt(1);
 	tab->setText(wTemp);
+	updateDownloadTab();
 	tabData->setTabEnabled(1, 0);
 	tabData->setCurrentIndex(0);
 }
@@ -1115,7 +1022,11 @@ void SCDAwidget::seriesAddToGraph()
 	wjBarGraph->ppDiff->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
 	wjBarGraph->ppCommon->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
 
+	pbPinReset->setEnabled(1);
+	pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+
 	tabData->setTabEnabled(3, 1);
+	updateDownloadTab();
 	tabData->setCurrentIndex(3);
 }
 void SCDAwidget::seriesRemoveFromGraph(const int& seriesIndex)
@@ -1127,9 +1038,11 @@ void SCDAwidget::seriesRemoveFromGraph(const int& seriesIndex)
 		wjBarGraph->ppUnique->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
 		wjBarGraph->ppDiff->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
 		wjBarGraph->ppCommon->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
+		wjDownload->pbPdfBarGraph->setEnabled(1);
 	}
 	else
 	{
+		wjDownload->pbPdfBarGraph->setEnabled(0);
 		tabData->setTabEnabled(3, 0);
 		tabData->setCurrentIndex(2);
 	}
@@ -1174,6 +1087,9 @@ void SCDAwidget::setTable(int geoCode, string sRegion)
 	sRef.pullTable(prompt, variable);
 }
 
+void SCDAwidget::tabChanged(const int& tabIndex)
+{
+}
 void SCDAwidget::tableReceiveDouble(const double& width)
 {
 	cout << "tableReceiveDouble: " << to_string(width) << endl;
@@ -1240,6 +1156,21 @@ void SCDAwidget::treeClicked(int& geoCode, string& sRegion)
 	auto wTemp = selNode->label()->text();
 	sRegion = wTemp.toUTF8();
 	geoCode = jtRegion.getIName(sRegion);
+}
+void SCDAwidget::updateDownloadTab()
+{
+	int numDataset;
+	if (tabData->isTabEnabled(1) || tabData->isTabEnabled(2) || tabData->isTabEnabled(3))
+	{
+		tabData->setTabEnabled(4, 1);
+		if (tabData->isTabEnabled(3) && wjBarGraph->model != nullptr)
+		{
+			//numDataset = wjBarGraph->model->columnCount() - 1;
+			//if (numDataset > 0) { wjDownload->pbPdfBarGraph->setEnabled(1); }
+			//else { wjDownload->pbPdfBarGraph->setEnabled(0); }
+		}
+	}
+	else { tabData->setTabEnabled(4, 0); }
 }
 void SCDAwidget::updatePinButtons(string mapUnit)
 {
@@ -1362,5 +1293,6 @@ void SCDAwidget::widgetMobile()
 		}
 	}
 	wjConfig->widgetMobile(mobile);
+	wjTableBox->widgetMobile(mobile);
 	wjBarGraph->widgetMobile(mobile);
 }

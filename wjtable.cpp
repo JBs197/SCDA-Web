@@ -583,3 +583,153 @@ void WJTABLE::tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent
 	int iRow = selectedIndex.row();
 	headerSignal_.emit(iRow, iCol);
 }
+
+void WJTABLEBOX::addFilterBox()
+{
+	auto boxFilterUnique = make_unique<Wt::WContainerWidget>();
+	auto pbRowUnique = make_unique<Wt::WPushButton>("Apply Row Filter");
+	pbFilterRow = pbRowUnique.get();
+	auto pbColUnique = make_unique<Wt::WPushButton>("Apply Column Filter");
+	pbFilterCol = pbColUnique.get();
+
+	auto hLayout = make_unique<Wt::WHBoxLayout>();
+	hLayout->addWidget(move(pbRowUnique));
+	hLayout->addWidget(move(pbColUnique));
+	boxFilterUnique->setLayout(move(hLayout));
+
+	Wt::WVBoxLayout *vLayout = (Wt::WVBoxLayout*)this->layout();
+	vLayout->insertWidget(0, move(boxFilterUnique));
+}
+void WJTABLEBOX::addTipWidth()
+{
+	boxTip->clear();
+	boxTip->setHidden(0);
+	Wt::WFlags<Wt::Orientation> flags;
+	Wt::WColor wcTip(255, 255, 180);
+	boxTip->decorationStyle().setBackgroundColor(wcTip);
+	boxTip->setPadding(0.0);
+	auto tipLayout = make_unique<Wt::WGridLayout>();
+
+	auto boxText = make_unique<Wt::WContainerWidget>();
+	boxText->setPadding(0.0);
+	auto text = make_unique<Wt::WText>();
+	text->decorationStyle().font().setSize(Wt::FontSize::Small);
+	text->decorationStyle().font().setWeight(Wt::FontWeight::Bold);
+	Wt::WString wsTip = "Adjust any column width by dragging its column header edge left or right.";
+	text->setText(wsTip);
+	boxText->addWidget(move(text));
+	tipLayout->addWidget(move(boxText), 0, 0, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Middle);
+
+	auto button = make_unique<Wt::WPushButton>();
+	button->setMinimumSize(25.0, 25.0);
+	Wt::WCssDecorationStyle& buttonStyle = button->decorationStyle();
+	buttonStyle.setBackgroundColor(Wt::StandardColor::White);
+	buttonStyle.setBackgroundImage(linkIconClose, flags, Wt::Side::CenterX | Wt::Side::CenterY);
+	button->clicked().connect(this, std::bind(&WJTABLEBOX::removeTipWidth, this));
+	tipLayout->addWidget(move(button), 0, 1, Wt::AlignmentFlag::Right | Wt::AlignmentFlag::Middle);
+
+	auto boxDummy = make_unique<Wt::WContainerWidget>();
+	tipLayout->addWidget(move(boxDummy), 1, 0, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Top);
+	tipLayout->setColumnStretch(0, 1);
+	tipLayout->setRowStretch(1, 1);
+
+	boxTip->setLayout(move(tipLayout));
+}
+void WJTABLEBOX::init()
+{
+	vviFilter.resize(2, vector<int>());
+
+	setPadding(2.0);
+	auto vLayout = make_unique<Wt::WVBoxLayout>();
+	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
+	boxTable = boxTableUnique.get();
+	vLayout->addWidget(move(boxTableUnique));
+
+	auto boxTipUnique = make_unique<Wt::WContainerWidget>();
+	boxTip = boxTipUnique.get();
+	boxTip->setHidden(1);
+	vLayout->addWidget(move(boxTipUnique));
+
+	vLayout->addStretch(1);
+	this->setLayout(move(vLayout));
+}
+string WJTABLEBOX::makeCSV()
+{
+	// Return the active data table as a CSV string. Indentations are marked by two blank spaces.
+	string sCSV, temp;
+	int numRow = vsRow.size();
+	int numCol = vsCol.size();
+	vector<string> dirt = { "+" }, soap = { "  " };
+
+	// Write the column headers. 
+	sCSV = "\"" + sRegion + "\"";
+	for (int ii = 0; ii < numCol; ii++)
+	{
+		temp = vsCol[ii];
+		jf.clean(temp, dirt, soap);
+		sCSV += ",\"" + temp + "\"";
+	}
+	sCSV += "\n";
+
+	// Write the row headers and row values.
+	Wt::WStandardItem* wsiTemp = nullptr;
+	Wt::WString wsTemp;
+	for (int ii = 0; ii < numRow; ii++)
+	{
+		temp = vsRow[ii];
+		jf.clean(temp, dirt, soap);
+		sCSV += "\"" + temp + "\"";
+		for (int jj = 0; jj < numCol; jj++)
+		{
+			sCSV += "," + vvsData[ii][jj];
+		}
+		sCSV += "\n";
+	}
+	return sCSV;
+}
+void WJTABLEBOX::removeTipWidth()
+{
+	tipSignal_.emit("tableWidth");
+	boxTip->clear();
+	boxTip->setHidden(1);
+}
+WJTABLE* WJTABLEBOX::setTable(vector<vector<string>>& vvsTable, vector<string>& vsColHeader, vector<string>& vsRowHeader, string& sRegionName)
+{
+	if (boxTable != nullptr) { boxTable->clear(); }
+	vvsData = vvsTable;
+	vsCol = vsColHeader;
+	vsRow = vsRowHeader;
+	sRegion = sRegionName;
+	auto tableUnique = make_unique<WJTABLE>(vvsTable, vsCol, vsRow, sRegion);
+	return boxTable->addWidget(move(tableUnique));
+}
+void WJTABLEBOX::widgetMobile(bool mobile)
+{
+	if (mobile)
+	{
+		if (pbFilterRow != nullptr)
+		{
+			pbFilterRow->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+			pbFilterRow->setMinimumSize(wlAuto, 50.0);
+		}
+		if (pbFilterCol != nullptr)
+		{
+			pbFilterCol->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+			pbFilterCol->setMinimumSize(wlAuto, 50.0);
+		}
+	}
+	else
+	{
+		if (pbFilterRow != nullptr)
+		{
+			pbFilterRow->decorationStyle().font().setSize(Wt::FontSize::Medium);
+			pbFilterRow->setMinimumSize(wlAuto, wlAuto);
+		}
+		if (pbFilterCol != nullptr)
+		{
+			pbFilterCol->decorationStyle().font().setSize(Wt::FontSize::Medium);
+			pbFilterCol->setMinimumSize(wlAuto, wlAuto);
+		}
+	}
+
+}

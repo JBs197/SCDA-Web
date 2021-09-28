@@ -1,11 +1,16 @@
 #pragma once
 #include <Wt/WEnvironment.h>
 #include <Wt/WApplication.h>
+#include <Wt/WContainerWidget.h>
 #include <Wt/WTableView.h>
 #include <Wt/WCssStyleSheet.h>
 #include <Wt/WStandardItemModel.h>
 #include <Wt/WStandardItem.h>
 #include <Wt/WItemDelegate.h>
+#include <Wt/WGridLayout.h>
+#include <Wt/WHBoxLayout.h>
+#include <Wt/WVBoxLayout.h>
+#include <Wt/WPushButton.h>
 #include <Wt/WText.h>
 #include "jtree.h"
 
@@ -85,6 +90,7 @@ public:
 
 class WJTABLE : public Wt::WTableView
 {
+	Wt::Signal<int, int> headerSignal_;
 	const double heightCell = 68.0;
 	const double heightHeader = 68.0;
 	mutex m_time;
@@ -92,7 +98,6 @@ class WJTABLE : public Wt::WTableView
 	Wt::WModelIndex selectedIndex = Wt::WModelIndex();
 	set<string> setUnitBreaker;          // List of strings which disqualify a unit candidate.
 	set<string> setUnitPercent;          // List of strings which indicate a unit of "%".
-	Wt::Signal<int, int> headerSignal_;
 	Wt::WBorder wbNone, wbSelected;
 	Wt::WColor wcSelectedWeak, wcSelectedStrong, wcWhite;
 	Wt::WLength wlAuto;
@@ -149,4 +154,34 @@ public:
 	void setRowUnit(string& rowHeader, int index);
 	void tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent);
 	void tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent);
+};
+
+class WJTABLEBOX : public Wt::WContainerWidget
+{
+	Wt::WContainerWidget *boxTable, *boxTip;
+	string sRegion;
+	Wt::Signal<string> tipSignal_;
+	vector<vector<int>> vviFilter;
+	vector<string> vsCol, vsRow;
+	vector<vector<string>> vvsData;
+	Wt::WLength wlAuto = Wt::WLength();
+
+	void init();
+
+public:
+	WJTABLEBOX() : Wt::WContainerWidget() { init(); }
+	~WJTABLEBOX() {}
+
+	Wt::WLink linkIconClose = Wt::WLink();
+	Wt::WPushButton *pbFilterCol, *pbFilterRow;
+	JFUNC jf;
+
+	void addFilterBox();
+	void addTipWidth();
+	string makeCSV();
+	void removeTipWidth();
+	WJTABLE* setTable(vector<vector<string>>& vvsTable, vector<string>& vsColHeader, vector<string>& vsRowHeader, string& sRegionName);
+	Wt::Signal<string>& tipSignal() { return tipSignal_; }
+	void widgetMobile(bool mobile);
+
 };
