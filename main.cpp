@@ -1,3 +1,4 @@
+#define HPDF_DLL
 #include "SCDAwidget.h"
 
 using namespace std;
@@ -22,6 +23,8 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	BootstrapTheme->setVersion(Wt::BootstrapVersion::v3);
 	this->setTheme(move(BootstrapTheme));
 	
+	vector<unsigned char> binCSSplain = serverRef.jf.loadBin(docRoot() + "/pdfTextPlain.css");
+	vector<unsigned char> binCSSshaded = serverRef.jf.loadBin(docRoot() + "/pdfTextShaded.css");
 	vector<unsigned char> binIconChevronDown = serverRef.jf.loadBin(docRoot() + "/ChevronDown_Icon_16px.png");
 	vector<unsigned char> binIconChevronRight = serverRef.jf.loadBin(docRoot() + "/ChevronRight_Icon_16px.png");
 	vector<unsigned char> binIconClose = serverRef.jf.loadBin(docRoot() + "/Close_Icon_16px.png");
@@ -29,11 +32,11 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 
 	const string mrb = docRoot() + "\\SCDA-Wt";
 	this->messageResourceBundle().use(mrb);
-	//auto cssLink = Wt::WLink(docRoot() + "\\SCDA-Wt.css");
-	//this->useStyleSheet(cssLink);
 
 	//root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
+	scdaWidget->cssTextPlain = scdaWidget->loadCSS(binCSSplain);
+	scdaWidget->cssTextShaded = scdaWidget->loadCSS(binCSSshaded);
 	scdaWidget->iconChevronDown = scdaWidget->loadIcon(binIconChevronDown);
 	scdaWidget->iconChevronRight = scdaWidget->loadIcon(binIconChevronRight);
 	scdaWidget->iconClose = scdaWidget->loadIcon(binIconClose);

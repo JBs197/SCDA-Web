@@ -71,15 +71,47 @@ int SCDAwidget::getHeight()
 }
 vector<string> SCDAwidget::getMapParameterList()
 {
+	vector<int> vDummy;
+	vector<string> vsParameter = getMapParameterList(vDummy);
+	return vsParameter;
+}
+vector<string> SCDAwidget::getMapParameterList(vector<int>& vChanged)
+{
+	// This variant will return TRUE or FALSE for each parameter, if it was changed from default.
 	vector<Wt::WWidget*> vWText = boxTextLegend->children();
 	if (vWText.size() < 1) { jf.err("No boxTextLegend widgets found-SCDAwidget.getMapParameterList"); }
 	Wt::WText* wText = nullptr;
-
+	size_t pos1;
+	int count;
+	vChanged.assign(vWText.size(), 0);
 	vector<string> vsParameter(vWText.size());
 	for (int ii = 0; ii < vsParameter.size(); ii++)
 	{
 		wText = (Wt::WText*)vWText[ii];
 		vsParameter[ii] = wText->text().toUTF8();
+
+		// Determine if this parameter is default, or if it was changed by the user.
+		count = jf.countChar(vsParameter[ii], '|');
+		if (count > 1) { vChanged[ii] = 1; }
+		else if (count == 1)
+		{
+			pos1 = vsParameter[ii].rfind("| Total");
+			if (pos1 == vsParameter[ii].size() - 7)
+			{
+				pos1 = vsParameter[ii].find('|');
+				string sTitle = vsParameter[ii].substr(0, pos1 - 1);
+				string sMID = vsParameter[ii].substr(pos1 + 2);
+				for (int jj = 0; jj < vvsParameter.size(); jj++)
+				{
+					if (vvsParameter[jj].back() == sTitle)
+					{
+						if (vvsParameter[jj][0] != sMID) { vChanged[ii] = 1; }
+						break;
+					}
+				}
+			}
+		}
+		else { jf.err("No parameter division found-SCDAwidget.getMapParameterList"); }
 	}
 	return vsParameter;
 }
@@ -144,8 +176,25 @@ void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
 }
 void SCDAwidget::incomingPreviewSignal(const int& type)
 {
+	// Initialize CSS settings for PDF rendering, if necessary.
+	if (wjDownload->styleTextPlain.empty())
+	{
+		wjDownload->styleTextPlain = wjDownload->initStyleCSS(cssTextPlain);
+	}
+	if (wjDownload->styleTextShaded.empty())
+	{
+		wjDownload->styleTextShaded = wjDownload->initStyleCSS(cssTextShaded);
+	}	
+
 	switch (type)
 	{
+	case 3:
+	{
+		vector<int> vChanged;
+		vector<string> vsParameter = getMapParameterList(vChanged);
+		wjDownload->displayPDFtable(vsParameter, vChanged);
+		break;
+	}
 	case 4:
 	{
 		string tableCSV = wjTableBox->makeCSV();
@@ -415,6 +464,13 @@ string SCDAwidget::jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID)
 	return getInfo;
 }
 
+shared_ptr<Wt::WMemoryResource> SCDAwidget::loadCSS(vector<unsigned char>& binCSS)
+{
+	auto css = make_shared<Wt::WMemoryResource>("binCSS");
+	int cssSize = binCSS.size();
+	css->setData(&binCSS[0], cssSize);
+	return css;
+}
 shared_ptr<Wt::WMemoryResource> SCDAwidget::loadIcon(vector<unsigned char>& binIcon)
 {
 	auto icon = make_shared<Wt::WMemoryResource>("binIcon");
@@ -515,12 +571,14 @@ void SCDAwidget::mapAreaClicked(int areaIndex)
 }
 void SCDAwidget::populateTextLegend(Wt::WContainerWidget*& boxTextLegend)
 {
+	Wt::WString wsTemp;
 	bool grey = 0;
 	auto layout = make_unique<Wt::WVBoxLayout>();
-	vector<Wt::WString> vwsLegend = wjConfig->getTextLegend();
-	for (int ii = 0; ii < vwsLegend.size(); ii++)
+	vector<string> vsLegend = wjConfig->getTextLegend(1);
+	for (int ii = 0; ii < vsLegend.size(); ii++)
 	{
-		auto wText = make_unique<Wt::WText>(vwsLegend[ii]);
+		wsTemp = Wt::WString::fromUTF8(vsLegend[ii]);
+		auto wText = make_unique<Wt::WText>(wsTemp);
 		wText->setTextAlignment(Wt::AlignmentFlag::Left);
 		wText->decorationStyle().font().setSize(Wt::FontSize::Large);
 		if (grey)

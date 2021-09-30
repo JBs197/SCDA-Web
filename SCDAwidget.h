@@ -80,6 +80,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void downloadMap();
 	int getHeight();
 	vector<string> getMapParameterList();
+	vector<string> getMapParameterList(vector<int>& vChanged);
 	string getUnit();
 	int getWidth();
 	void incomingHeaderSignal(const int& iRow, const int& iCol);
@@ -137,10 +138,12 @@ public:
 	}
 
 	void displayCata(const Wt::WKeyEvent& wKey);
+	shared_ptr<Wt::WMemoryResource> loadCSS(vector<unsigned char>& binCSS);
 	shared_ptr<Wt::WMemoryResource> loadIcon(vector<unsigned char>& binIcon);
 	void tableReceiveDouble(const double& width);
 	void tableReceiveString(const string& sInfo);
 
+	shared_ptr<Wt::WMemoryResource> cssTextPlain, cssTextShaded;
 	shared_ptr<Wt::WMemoryResource> iconChevronDown, iconChevronRight, iconClose, iconTrash;
 	Wt::JSignal<string> jsInfo;
 	Wt::JSignal<double> jsTWidth;

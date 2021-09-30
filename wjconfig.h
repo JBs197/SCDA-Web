@@ -49,15 +49,14 @@ struct WJPANEL : public Wt::WPanel
 	void dialogFilterEnd();
 	void dialogMID();
 	void dialogMIDEnd();
-	//void dialogMIDToggle();
 	void dialogMIDToggle(int stackedIndex);
 	Wt::Signal<string>& dialogOpenSignal() { return dialogOpenSignal_; }
 	Wt::Signal<>& filterSignal() { return filterSignal_; }
 	int getIndexMID(int mode);
 	string getTextLegend();
+	string getTextLegend(int mode);
 	void highlight(int widgetIndex);
 	void init();
-	//void initButtonMID(shared_ptr<Wt::WResource>& wrIconMID);
 	void initStackedPB(Wt::WLink wlClosed, Wt::WLink wlOpened);
 	void panelClicked() { jf.timerStart(); }
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
@@ -96,7 +95,6 @@ class WJCONFIG : public Wt::WContainerWidget
 	Wt::WColor wcBlack, wcBorder, wcOffWhite, wcSelectedStrong, wcSelectedWeak, wcWhite;
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
 	unique_ptr<Wt::WDialog> wdFilter = nullptr;
-	shared_ptr<Wt::WResource> wrIconMID = nullptr;
 
 public:
 	WJCONFIG(vector<string> vsYear) : Wt::WContainerWidget() {
@@ -135,11 +133,11 @@ public:
 	void getPrompt(vector<string>& vsP);
 	void getPrompt(vector<string>& vsP, vector<vector<string>>& vvsP);
 	void getPrompt(string& sP, vector<vector<string>>& vvsP1, vector<vector<string>>& vvsP2);
-	vector<Wt::WString> getTextLegend();
+	vector<string> getTextLegend();
+	vector<string> getTextLegend(int mode);
 	vector<vector<string>> getVariable();
 	void highlightPanel(Wt::WPanel*& wPanel, int widgetIndex);
 	void init(vector<string> vsYear);
-	shared_ptr<Wt::WResource> makeIconMID(int width);
 	unique_ptr<WJPANEL> makePanelCategory();
 	unique_ptr<WJPANEL> makePanelTopicCol();
 	unique_ptr<WJPANEL> makePanelTopicRow();

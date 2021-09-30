@@ -226,7 +226,13 @@ int WJPANEL::getIndexMID(int mode)
 }
 string WJPANEL::getTextLegend()
 {
+	string textLegend = getTextLegend(0);
+	return textLegend;
+}
+string WJPANEL::getTextLegend(int mode)
+{
 	// Return a string representing this panel's detailed parameter listing.
+	// Modes:  0 = standard, 1 = odd-numbered entries are HTML-italicized
 	string sLegend, sTitle, temp;
 	Wt::WString wsTemp;
 	if (boxMID->isHidden())
@@ -234,7 +240,15 @@ string WJPANEL::getTextLegend()
 		wsTemp = title();
 		sLegend = wsTemp.toUTF8() + " | ";
 		wsTemp = cbTitle->currentText();
-		sLegend += wsTemp.toUTF8();
+		switch (mode)
+		{
+		case 0:
+			sLegend += wsTemp.toUTF8();
+			break;
+		case 1:
+			sLegend += "<i>" + wsTemp.toUTF8() + "</i>";
+			break;
+		}		
 		return sLegend;
 	}
 	
@@ -242,7 +256,7 @@ string WJPANEL::getTextLegend()
 	wsTemp = cbTitle->currentText();
 	sTitle = wsTemp.toUTF8();
 	sLegend = sTitle;
-	int index = jtMID.getIndex(selMID);  // JTREE index.
+	int path, index = jtMID.getIndex(selMID);  // JTREE index.
 	vector<int> viAncestry = jtMID.treeSTanc[index];
 	viAncestry.push_back(index);
 	for (int ii = 0; ii < viAncestry.size(); ii++)
@@ -251,13 +265,35 @@ string WJPANEL::getTextLegend()
 		if (temp == "") { continue; }
 		while (temp[0] == '+') { temp.erase(temp.begin()); }
 		pos1 = temp.find("Total -");
-		if (pos1 > temp.size()) { sLegend += " | " + temp; }
-		else
+
+		if (mode == 1 && ii % 2 == 1) { path = 1; }
+		else { path = 0; }
+		switch (path)
 		{
-			pos1 = temp.find(sTitle);
+		case 0:
+		{
 			if (pos1 > temp.size()) { sLegend += " | " + temp; }
-			else { sLegend += " | Total"; }
+			else
+			{
+				pos1 = temp.find(sTitle);
+				if (pos1 > temp.size()) { sLegend += " | " + temp; }
+				else { sLegend += " | Total"; }
+			}
+			break;
 		}
+		case 1:
+		{
+			if (pos1 > temp.size()) { sLegend += " | <i>" + temp + "</i>"; }
+			else
+			{
+				pos1 = temp.find(sTitle);
+				if (pos1 > temp.size()) { sLegend += " | <i>" + temp + "</i>"; }
+				else { sLegend += " | <i>Total</i>"; }
+			}
+			break;
+		}
+		}
+
 	}
 	return sLegend;
 }
@@ -908,34 +944,35 @@ void WJCONFIG::getPrompt(string& sP, vector<vector<string>>& vvsP1, vector<vecto
 	vvsP1 = vvsCata;
 	vvsP2 = vvsPrompt;
 }
-vector<Wt::WString> WJCONFIG::getTextLegend()
+vector<string> WJCONFIG::getTextLegend()
+{
+	vector<string> vsTextLegend = getTextLegend(0);
+	return vsTextLegend;
+}
+vector<string> WJCONFIG::getTextLegend(int mode)
 {
 	// Read all the CB panels, and return a list of the displayed options. 
 	int numParam = basicWJP.size() + varWJP.size();
 	if (wjpDemo != nullptr) { numParam++; }
 
-	string temp;
 	int index = 0;
-	vector<Wt::WString> vwsLegend(numParam);
+	vector<string> vsLegend(numParam);
 	for (int ii = 0; ii < basicWJP.size(); ii++)
 	{
-		temp = basicWJP[ii]->getTextLegend();
-		vwsLegend[index] = Wt::WString::fromUTF8(temp);
+		vsLegend[index] = basicWJP[ii]->getTextLegend(mode);
 		index++;
 	}
 	if (wjpDemo != nullptr)
 	{
-		temp = wjpDemo->getTextLegend();
-		vwsLegend[index] = Wt::WString::fromUTF8(temp);
+		vsLegend[index] = wjpDemo->getTextLegend(mode);
 		index++;
 	}
 	for (int ii = 0; ii < varWJP.size(); ii++)
 	{
-		temp = varWJP[ii]->getTextLegend();
-		vwsLegend[index] = Wt::WString::fromUTF8(temp);
+		vsLegend[index] = varWJP[ii]->getTextLegend(mode);
 		index++;
 	}
-	return vwsLegend;
+	return vsLegend;
 }
 vector<vector<string>> WJCONFIG::getVariable()
 {
@@ -1024,7 +1061,6 @@ void WJCONFIG::init(vector<string> vsYear)
 	wcssAttention.setBorder(wbDotted);
 	wcssHighlighted = wcssDefault;
 	wcssHighlighted.setBackgroundColor(wcSelectedWeak);
-	wrIconMID = makeIconMID(30);
 
 	// Insert the widgets into the layout.
 	auto layout = make_unique<Wt::WVBoxLayout>();
@@ -1060,33 +1096,6 @@ void WJCONFIG::init(vector<string> vsYear)
 	wjpTopicCol->dialogOpenSignal().connect(this, std::bind(&WJCONFIG::dialogHighlander, this, std::placeholders::_1));
 	wjpTopicRow->dialogOpenSignal().connect(this, std::bind(&WJCONFIG::dialogHighlander, this, std::placeholders::_1));
 }
-shared_ptr<Wt::WResource> WJCONFIG::makeIconMID(int width)
-{
-	// Draws a square icon containing a downward-facing triangle.
-	double dWidth = (double)width;
-	Wt::WPainterPath wpp = Wt::WPainterPath();
-	double dX = round(dWidth / 3.0);
-	double dY = round(dWidth * 5.0 / 12.0);
-	wpp.moveTo(dX, dY);
-	dX = round(dWidth * 2.0 / 3.0);
-	wpp.lineTo(dX, dY);
-	dX = round(dWidth / 2.0);
-	dY = round(dWidth * 7.0 / 12.0);
-	wpp.lineTo(dX, dY);
-	wpp.closeSubPath();
-
-	auto iconShared = make_shared<Wt::WSvgImage>(width, width);
-	auto icon = iconShared.get();
-	Wt::WPainter painter(icon);
-	Wt::WPen pen = Wt::WPen(wcBlack);
-	Wt::WBrush brush = Wt::WBrush(wcBlack);
-	painter.setPen(pen);
-	painter.setBrush(brush);
-	painter.drawPath(wpp);
-	painter.end();
-
-	return iconShared;
-}
 unique_ptr<WJPANEL> WJCONFIG::makePanelCategory()
 {
 	auto category = make_unique<WJPANEL>();
@@ -1103,7 +1112,6 @@ unique_ptr<WJPANEL> WJCONFIG::makePanelTopicCol()
 	topicCol->setObjectName("wjpTopicCol");
 	topicCol->setTitle("Table Column Headers");
 	wjpTopicCol = topicCol.get();
-	//wjpTopicCol->initButtonMID(wrIconMID);
 	basicWJP.push_back(wjpTopicCol);
 	wjpTopicCol->setHidden(1);
 	return topicCol;
@@ -1114,7 +1122,6 @@ unique_ptr<WJPANEL> WJCONFIG::makePanelTopicRow()
 	topicRow->setObjectName("wjpTopicRow");
 	topicRow->setTitle("Table Row Headers");
 	wjpTopicRow = topicRow.get();
-	//wjpTopicRow->initButtonMID(wrIconMID);
 	basicWJP.push_back(wjpTopicRow);
 	wjpTopicRow->setHidden(1);
 	return topicRow;
