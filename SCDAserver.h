@@ -13,6 +13,7 @@
 #include "wjconfig.h"
 #include "wjdownload.h"
 #include "wjdrag.h"
+#include "wjmap.h"
 #include "wjtable.h"
 #include "wtpaint.h"
 
@@ -26,8 +27,9 @@ public:
 	const JTREE tree;
 	const int numCata;
 	const vector<string> list, listCol, listRow;
-	const vector<vector<string>> catalogue, table, variable;
+	const vector<vector<string>> catalogue, table, treeCol, treeRow, variable;
 	const vector<string> ancestry;
+	const vector<vector<vector<string>>> parameter;
 	const string sYear, sCata, sRegion, title;
 	const vector<Wt::WPainterPath> wpPaths;
 	const vector<vector<vector<double>>> areas;
@@ -38,11 +40,14 @@ public:
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<vector<vector<double>>> get_areas() const { return areas; }
 	vector<vector<string>> getCata() const { return catalogue; }
+	vector<vector<string>> getCol() const { return treeCol; }
 	vector<string> get_list() const { return list; }
 	vector<string> getListCol() const { return listCol; }
 	vector<string> getListRow() const { return listRow; }
 	int getNumCata() const { return numCata; }
+	vector<vector<vector<string>>> getParameter() const { return parameter; }
 	vector<vector<double>> getRegionData() const { return regionData; }
+	vector<vector<string>> getRow() const { return treeRow; }
 	string getSCata() const { return sCata; }
 	string getSRegion() const { return sRegion; }
 	string getSYear() const { return sYear; }
@@ -82,12 +87,12 @@ private:
 		: etype(et), sessionID(sID), list(vsRegion), areas(area), regionData(rData), numCata(1) {}
 
 	// Constructor for eType Parameter.
-	DataEvent(eType et, const string& sID, const int& nC, const vector<vector<string>>& var, const vector<vector<string>>& cata, const vector<string>& DIMIndex)
-		: etype(et), sessionID(sID), numCata(nC), variable(var), catalogue(cata), list(DIMIndex) {}
+	DataEvent(eType et, const string& sID, const int& nC, const vector<vector<vector<string>>>& param, const vector<vector<string>>& cata)
+		: etype(et), sessionID(sID), numCata(nC), parameter(param), catalogue(cata){}
 
 	// Constructor for eType Table.
-	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<string>& vsCol, const vector<string>& vsRow, const string& region)
-		: etype(et), sessionID(sID), table(vvsTable), listCol(vsCol), listRow(vsRow), sRegion(region), numCata(1) {}
+	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<vector<string>>& vvsCol, const vector<vector<string>>& vvsRow, const string& region)
+		: etype(et), sessionID(sID), table(vvsTable), treeCol(vvsCol), treeRow(vvsRow), sRegion(region), numCata(1) {}
 
 	// Constructor for eType Topic.
 	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsCol, const vector<string>& vsRow)
@@ -133,9 +138,10 @@ public:
 	vector<vector<vector<double>>> getBorderKM(vector<string>& vsGeoCode, string sYear);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt);
 	vector<vector<string>> getCatalogue(vector<string>& vsPrompt, vector<vector<string>>& vvsVariable);
-	vector<string> getColTitle(string sYear, string sCata);
+	vector<vector<string>> getColTitle(string sYear, string sCata);
 	vector<double> getDataFamily(string sYear, string sCata, vector<string> vsIndex, vector<string> vsGeoCode);
 	vector<string> getDataIndex(string sYear, string sCata, vector<vector<string>>& vvsDIM);
+	vector<string> getDataIndex(string sYear, string sCata, vector<string>& vsDIMtitle, vector<int>& viMID);
 	vector<string> getDifferentiatorMID(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
 	vector<string> getDifferentiatorTitle(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getDIMIndex(vector<vector<string>>& vvsCata);
@@ -143,9 +149,9 @@ public:
 	vector<vector<string>> getGeo(string sYear, string sCata);
 	int getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName);
 	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
-	vector<vector<string>> getParameter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
+	vector<vector<vector<string>>> getParameter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
 	vector<double> getPopulationFamily(string sYear, vector<string>& vsGeoCode);
-	vector<string> getRowTitle(string sYear, string sCata);
+	vector<vector<string>> getRowTitle(string sYear, string sCata);
 	long long getTimer();
 	vector<string> getTopicList(vector<string> vsYear);
 	string getUnit(int clientIndex, string sYear, string sCata, string sDimMID);
@@ -153,8 +159,8 @@ public:
 	string getYear(string sYear, string sCata);
 	void pullCategory(vector<string> prompt);
 	void pullDifferentiator(string prompt, vector<vector<string>> vvsCata, vector<vector<string>> vvsDiff);
-	void pullMap(vector<string> prompt, vector<vector<string>> vvsDIM);
-	void pullTable(vector<string> prompt, vector<vector<string>> vvsDIM);
+	void pullMap(vector<string> prompt, vector<string> vsDIMtitle, vector<int> viMID);
+	void pullTable(vector<string> prompt, vector<string> vsDIMtitle, vector<int> viMID);
 	void pullTopic(vector<string> prompt);
 	void pullTree(vector<string> prompt);
 	void pullVariable(vector<string> prompt, vector<vector<string>> variable);

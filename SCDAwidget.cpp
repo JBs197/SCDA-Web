@@ -17,15 +17,15 @@ void SCDAwidget::connect()
 		wjConfig->resetSignal().connect(this, bind(&SCDAwidget::incomingResetSignal, this, placeholders::_1));
 		wjConfig->pbMobile->clicked().connect(this, &SCDAwidget::toggleMobile);
 		wjConfig->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
-		pbPin->clicked().connect(this, bind(&SCDAwidget::seriesAddToGraph, this));
-		pbPinReset->clicked().connect(this, bind(&SCDAwidget::resetBarGraph, this));
+		wjMap->pbPin->clicked().connect(this, bind(&SCDAwidget::seriesAddToGraph, this));
+		wjMap->pbPinReset->clicked().connect(this, bind(&SCDAwidget::resetBarGraph, this));
 		wjDownload->previewSignal().connect(this, bind(&SCDAwidget::incomingPreviewSignal, this, placeholders::_1));
 		if (filtersEnabled)
 		{
 			//wjConfig->wjpTopicRow->filterSignal().connect(this, bind(&SCDAwidget::incomingFilterSignal, this));
 			//wjConfig->wjpTopicCol->filterSignal().connect(this, bind(&SCDAwidget::incomingFilterSignal, this));
-			wjTableBox->pbFilterRow->clicked().connect(wjConfig->wjpTopicRow, &WJPANEL::dialogFilter);
-			wjTableBox->pbFilterCol->clicked().connect(wjConfig->wjpTopicCol, &WJPANEL::dialogFilter);
+			//wjTableBox->pbFilterRow->clicked().connect(wjConfig->wjpTopicRow, &WJPANEL::dialogFilter);
+			//wjTableBox->pbFilterCol->clicked().connect(wjConfig->wjpTopicCol, &WJPANEL::dialogFilter);
 		}
 		if (jsEnabled)
 		{
@@ -68,52 +68,6 @@ int SCDAwidget::getHeight()
 	int iHeight = env.screenHeight();
 	if (iHeight < 0) { jf.err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
 	return iHeight;
-}
-vector<string> SCDAwidget::getMapParameterList()
-{
-	vector<int> vDummy;
-	vector<string> vsParameter = getMapParameterList(vDummy);
-	return vsParameter;
-}
-vector<string> SCDAwidget::getMapParameterList(vector<int>& vChanged)
-{
-	// This variant will return TRUE or FALSE for each parameter, if it was changed from default.
-	vector<Wt::WWidget*> vWText = boxTextLegend->children();
-	if (vWText.size() < 1) { jf.err("No boxTextLegend widgets found-SCDAwidget.getMapParameterList"); }
-	Wt::WText* wText = nullptr;
-	size_t pos1;
-	int count;
-	vChanged.assign(vWText.size(), 0);
-	vector<string> vsParameter(vWText.size());
-	for (int ii = 0; ii < vsParameter.size(); ii++)
-	{
-		wText = (Wt::WText*)vWText[ii];
-		vsParameter[ii] = wText->text().toUTF8();
-
-		// Determine if this parameter is default, or if it was changed by the user.
-		count = jf.countChar(vsParameter[ii], '|');
-		if (count > 1) { vChanged[ii] = 1; }
-		else if (count == 1)
-		{
-			pos1 = vsParameter[ii].rfind("| Total");
-			if (pos1 == vsParameter[ii].size() - 7)
-			{
-				pos1 = vsParameter[ii].find('|');
-				string sTitle = vsParameter[ii].substr(0, pos1 - 1);
-				string sMID = vsParameter[ii].substr(pos1 + 2);
-				for (int jj = 0; jj < vvsParameter.size(); jj++)
-				{
-					if (vvsParameter[jj].back() == sTitle)
-					{
-						if (vvsParameter[jj][0] != sMID) { vChanged[ii] = 1; }
-						break;
-					}
-				}
-			}
-		}
-		else { jf.err("No parameter division found-SCDAwidget.getMapParameterList"); }
-	}
-	return vsParameter;
 }
 string SCDAwidget::getUnit()
 {
@@ -176,26 +130,16 @@ void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
 }
 void SCDAwidget::incomingPreviewSignal(const int& type)
 {
-	// Initialize CSS settings for PDF rendering, if necessary.
-	if (wjDownload->styleTextPlain.empty())
-	{
-		wjDownload->styleTextPlain = wjDownload->initStyleCSS(cssTextPlain);
-	}
-	if (wjDownload->styleTextShaded.empty())
-	{
-		wjDownload->styleTextShaded = wjDownload->initStyleCSS(cssTextShaded);
-	}	
-
 	switch (type)
 	{
-	case 3:
+	case 2:
 	{
 		vector<int> vChanged;
-		vector<string> vsParameter = getMapParameterList(vChanged);
-		wjDownload->displayPDFtable(vsParameter, vChanged);
+		vector<string> vsParameter = wjConfig->getTextLegend(vChanged);
+		wjDownload->displayPDFmap(vsParameter, vChanged);
 		break;
 	}
-	case 4:
+	case 3:
 	{
 		string tableCSV = wjTableBox->makeCSV();
 		wjDownload->displayCSV(tableCSV);
@@ -209,7 +153,8 @@ void SCDAwidget::incomingPullSignal(const int& pullType)
 	string sessionID = app->sessionId();
 	string sPrompt;
 	Wt::WString wsTemp;
-	vector<string> vsPrompt;
+	vector<int> viMID;
+	vector<string> vsPrompt, vsDIMtitle;
 	vector<vector<string>> vvsCata, vvsPrompt;
 	switch (pullType)
 	{
@@ -227,13 +172,13 @@ void SCDAwidget::incomingPullSignal(const int& pullType)
 		break;
 	case 2:  // Pull table.
 	{
-		wjConfig->getPrompt(vsPrompt, vvsPrompt);
+		wjConfig->getPrompt(vsPrompt, vsDIMtitle, viMID);
 		vsPrompt[0] = sessionID;
 		vsPrompt[2] = activeCata;
 		int geoCode;
 		treeClicked(geoCode, vsPrompt[4]);
 		vsPrompt[3] = to_string(geoCode);
-		sRef.pullTable(vsPrompt, vvsPrompt);
+		sRef.pullTable(vsPrompt, vsDIMtitle, viMID);
 		break;
 	}
 	case 3:  // Pull topic.
@@ -278,7 +223,9 @@ void SCDAwidget::incomingVarSignal()
 	// A Variable WJPANEL has changed its values. Load a new table and map.
 	if (activeCata.size() < 1) { jf.err("No activeCata-SCDAwidget.incomingVarSignal"); }
 	auto app = Wt::WApplication::instance();
-	vector<vector<string>> vvsVariable = wjConfig->getVariable();
+	vector<string> vsDIMtitle;
+	vector<int> viMID;
+	wjConfig->getVariable(vsDIMtitle, viMID);
 	vector<string> vsPrompt(5);
 	vsPrompt[0] = app->sessionId();
 	Wt::WString wsTemp = wjConfig->wjpYear->cbTitle->currentText();
@@ -287,7 +234,7 @@ void SCDAwidget::incomingVarSignal()
 	int geoCode;
 	treeClicked(geoCode, vsPrompt[4]);
 	vsPrompt[3] = to_string(geoCode);
-	sRef.pullTable(vsPrompt, vvsVariable);
+	sRef.pullTable(vsPrompt, vsDIMtitle, viMID);
 }
 
 void SCDAwidget::init()
@@ -387,24 +334,6 @@ void SCDAwidget::initUI()
 	auto fnTree = std::bind(static_cast<void(SCDAwidget::*)(void)>(&SCDAwidget::treeClicked), this);
 	treeRegion->itemSelectionChanged().connect(fnTree);
 
-	// Initial values for the table tab.
-	/*
-	boxTable->setMaximumSize(wlDataFrameWidth, wlDataFrameHeight);
-	boxTable->setOverflow(Wt::Overflow::Hidden, Wt::Orientation::Horizontal | Wt::Orientation::Vertical);
-	if (filtersEnabled)
-	{
-		pbFilterRow->setMaximumSize(wlAuto, 28.0);
-		pbFilterCol->setMaximumSize(wlAuto, 28.0);
-	}
-	*/
-
-	// Initial values for the map tab.
-	textUnit->decorationStyle().font().setSize(Wt::FontSize::Large);
-	textUnit->setTextAlignment(Wt::AlignmentFlag::Middle);
-	boxMap->setContentAlignment(Wt::AlignmentFlag::Center);
-	allPB.push_back(pbPin);
-	allPB.push_back(pbPinReset);
-
 }
 
 string SCDAwidget::jsMakeFunctionTableScrollTo(WJTABLE*& boxTable)
@@ -495,8 +424,9 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 	wjTableBox = wjBoxTableUnique.get();
 	tabData->addTab(move(wjBoxTableUnique), "Data Table", Wt::ContentLoading::Eager);
 
-	auto boxMapUnique = makeBoxMap();
-	tabData->addTab(move(boxMapUnique), "Data Map", Wt::ContentLoading::Eager);
+	auto wjMapUnique = make_unique<WJMAP>();
+	wjMap = wjMapUnique.get();
+	tabData->addTab(move(wjMapUnique), "Data Map", Wt::ContentLoading::Eager);
 
 	auto wjBarGraphUnique = make_unique<WJBARGRAPH>(wlDataFrameHeight);
 	wjBarGraph = wjBarGraphUnique.get();
@@ -510,45 +440,6 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 	layout->addWidget(move(tabDataUnique));
 	boxDataUnique->setLayout(move(layout));
 	return boxDataUnique;
-}
-unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxMap()
-{
-	auto boxMapAllUnique = make_unique<Wt::WContainerWidget>();
-	boxMapAll = boxMapAllUnique.get();
-	auto boxMapOptionUnique = make_unique<Wt::WContainerWidget>();
-	boxMapOption = boxMapOptionUnique.get();
-	auto textUnitUnique = make_unique<Wt::WText>();
-	textUnit = textUnitUnique.get();
-	auto pbUnitUnique = make_unique<Wt::WPushButton>();
-	pbUnit = pbUnitUnique.get();
-	auto popupUnitUnique = make_unique<Wt::WPopupMenu>();
-	popupUnit = popupUnitUnique.get();
-	auto pbPinUnique = make_unique<Wt::WPushButton>("Pin Data To Bar Graph");
-	pbPin = pbPinUnique.get();
-	auto pbPinResetUnique = make_unique<Wt::WPushButton>("Reset Bar Graph");
-	pbPinReset = pbPinResetUnique.get();
-	auto boxMapUnique = make_unique<Wt::WContainerWidget>();
-	boxMap = boxMapUnique.get();
-	auto boxTextLegendUnique = make_unique<Wt::WContainerWidget>();
-	boxTextLegend = boxTextLegendUnique.get();
-
-	auto hLayoutMap = make_unique<Wt::WHBoxLayout>();
-	hLayoutMap->addWidget(move(textUnitUnique));
-	pbUnitUnique->setMenu(move(popupUnitUnique));
-	hLayoutMap->addWidget(move(pbUnitUnique));
-	hLayoutMap->addStretch(1);
-	hLayoutMap->addWidget(move(pbPinUnique));
-	hLayoutMap->addWidget(move(pbPinResetUnique));
-	boxMapOptionUnique->setLayout(move(hLayoutMap));
-
-	auto vLayoutMap = make_unique<Wt::WVBoxLayout>();
-	vLayoutMap->addWidget(move(boxMapOptionUnique));
-	vLayoutMap->addWidget(move(boxMapUnique));
-	vLayoutMap->addWidget(move(boxTextLegendUnique));
-	vLayoutMap->addStretch(1);
-	boxMapAllUnique->setLayout(move(vLayoutMap));
-
-	return boxMapAllUnique;
 }
 
 void SCDAwidget::mapAreaClicked(int areaIndex)
@@ -565,42 +456,29 @@ void SCDAwidget::mapAreaClicked(int areaIndex)
 		sRegionClicked = jtRegion.getParent(sRegion);
 		if (sRegionClicked.size() < 1) { return; }
 	}
-	string sID = jtRegion.mapSID.at(sRegionClicked);
+	string sID = jtRegion.mapRegion.at(sRegionClicked);
 	Wt::WTreeNode* nodeSel = (Wt::WTreeNode*)treeRegion->findById(sID);
 	if (!treeRegion->isSelected(nodeSel)) { treeRegion->select(nodeSel); }
 }
-void SCDAwidget::populateTextLegend(Wt::WContainerWidget*& boxTextLegend)
+void SCDAwidget::populateTextLegend(WJLEGEND*& wjLegend)
 {
 	Wt::WString wsTemp;
-	bool grey = 0;
-	auto layout = make_unique<Wt::WVBoxLayout>();
-	vector<string> vsLegend = wjConfig->getTextLegend(1);
-	for (int ii = 0; ii < vsLegend.size(); ii++)
-	{
-		wsTemp = Wt::WString::fromUTF8(vsLegend[ii]);
-		auto wText = make_unique<Wt::WText>(wsTemp);
-		wText->setTextAlignment(Wt::AlignmentFlag::Left);
-		wText->decorationStyle().font().setSize(Wt::FontSize::Large);
-		if (grey)
-		{
-			wText->decorationStyle().setBackgroundColor(wcGrey);
-			grey = 0;
-		}
-		else { grey = 1; }
-		layout->addWidget(move(wText));
-	}
-	boxTextLegend->setLayout(move(layout));
+	vector<int> viChanged;
+	wjLegend->vsParameter = wjConfig->getTextLegend(viChanged);
+	wjLegend->setColour(viChanged);
+	wjLegend->display(1);
 }
 void SCDAwidget::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 {
 	// Recursive function that takes an existing node and makes its children.
+	// NOTE: This variant is meant for regions with unique names !
 	vector<string> vsChildren;
 	vector<int> viChildren;
 	Wt::WString wTemp = node->label()->text();
 	string sNode = wTemp.toUTF8();
 	if (jt.isExpanded(sNode)) { node->expand(); }
 	string sID = node->id();
-	jt.mapSID.emplace(sNode, sID);
+	jt.mapRegion.emplace(sNode, sID);
 	jt.listChildren(sNode, viChildren, vsChildren);
 	for (int ii = 0; ii < vsChildren.size(); ii++)
 	{
@@ -641,12 +519,12 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		break;
 	case 6:  // Parameter: create new panels with options for the user to specify.
 		updateTextCata(event.getNumCata());
-		processEventParameter(event.getVariable(), event.getCata(), event.get_list());
+		processEventParameter(event.getParameter(), event.getCata());
 		break;
 	case 7:  // Table: populate the widget with data.
 		tableCore = event.getTable();
-		tableCol = event.getListCol();
-		tableRow = event.getListRow();
+		tableCol = event.getCol();
+		tableRow = event.getRow();
 		tableRegion = event.getSRegion();
 		processEventTable(tableCore, tableCol, tableRow, tableRegion);
 		break;
@@ -708,18 +586,15 @@ void SCDAwidget::processEventDifferentiation(vector<string> vsDiff, string sTitl
 }
 void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData)
 {
-	boxMap->clear();
-	auto popupItems = popupUnit->items();
-	for (int ii = 0; ii < popupItems.size(); ii++)
-	{
-		popupUnit->removeItem(popupItems[ii]);
-	}
+	wjMap->boxMap->clear();
+	wjMap->resetMenu();
 	auto wtMapUnique = make_unique<WTPAINT>();
-	wtMap = boxMap->addWidget(move(wtMapUnique));
-	populateTextLegend(boxTextLegend);
+	wtMap = wjMap->boxMap->addWidget(move(wtMapUnique));
+	populateTextLegend(wjMap->wjlMap);
 
+	int legendBarDouble, legendTickLines;
 	Wt::WString wsUnit;
-	Wt::WString wsUnitOld = textUnit->text();
+	Wt::WString wsUnitOld = wjMap->textUnit->text();
 	string sUnitOld = wsUnitOld.toUTF8();
 	size_t pos1 = sUnitOld.find(':');
 	if (pos1 < sUnitOld.size())
@@ -728,24 +603,26 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	}
 	string sUnit = getUnit();
 	function<void()> fnUnit1 = bind(&SCDAwidget::updateUnit, this, sUnit);
-	popupUnit->addItem(sUnit)->triggered().connect(fnUnit1);
+	wjMap->popupUnit->addItem(sUnit)->triggered().connect(fnUnit1);
 	if (sUnit == "# of persons")
 	{
 		string temp = "% of population";
 		function<void()> fnUnit2 = bind(&SCDAwidget::updateUnit, this, temp);
-		popupUnit->addItem(temp)->triggered().connect(fnUnit2);
+		wjMap->popupUnit->addItem(temp)->triggered().connect(fnUnit2);
 
 		if (sUnitOld == sUnit)  // Keep this unit if it had been chosen previously.
 		{
 			wtMap->setUnit(sUnit, { 0 });
 			wsUnit = "Unit: " + sUnit;
 			updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
+			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 1);
 		}
 		else  // Default to this unit.
 		{
 			wtMap->setUnit(sUnit, { 0, 1 });
 			wsUnit = "Unit: " + temp;
 			updatePinButtons(temp, vsRegion[0]);  // Enable or disable as appropriate.
+			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 2);
 		}
 	}
 	else 
@@ -753,118 +630,130 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		wtMap->setUnit(sUnit, { 0 }); 
 		wsUnit = "Unit: " + sUnit;
 		updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
+		legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 1);
 	}
-	textUnit->setText(wsUnit);
+	legendTickLines = wjMap->getLegendTickLines(sUnit);
+	wjMap->textUnit->setText(wsUnit);
 
+	wtMap->legendBarDouble = legendBarDouble;
+	wtMap->legendTickLines = legendTickLines;
 	vector<Wt::WPolygonArea*> area = wtMap->drawMap(vvvdArea, vsRegion, vvdData);
 	for (int ii = 0; ii < area.size(); ii++)
 	{
 		function<void()> fnArea = bind(&SCDAwidget::mapAreaClicked, this, ii);
 		area[ii]->clicked().connect(fnArea);
 	}
+	wjDownload->setMap(vvvdArea, vvdData);  // Store the raw data, for potential PDF rendering.
+	wjDownload->legendBarDouble = legendBarDouble;
+	wjDownload->legendTickLines = legendTickLines;
+
 	tabData->setTabEnabled(2, 1);
 	updateDownloadTab();
 	if (first) { tabData->setCurrentIndex(2); }	
 	else if (tabData->currentIndex() == 3) { tabData->setCurrentIndex(2); }
 	first = 0;
 }
-void SCDAwidget::processEventParameter(vector<vector<string>> vvsVariable, vector<vector<string>> vvsCata, vector<string> vsDIMIndex)
+void SCDAwidget::processEventParameter(vector<vector<vector<string>>> vvvsParameter, vector<vector<string>> vvsCata)
 {
-	// vvsVariable has form [variable index][MID0, MID1, ..., variable title].
+	// vvvsParameter has form [variable index][MID1, MID2, ..., DIM title][MID, sVal, Ancestor0, ...].
 	int numCata = 0;
 	for (int ii = 0; ii < vvsCata.size(); ii++)
 	{
 		numCata += vvsCata[ii].size() - 1;
 	}
+	if (numCata != 1) { jf.err("Multiple catalogues remain-SCDAwidget.processEventParameter"); }
 
 	int sizeVar = wjConfig->varWJP.size();
-	int numVar = -1;
-	if (numCata == 1)
-	{
-		// If only one catalogue satisfies the conditions, then load all variables locally.
-		activeCata = vvsCata[0][1];
-		if (mapNumVar.count(vvsCata[0][1]))
-		{
-			numVar = mapNumVar.at(vvsCata[0][1]);
-		}
-		else
-		{
-			numVar = vsDIMIndex.size() - 2;
-			mapNumVar.emplace(vvsCata[0][1], numVar);
-		}
+	activeCata = vvsCata[0][1];
+	jf.removeBlanks(vvvsParameter);
 
-		Wt::WString wsTemp;
-		WJPANEL* wjp = nullptr;
-		if (!sizeVar) { wjConfig->vvsParameter = vvsVariable; }
-		else
+	/*
+	if (mapNumVar.count(vvsCata[0][1]))
+	{
+		numVar = mapNumVar.at(vvsCata[0][1]);
+	}
+	else
+	{
+		numVar = vsDIMIndex.size() - 2;
+		mapNumVar.emplace(vvsCata[0][1], numVar);
+	}
+	*/
+
+	Wt::WString wsTemp;
+	WJPANEL* wjp = nullptr;
+	if (!sizeVar) { wjConfig->vvvsParameter = vvvsParameter; }
+	else
+	{
+		for (int ii = 0; ii < sizeVar; ii++)
 		{
-			for (int ii = 0; ii < sizeVar; ii++)
+			wjp = wjConfig->varWJP[ii];
+			wsTemp = wjp->selMID;
+			if (wsTemp != "") { break; }
+			else if (ii == sizeVar - 1)
 			{
-				wjp = wjConfig->varWJP[ii];
-				wsTemp = wjp->selMID;
-				if (wsTemp != "") { break; }
-				else if (ii == sizeVar - 1)
-				{
-					if (wjConfig->wjpDemo != nullptr) { wjConfig->resetVariables(1); }
-					else { wjConfig->resetVariables(0); }
-					activeCata = vvsCata[0][1];
-					vvsParameter = vvsVariable;
-				}
+				if (wjConfig->wjpDemo != nullptr) { wjConfig->resetVariables(1); }
+				else { wjConfig->resetVariables(0); }
+				activeCata = vvsCata[0][1];
+				wjConfig->vvvsParameter = vvvsParameter;
 			}
 		}
-
-		string sTitle;
-		vector<string> vsMID;
-		for (int ii = 0; ii < vvsVariable.size(); ii++)
-		{
-			sTitle = vvsVariable[ii].back();  // DIM title.
-			vvsVariable[ii].pop_back();
-			vsMID = vvsVariable[ii];
-			wjConfig->addVariable(sTitle, vsMID);
-		}
-
-		wjConfig->removeDifferentiators();
-		wjConfig->wjpTopicCol->unhighlight(0);
-		wjConfig->wjpTopicRow->unhighlight(0);
-		widgetMobile();
 	}
-	else { jf.err("Multiple catalogues-SCDAwidget.processParameterEvent"); }
 
-	// If there are no more unspecified variables, populate the region tree tab.
-	sizeVar = wjConfig->varWJP.size();
-	if (sizeVar == numVar)
+	string sTitle;
+	for (int ii = 0; ii < vvvsParameter.size(); ii++)
 	{
-		Wt::WApplication* app = Wt::WApplication::instance();
-		app->processEvents();
-		activeCata = vvsCata[0][1];
-		vector<string> promptTree(3);
-		promptTree[0] = app->sessionId();
-		promptTree[1] = vvsCata[0][0];
-		promptTree[2] = vvsCata[0][1];
-		sRef.pullTree(promptTree);
+		sTitle = vvvsParameter[ii][vvvsParameter[ii].size() - 1][0];  // DIM title.
+		vvvsParameter[ii].pop_back();
+		wjConfig->addVariable(sTitle, vvvsParameter[ii]);
 	}
+
+	wjConfig->removeDifferentiators();
+	wjConfig->wjpTopicCol->unhighlight(0);
+	wjConfig->wjpTopicRow->unhighlight(0);
+	widgetMobile();
+
+	// Given there are no more unspecified variables, populate the region tree tab.
+	Wt::WApplication* app = Wt::WApplication::instance();
+	app->processEvents();
+	activeCata = vvsCata[0][1];
+	vector<string> promptTree(3);
+	promptTree[0] = app->sessionId();
+	promptTree[1] = vvsCata[0][0];
+	promptTree[2] = vvsCata[0][1];
+	sRef.pullTree(promptTree);
 }
-void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<string>& vsCol, vector<string>& vsRow, string& sRegion)
+void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, string& sRegion)
 {
-	if (vsCol.size() < 3 || vsRow.size() < 3) { jf.err("Missing col/row titles-SCDAwidget.processEventTable"); }
+	if (vvsCol.size() < 3 || vvsRow.size() < 3) { jf.err("Missing col/row titles-SCDAwidget.processEventTable"); }
 	if (vvsTable.size() < 1) { jf.err("Missing table data-SCDAwidget.processEventTable"); }
 
 	auto app = Wt::WApplication::instance();
-	//activeColTopic = vsCol.back();
-	vsCol.pop_back();
-	//activeRowTopic = vsRow.back();
-	vsRow.pop_back();
+	string sTitleCol = vvsCol[vvsCol.size() - 1][0];  // Currently unused.
+	string sTitleRow = vvsRow[vvsRow.size() - 1][0];  // Currently unused.
+	vvsCol.pop_back();
+	vvsRow.pop_back();
+	jf.removeBlanks(vvsCol);
+	jf.removeBlanks(vvsRow);
+
+	// Populate ColTopicSel and RowTopicSel if necessary.
+	if (wjConfig->wjpTopicRow->boxMID->isHidden() || wjConfig->wjpTopicCol->boxMID->isHidden())
+	{
+		wjConfig->wjpTopicRow->boxMID->setHidden(0);
+		wjConfig->wjpTopicRow->setTree(vvsRow);
+
+		wjConfig->wjpTopicCol->boxMID->setHidden(0);
+		wjConfig->wjpTopicCol->setTree(vvsCol);
+	}
 
 	// Prepare the table tab.
 	tabData->setTabEnabled(1, 1);
-
 	string temp = "Data Table (" + sRegion + ")";
 	Wt::WString wTemp = Wt::WString::fromUTF8(temp);
 	auto tab = tabData->itemAt(1);
 	tab->setText(wTemp);
 
 	// Make a new table widget.
-	tableData = wjTableBox->setTable(vvsTable, vsCol, vsRow, sRegion);
+	tableData = wjTableBox->setTable(vvsTable, vvsCol, vvsRow, sRegion);
 	tableData->setMaximumSize(wlTableWidth, wlTableHeight);
 	tableData->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
 
@@ -874,16 +763,6 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<stri
 		if (wjTableBox->linkIconClose.isNull()) { wjTableBox->linkIconClose = Wt::WLink(iconClose); }
 		wjTableBox->addTipWidth();
 		wjTableBox->tipSignal().connect(this, std::bind(&SCDAwidget::setTipAdd, this, std::placeholders::_1));
-	}
-
-	// Populate ColTopicSel and RowTopicSel if necessary.
-	if (wjConfig->wjpTopicRow->boxMID->isHidden() || wjConfig->wjpTopicCol->boxMID->isHidden())
-	{
-		wjConfig->wjpTopicRow->boxMID->setHidden(0);
-		wjConfig->wjpTopicRow->setTree(vsRow);
-
-		wjConfig->wjpTopicCol->boxMID->setHidden(0);
-		wjConfig->wjpTopicCol->setTree(vsCol);
 	}
 
 	// Add a tooltip to the table.
@@ -989,11 +868,12 @@ void SCDAwidget::processEventTree(JTREE jt)
 
 void SCDAwidget::resetBarGraph()
 {
+	if (!tabData->isTabEnabled(3)) { return; }
 	string sRegion;
 	if (tableData == nullptr) { sRegion = ""; }
 	else { sRegion = tableData->getCell(-1, 0); }
 	wjBarGraph->reset();
-	Wt::WString wsTemp = textUnit->text();
+	Wt::WString wsTemp = wjMap->textUnit->text();
 	string mapUnit = wsTemp.toUTF8();
 	size_t pos1 = mapUnit.find(':');
 	if (pos1 < mapUnit.size()) { updatePinButtons(mapUnit.substr(pos1 + 2), sRegion); }
@@ -1007,8 +887,9 @@ void SCDAwidget::resetDownload()
 }
 void SCDAwidget::resetMap()
 {
+	if (!tabData->isTabEnabled(2)) { return; }
 	first = 1;
-	boxMap->clear();
+	wjMap->boxMap->clear();
 	tabData->setTabEnabled(2, 0);
 	tabData->setCurrentIndex(0);
 }
@@ -1022,7 +903,7 @@ void SCDAwidget::resetTabAll()
 }
 void SCDAwidget::resetTable()
 {
-	if (tableData == nullptr) { return; }
+	if (!tabData->isTabEnabled(1)) { return; }
 	tableData->hide();
 	Wt::WString wTemp("Data Table");
 	auto tab = tabData->itemAt(1);
@@ -1048,7 +929,7 @@ void SCDAwidget::seriesAddToGraph()
 	}
 	if (wjBarGraph->unit == "" || wjBarGraph->region == "")
 	{
-		wsTemp = textUnit->text();
+		wsTemp = wjMap->textUnit->text();
 		temp = wsTemp.toUTF8();
 		size_t pos1 = temp.find(':');
 		if (pos1 < temp.size()) { wjBarGraph->unit = temp.substr(pos1 + 2); }
@@ -1067,7 +948,7 @@ void SCDAwidget::seriesAddToGraph()
 	}
 
 	vector<vector<string>> vvsData = wtMap->getGraphData();
-	vector<string> vsParameter = getMapParameterList();
+	vector<string> vsParameter = wjConfig->getTextLegend();
 	wjBarGraph->addDataset(vvsData, vsParameter);
 	wjBarGraph->display();
 
@@ -1080,8 +961,8 @@ void SCDAwidget::seriesAddToGraph()
 	wjBarGraph->ppDiff->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
 	wjBarGraph->ppCommon->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
 
-	pbPinReset->setEnabled(1);
-	pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+	wjMap->pbPinReset->setEnabled(1);
+	wjMap->pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
 
 	tabData->setTabEnabled(3, 1);
 	updateDownloadTab();
@@ -1112,21 +993,21 @@ void SCDAwidget::setMap(int iRow, int iCol, string sRegion)
 	// iCol corresponds to CB indices, not table indices!
 	Wt::WString wsTemp;
 	Wt::WApplication* app = Wt::WApplication::instance();
-	vector<string> prompt(4);
+	vector<string> prompt(6);
 	prompt[0] = app->sessionId();
 	wsTemp = wjConfig->wjpYear->cbTitle->currentText();
 	prompt[1] = wsTemp.toUTF8();
 	prompt[2] = activeCata;
 	prompt[3] = sRegion;  // Parent region name. 
+	prompt[4] = tableData->getUnit(wjConfig->wjpTopicRow->selMID);
+	prompt[5] = tableData->getUnit(wjConfig->wjpTopicCol->selMID);
 
-	vector<vector<string>> variable = wjConfig->getVariable();
-	wsTemp = wjConfig->wjpTopicRow->cbTitle->currentText();
-	string rowTitle = wsTemp.toUTF8();
-	wsTemp = wjConfig->wjpTopicCol->cbTitle->currentText();
-	string colTitle = wsTemp.toUTF8();
-	variable.push_back({ rowTitle, wjConfig->wjpTopicRow->selMID });
-	variable.push_back({ colTitle, wjConfig->wjpTopicCol->selMID });
-	sRef.pullMap(prompt, variable);
+	vector<string> vsDIMtitle;
+	vector<int> viMID;
+	wjConfig->getVariable(vsDIMtitle, viMID);
+	wjConfig->wjpTopicRow->appendSelf(vsDIMtitle, viMID);
+	wjConfig->wjpTopicCol->appendSelf(vsDIMtitle, viMID);
+	sRef.pullMap(prompt, vsDIMtitle, viMID);
 }
 void SCDAwidget::setTable(int geoCode, string sRegion)
 {
@@ -1141,8 +1022,10 @@ void SCDAwidget::setTable(int geoCode, string sRegion)
 	prompt[3] = to_string(geoCode);
 	prompt[4] = sRegion;
 
-	vector<vector<string>> variable = wjConfig->getVariable();
-	sRef.pullTable(prompt, variable);
+	vector<string> vsDIMtitle;
+	vector<int> viMID;
+	wjConfig->getVariable(vsDIMtitle, viMID);
+	sRef.pullTable(prompt, vsDIMtitle, viMID);
 }
 
 void SCDAwidget::tabChanged(const int& tabIndex)
@@ -1237,26 +1120,26 @@ void SCDAwidget::updatePinButtons(string mapUnit)
 	string bgUnit = wjBarGraph->unit;
 	if (bgUnit == "")
 	{
-		pbPin->setEnabled(1);
-		pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
-		pbPinReset->setEnabled(0);
-		pbPinReset->decorationStyle().setBackgroundColor(wcWhite);
+		wjMap->pbPin->setEnabled(1);
+		wjMap->pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wjMap->pbPinReset->setEnabled(0);
+		wjMap->pbPinReset->decorationStyle().setBackgroundColor(wcWhite);
 	}
 	else if (bgUnit == mapUnit)
 	{
-		pbPin->setEnabled(1);
-		pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
-		pbPinReset->setEnabled(1);
-		pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wjMap->pbPin->setEnabled(1);
+		wjMap->pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wjMap->pbPinReset->setEnabled(1);
+		wjMap->pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
 	}
 	else
 	{
-		pbPin->setEnabled(0);
-		pbPin->decorationStyle().setBackgroundColor(wcWhite);
-		pbPinReset->setEnabled(1);
-		pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wjMap->pbPin->setEnabled(0);
+		wjMap->pbPin->decorationStyle().setBackgroundColor(wcWhite);
+		wjMap->pbPinReset->setEnabled(1);
+		wjMap->pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
 		wsTemp = mapTooltip.at("pinRegionUnit");
-		pbPin->setToolTip(wsTemp);
+		wjMap->pbPin->setToolTip(wsTemp);
 	}
 }
 void SCDAwidget::updatePinButtons(string mapUnit, string sRegion)
@@ -1266,28 +1149,28 @@ void SCDAwidget::updatePinButtons(string mapUnit, string sRegion)
 	string bgRegion = wjBarGraph->region;
 	if (bgUnit == "" || bgRegion == "")
 	{
-		pbPin->setEnabled(1);
-		pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
-		pbPinReset->setEnabled(0);
-		pbPinReset->decorationStyle().setBackgroundColor(wcWhite);
+		wjMap->pbPin->setEnabled(1);
+		wjMap->pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wjMap->pbPinReset->setEnabled(0);
+		wjMap->pbPinReset->decorationStyle().setBackgroundColor(wcWhite);
 	}
 	else if (bgUnit == mapUnit && bgRegion == sRegion)
 	{
-		pbPin->setEnabled(1);
-		pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
-		pbPinReset->setEnabled(1);
-		pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wjMap->pbPin->setEnabled(1);
+		wjMap->pbPin->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wjMap->pbPinReset->setEnabled(1);
+		wjMap->pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
 	}
 	else
 	{
-		pbPin->setEnabled(0);
-		pbPin->decorationStyle().setBackgroundColor(wcWhite);
-		pbPinReset->setEnabled(1);
-		pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
+		wjMap->pbPin->setEnabled(0);
+		wjMap->pbPin->decorationStyle().setBackgroundColor(wcWhite);
+		wjMap->pbPinReset->setEnabled(1);
+		wjMap->pbPinReset->decorationStyle().setBackgroundColor(wcSelectedWeak);
 		if (bgUnit == mapUnit) { wsTemp = mapTooltip.at("pinRegion"); }
 		else if (bgRegion == sRegion) { wsTemp = mapTooltip.at("pinUnit"); }
 		else { wsTemp = mapTooltip.at("pinRegionUnit"); }
-		pbPin->setToolTip(wsTemp);
+		wjMap->pbPin->setToolTip(wsTemp);
 	}
 }
 void SCDAwidget::updateTextCata(int numCata)
@@ -1307,7 +1190,7 @@ void SCDAwidget::updateTextCata(int numCata)
 void SCDAwidget::updateUnit(string sUnit)
 {
 	Wt::WString wTemp = Wt::WString::fromUTF8("Unit: " + sUnit);
-	textUnit->setText(wTemp);
+	wjMap->textUnit->setText(wTemp);
 
 	if (wjBarGraph != nullptr) { updatePinButtons(sUnit); }
 
@@ -1352,5 +1235,6 @@ void SCDAwidget::widgetMobile()
 	}
 	wjConfig->widgetMobile(mobile);
 	wjTableBox->widgetMobile(mobile);
+	wjMap->widgetMobile(mobile);
 	wjBarGraph->widgetMobile(mobile);
 }

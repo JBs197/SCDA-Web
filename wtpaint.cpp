@@ -106,13 +106,7 @@ vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdB
 {
 	if (vvvdBorder.size() < 2 || vsRegion.size() < 2 || vvdData.size() < 1) { jf.err("Less than two regions given-wtpaint.drawMap"); }
 	if (sUnit.size() < 1 || displayData.size() < 1) { jf.err("No unit initialized-wtpaint.drawMap"); }
-	
-	if (vsRegion.size() > 2 && sUnit == "# of persons" && displayData.size() == 1) { legendBarDouble = 1; }
-	else if (vsRegion[0] == "Canada") { legendBarDouble = 2; }
-	else { legendBarDouble = 0; }
-
-	if (sUnit == "$" || sUnit == "%") { legendTickLines = 1; }
-	else { legendTickLines = 2; }
+	if (legendBarDouble < 0 || legendTickLines < 1) { jf.err("No legend initialization-wtpaint.drawMap"); }
 
 	bool doubleData = 0;
 	if (vvdData.size() > 1) { doubleData = 1; }
@@ -183,6 +177,11 @@ vector<vector<int>> WTPAINT::getFrame(vector<Wt::WPointF>& path)
 	vector<vector<int>> TLBR;
 	jf.toInt(TLBRd, TLBR);
 	return TLBR;
+}
+vector<double> WTPAINT::getDimensions()
+{
+	vector<double> vdDim = { barTLBR[1][0], barTLBR[1][1] };
+	return vdDim;
 }
 vector<vector<string>> WTPAINT::getGraphData()
 {

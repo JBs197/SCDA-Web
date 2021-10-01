@@ -37,10 +37,8 @@ class WTPAINT : public Wt::WPaintedWidget
 	double dHeight = -1.0, dWidth = -1.0;  // Unit of pixels.
 	vector<int> displayData;
 	vector<int> extraColour, unknownColour;
-	int legendBarDouble = -1;  // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
 	const double legendIdleThreshold = 0.4;  // Minimum percentage of bar unused, to trigger action.
 	double legendMin = -1.0, legendMax = -1.0;
-	int legendTickLines = -1;  // How many lines of text are needed at each tick mark on the bar.
 	unordered_map<string, int> mapArea;  // Form "Region Name"->indexArea.
 	unordered_map<string, Wt::WString> mapTooltip;
 	const int numColourBands = 5;
@@ -57,6 +55,8 @@ public:
 	~WTPAINT() override {}
 
 	JFUNC jf;
+	int legendBarDouble = -1;  // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
+	int legendTickLines = -1;  // How many lines of text are needed at each tick mark on the bar.
 
 	int adjustScale(vector<vector<int>>& scaleValues, string& sUnit);
 	string areaClicked(int index);
@@ -67,6 +67,7 @@ public:
 	vector<Wt::WPolygonArea*> drawMap(vector<vector<vector<double>>>& vvvdBorder, vector<string>& vsRegion, vector<vector<double>>& vvdData);
 	void initColour();
 	vector<double> getChildTL(vector<vector<double>>& vpfBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM);
+	vector<double> getDimensions();
 	vector<vector<int>> getFrame(vector<Wt::WPointF>& path);
 	vector<vector<string>> getGraphData();
 	vector<vector<double>> getParentFrameKM(vector<vector<vector<double>>>& vvvdBorder);

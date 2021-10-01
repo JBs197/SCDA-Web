@@ -103,10 +103,10 @@ class WJTABLE : public Wt::WTableView
 	Wt::WLength wlAuto;
 
 public:
-	WJTABLE(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow, string sRegion) 
+	WJTABLE(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, string& sRegion)
 		: Wt::WTableView() {
 		setRowHeaderCount(1); 
-		init(vvsTable, vsCol, vsRow, sRegion);
+		init(vvsCore, vvsCol, vvsRow, sRegion);
 	}
 	WJTABLE() : Wt::WTableView() {
 		setRowHeaderCount(1);
@@ -139,13 +139,13 @@ public:
 	string getUnit(string header);
 	string getUnitParser(string header);
 	void headerSelect(int iCol);
-	void init(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow, string sRegion);
+	void init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, string& sRegion);
 	void initBlank();
 	void initModel(int numRow, int numCol);
 	void initValues();
-	void modelSetCore(vector<vector<string>>& vvsData);
-	void modelSetLeft(vector<string>& vsRow);
-	void modelSetTop(vector<string>& vsCol);
+	void modelSetCore(vector<vector<string>>& vvsCore);
+	void modelSetLeft(vector<vector<string>>& vvsRow);
+	void modelSetTop(vector<vector<string>>& vvsCol);
 	void modelSetTopLeft(string sRegion);
 	void saveHeader(const int& iCol, const string& sID);
 	void setColUnit(string& colHeader, int index);
@@ -162,8 +162,7 @@ class WJTABLEBOX : public Wt::WContainerWidget
 	string sRegion;
 	Wt::Signal<string> tipSignal_;
 	vector<vector<int>> vviFilter;
-	vector<string> vsCol, vsRow;
-	vector<vector<string>> vvsData;
+	vector<vector<string>> vvsCore, vvsCol, vvsRow;
 	Wt::WLength wlAuto = Wt::WLength();
 
 	void init();
@@ -180,7 +179,7 @@ public:
 	void addTipWidth();
 	string makeCSV();
 	void removeTipWidth();
-	WJTABLE* setTable(vector<vector<string>>& vvsTable, vector<string>& vsColHeader, vector<string>& vsRowHeader, string& sRegionName);
+	WJTABLE* setTable(vector<vector<string>>& core, vector<vector<string>>& col, vector<vector<string>>& row, string& region);
 	Wt::Signal<string>& tipSignal() { return tipSignal_; }
 	void widgetMobile(bool mobile);
 

@@ -42,11 +42,10 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WString selectedRegion, selectedFolder;
 	string sessionID, tableRegion;
 	unordered_set<string> setTip;         // List of helpful tips which have been dismissed by the user.
-	vector<string> tableCol, tableRow;    // Headers.
-	vector<vector<string>> tableCore;
+	vector<vector<string>> tableCol, tableCore, tableRow;
 	int tableWidth, boxTableWidth;        // Used by JS functions.
-	vector<vector<string>> vvsDemographic;  // Form [forWhom index][forWhom, sCata0, sCata1, ...]
-	vector<vector<string>> vvsParameter;  // Form [variable index][MID0, MID1, ..., variable title].
+	//vector<vector<string>> vvsDemographic;  // Form [forWhom index][forWhom, sCata0, sCata1, ...]
+	//vector<vector<string>> vvsParameter;  // Form [variable index][MID0, MID1, ..., variable title].
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
 	const Wt::WString wsAll = Wt::WString("All");
 	const Wt::WString wsNoneSel = Wt::WString("[None selected]");
@@ -54,22 +53,21 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	WJBARGRAPH* wjBarGraph = nullptr;
 	WJCONFIG* wjConfig = nullptr;
 	WJDOWNLOAD* wjDownload = nullptr;
+	WJMAP* wjMap = nullptr;
+	WJLEGEND* wjlMap = nullptr;
 	WJTABLE* tableData = nullptr;
 	WJTABLEBOX* wjTableBox = nullptr;
 	WTPAINT* wtMap = nullptr;
 
 	Wt::WColor wcGrey, wcSelectedStrong, wcSelectedWeak, wcWhite;
-	Wt::WContainerWidget *boxBarGraph, *boxData, *boxMap;
-	Wt::WContainerWidget *boxMapAll, *boxMapOption, *boxTextLegend;
+	Wt::WContainerWidget *boxData;
 	Wt::WVBoxLayout* layoutConfig;
 	Wt::WLineEdit* leTest;
-	Wt::WPopupMenu *popupUnit;
-	Wt::WPushButton *pbDownloadPDF, *pbPin, *pbPinReset, *pbUnit;
 	Wt::WSelectionBox* sbList;
 	SCDAserver& sRef;
 	Wt::WStackedWidget* stackedTabData;
 	Wt::WTabWidget* tabData;
-	Wt::WText *textTable, *textUnit;
+	Wt::WText *textTable;
 	Wt::WTree *treeDialog, *treeRegion;
 	Wt::WTreeNode *treeNodeSel;
 
@@ -79,8 +77,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void connect();
 	void downloadMap();
 	int getHeight();
-	vector<string> getMapParameterList();
-	vector<string> getMapParameterList(vector<int>& vChanged);
 	string getUnit();
 	int getWidth();
 	void incomingHeaderSignal(const int& iRow, const int& iCol);
@@ -94,9 +90,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string jsMakeFunctionTableScrollTo(WJTABLE*& boxTable);
 	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
 	unique_ptr<Wt::WContainerWidget> makeBoxData();
-	unique_ptr<Wt::WContainerWidget> makeBoxMap();
 	void mapAreaClicked(int areaIndex);
-	void populateTextLegend(Wt::WContainerWidget*& boxTextLegend);
+	void populateTextLegend(WJLEGEND*& wjLegend);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
 	void processDataEvent(const DataEvent& event);
 	void processEventCatalogue(string sYear, string sCata);
@@ -104,8 +99,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventDemographic(vector<vector<string>> vvsDemo);
 	void processEventDifferentiation(vector<string> vsDiff, string sTitle);
 	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData);
-	void processEventParameter(vector<vector<string>> vvsVariable, vector<vector<string>> vvsCata, vector<string> vsDIMIndex);
-	void processEventTable(vector<vector<string>>& vvsTable, vector<string>& vsCol, vector<string>& vsRow, string& sRegion);
+	void processEventParameter(vector<vector<vector<string>>> vvvsParameter, vector<vector<string>> vvsCata);
+	void processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, string& sRegion);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
 	void processEventTree(JTREE jt);
 	void resetBarGraph();

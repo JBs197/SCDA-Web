@@ -340,14 +340,14 @@ void WJTABLE::headerSelect(int iCol)
 		wBox->setPadding(6.0, Wt::Side::Left);
 	}
 }
-void WJTABLE::init(vector<vector<string>> vvsTable, vector<string> vsCol, vector<string> vsRow, string sRegion)
+void WJTABLE::init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, string& sRegion)
 {
 	initValues();
-	initModel(vvsTable.size(), vvsTable[0].size() + 1);
+	initModel(vvsCore.size(), vvsCore[0].size() + 1);
 	modelSetTopLeft(sRegion);
-	modelSetTop(vsCol);
-	modelSetLeft(vsRow);
-	modelSetCore(vvsTable);
+	modelSetTop(vvsCol);
+	modelSetLeft(vvsRow);
+	modelSetCore(vvsCore);
 
 	// Signal/function connection.
 	this->clicked().connect(this, std::bind(&WJTABLE::tableClicked, this, std::placeholders::_1, std::placeholders::_2));
@@ -356,15 +356,14 @@ void WJTABLE::init(vector<vector<string>> vvsTable, vector<string> vsCol, vector
 }
 void WJTABLE::initBlank()
 {
-	vector<vector<string>> vvsTable = { {"0"} };
-	vector<string> vsCol = { "NoCol" };
-	vector<string> vsRow = { "NoRow" };
+	// For the server object.
+	vector<vector<string>> vvsDummy = { {"0", "1"}};
 	initValues();
-	initModel(vvsTable.size(), vvsTable[0].size() + 1);
-	modelSetTopLeft("NoRegion");
-	modelSetTop(vsCol);
-	modelSetLeft(vsRow);
-	modelSetCore(vvsTable);
+	initModel(1, 2);
+	modelSetTopLeft(vvsDummy[0][0]);
+	modelSetTop(vvsDummy);
+	modelSetLeft(vvsDummy);
+	modelSetCore(vvsDummy);
 }
 void WJTABLE::initModel(int numRow, int numCol)
 {
@@ -416,11 +415,11 @@ void WJTABLE::initValues()
 	setUnitPercent.emplace("Rate ");
 	setUnitPercent.emplace(" rate");
 }
-void WJTABLE::modelSetCore(vector<vector<string>>& vvsData)
+void WJTABLE::modelSetCore(vector<vector<string>>& vvsCore)
 {
 	bool rowUnit;
 	string unit, temp;
-	for (int ii = 0; ii < vvsData.size(); ii++)
+	for (int ii = 0; ii < vvsCore.size(); ii++)
 	{
 		unit.clear();
 		if (mapRowUnit.count(ii)) 
@@ -429,48 +428,50 @@ void WJTABLE::modelSetCore(vector<vector<string>>& vvsData)
 			rowUnit = 1;
 		}
 		else { rowUnit = 0; }
-		for (int jj = 0; jj < vvsData[ii].size(); jj++)
+		for (int jj = 0; jj < vvsCore[ii].size(); jj++)
 		{
 			if (!rowUnit && mapColUnit.count(jj + 1)) { unit = mapColUnit.at(jj + 1); }
 			else if (!rowUnit)  { unit = "# of persons"; }
 
 			if (unit == "%") 
 			{ 
-				temp = jf.numericToCommaString(vvsData[ii][jj], 1) + "\n(" + unit + ")"; 
+				temp = jf.numericToCommaString(vvsCore[ii][jj], 1) + "\n(" + unit + ")";
 			}
 			else
 			{
-				temp = jf.numericToCommaString(vvsData[ii][jj], 0) + "\n(" + unit + ")";
+				temp = jf.numericToCommaString(vvsCore[ii][jj], 0) + "\n(" + unit + ")";
 			}
 
 			model->setData(ii, jj + 1, temp, Wt::ItemDataRole::Display);
 		}
 	}
 }
-void WJTABLE::modelSetLeft(vector<string>& vsRow)
+void WJTABLE::modelSetLeft(vector<vector<string>>& vvsRow)
 {
+	// vvsRow has form [MID1, MID2, ...][MID, sVal, Ancestor0, ...]
 	int count;
-	for (int ii = 0; ii < vsRow.size(); ii++)
+	for (int ii = 0; ii < vvsRow.size(); ii++)
 	{
-		mapRowIndex.emplace(vsRow[ii], ii);
-		setRowUnit(vsRow[ii], ii);
-		model->setData(ii, 0, vsRow[ii], Wt::ItemDataRole::Display);
+		mapRowIndex.emplace(vvsRow[ii][1], ii);
+		setRowUnit(vvsRow[ii][1], ii);
+		model->setData(ii, 0, vvsRow[ii][1], Wt::ItemDataRole::Display);
 		count = 0;
-		while (vsRow[ii][count] == '+') { count++; }
+		while (vvsRow[ii][1][count] == '+') { count++; }
 		mapIndentRow.emplace(ii, count);
 	}
 }
-void WJTABLE::modelSetTop(vector<string>& vsCol)
+void WJTABLE::modelSetTop(vector<vector<string>>& vvsCol)
 {
+	// vvsCol has form [MID1, MID2, ...][MID, sVal, Ancestor0, ...]
 	int count;
-	for (int ii = 0; ii < vsCol.size(); ii++)
+	for (int ii = 0; ii < vvsCol.size(); ii++)
 	{
-		mapColIndex.emplace(vsCol[ii], ii + 1);
-		mapColValue.emplace(ii + 1, vsCol[ii]);
-		setColUnit(vsCol[ii], ii + 1);
-		model->setHeaderData(ii + 1, Wt::Orientation::Horizontal, vsCol[ii], Wt::ItemDataRole::Display);
+		mapColIndex.emplace(vvsCol[ii][1], ii + 1);
+		mapColValue.emplace(ii + 1, vvsCol[ii][1]);
+		setColUnit(vvsCol[ii][1], ii + 1);
+		model->setHeaderData(ii + 1, Wt::Orientation::Horizontal, vvsCol[ii][1], Wt::ItemDataRole::Display);
 		count = 0;
-		while (vsCol[ii][count] == '+') { count++; }
+		while (vvsCol[ii][1][count] == '+') { count++; }
 		mapIndentCol.emplace(ii + 1, count);
 	}
 }
@@ -657,15 +658,15 @@ string WJTABLEBOX::makeCSV()
 {
 	// Return the active data table as a CSV string. Indentations are marked by two blank spaces.
 	string sCSV, temp;
-	int numRow = vsRow.size();
-	int numCol = vsCol.size();
+	int numRow = vvsRow.size();
+	int numCol = vvsCol.size();
 	vector<string> dirt = { "+" }, soap = { "  " };
 
 	// Write the column headers. 
 	sCSV = "\"" + sRegion + "\"";
 	for (int ii = 0; ii < numCol; ii++)
 	{
-		temp = vsCol[ii];
+		temp = vvsCol[ii][1];
 		jf.clean(temp, dirt, soap);
 		sCSV += ",\"" + temp + "\"";
 	}
@@ -676,12 +677,12 @@ string WJTABLEBOX::makeCSV()
 	Wt::WString wsTemp;
 	for (int ii = 0; ii < numRow; ii++)
 	{
-		temp = vsRow[ii];
+		temp = vvsRow[ii][1];
 		jf.clean(temp, dirt, soap);
 		sCSV += "\"" + temp + "\"";
 		for (int jj = 0; jj < numCol; jj++)
 		{
-			sCSV += "," + vvsData[ii][jj];
+			sCSV += "," + vvsCore[ii][jj];
 		}
 		sCSV += "\n";
 	}
@@ -693,14 +694,14 @@ void WJTABLEBOX::removeTipWidth()
 	boxTip->clear();
 	boxTip->setHidden(1);
 }
-WJTABLE* WJTABLEBOX::setTable(vector<vector<string>>& vvsTable, vector<string>& vsColHeader, vector<string>& vsRowHeader, string& sRegionName)
+WJTABLE* WJTABLEBOX::setTable(vector<vector<string>>& core, vector<vector<string>>& col, vector<vector<string>>& row, string& region)
 {
 	if (boxTable != nullptr) { boxTable->clear(); }
-	vvsData = vvsTable;
-	vsCol = vsColHeader;
-	vsRow = vsRowHeader;
-	sRegion = sRegionName;
-	auto tableUnique = make_unique<WJTABLE>(vvsTable, vsCol, vsRow, sRegion);
+	vvsCore = core;
+	vvsCol = col;
+	vvsRow = row;
+	sRegion = region;
+	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, sRegion);
 	return boxTable->addWidget(move(tableUnique));
 }
 void WJTABLEBOX::widgetMobile(bool mobile)
