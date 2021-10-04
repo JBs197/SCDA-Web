@@ -14,7 +14,7 @@
 #include <Wt/WRectArea.h>
 #include <Wt/WFlags.h>
 #include <hpdf.h>
-#include "jfunc.h"
+#include "mathfunc.h"
 
 using namespace std;
 
@@ -64,13 +64,12 @@ public:
 	vector<string> delinearizeTitle(string& linearTitle);
 	vector<Wt::WPointF> displaceChildToParent(vector<vector<double>>& vvdBorder, vector<double>& childTL, vector<double> dispTL);
 	void displaceParentToWidget(vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& parentFrameKM);
-	vector<Wt::WPolygonArea*> drawMap(vector<vector<vector<double>>>& vvvdBorder, vector<string>& vsRegion, vector<vector<double>>& vvdData);
+	vector<Wt::WPolygonArea*> drawMap(vector<string>& vsRegion, vector<vector<vector<double>>>& vvvdFrame, vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& vvdData);
 	void initColour();
 	vector<double> getChildTL(vector<vector<double>>& vpfBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM);
 	vector<double> getDimensions();
 	vector<vector<int>> getFrame(vector<Wt::WPointF>& path);
 	vector<vector<string>> getGraphData();
-	vector<vector<double>> getParentFrameKM(vector<vector<vector<double>>>& vvvdBorder);
 	vector<vector<double>> getScaleValues(int numTicks);
 	void makeAreas();
 	void paintLegendBar(Wt::WPainter& painter);

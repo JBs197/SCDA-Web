@@ -1,26 +1,5 @@
 #include "SCDAserver.h"
 
-void SCDAserver::addFrameKM(vector<vector<vector<double>>>& borderKM, vector<string>& vsGeoCode, string sYear)
-{
-	// Append each region's TLBR frame coordinates to the list of border coordinates. 
-	double xC, yC;
-	string tname;
-	vector<vector<string>> vvsFrame;
-	vector<string> search = { "xFrameKM", "yFrameKM" };
-	for (int ii = 0; ii < vsGeoCode.size(); ii++)
-	{
-		vvsFrame.clear();
-		tname = "MapFrame$" + sYear + "$" + vsGeoCode[ii];
-		sf.select(search, tname, vvsFrame);
-		if (vvsFrame.size() != 2) { jf.err("No frame found-SCDAserver.addFrameKM"); }
-		for (int jj = 0; jj < vvsFrame.size(); jj++)
-		{
-			xC = stod(vvsFrame[jj][0]);
-			yC = stod(vvsFrame[jj][1]);
-			borderKM[ii].push_back({ xC, yC });
-		}
-	}
-}
 int SCDAserver::applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsDIM)
 {
 	// vvsCata has form [year index][sYear, sCata0, sCata1, ...]
@@ -746,7 +725,7 @@ vector<double> SCDAserver::getDataFamily(string sYear, string sCata, vector<stri
 	return data;
 }
 vector<string> SCDAserver::getDataIndex(string sYear, string sCata, vector<string>& vsDIMtitle, vector<int>& viMID)
-{
+{ 
 	// Returns the unique DataIndices for the given pairs of DIM titles and MIDs.
 	if (vsDIMtitle.size() != viMID.size()) { jf.err("Parameter mismatch-SCDAserver.getDataIndex"); }
 	int numVar = viMID.size(), iDIM;
@@ -892,6 +871,30 @@ vector<vector<string>> SCDAserver::getGeo(string sYear, string sCata)
 	int iSize = sf.selectOrderBy(search, tname, geo, orderby);
 	if (iSize < 1) { jf.err("Empty geo table-SCDAserver.getGeo"); }
 	return geo;
+}
+vector<vector<vector<double>>> SCDAserver::getFrameKM(vector<string>& vsGeoCode, string sYear)
+{
+	// Return each region's TLBR frame coordinates from the list of border coordinates. 
+	vector<vector<vector<double>>> vvvdFrameKM(vsGeoCode.size(), vector<vector<double>>(2, vector<double>(2)));
+	double xC, yC;
+	string tname;
+	vector<vector<string>> vvsFrame;
+	vector<string> search = { "xFrameKM", "yFrameKM" };
+	for (int ii = 0; ii < vsGeoCode.size(); ii++)
+	{
+		vvsFrame.clear();
+		tname = "MapFrame$" + sYear + "$" + vsGeoCode[ii];
+		sf.select(search, tname, vvsFrame);
+		if (vvsFrame.size() != 2) { jf.err("No frame found-SCDAserver.addFrameKM"); }
+		for (int jj = 0; jj < 2; jj++)
+		{
+			xC = stod(vvsFrame[jj][0]);
+			yC = stod(vvsFrame[jj][1]);
+			vvvdFrameKM[ii][jj][0] = xC;
+			vvvdFrameKM[ii][jj][1] = yC;
+		}
+	}
+	return vvvdFrameKM;
 }
 string SCDAserver::getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle)
 {
@@ -1582,7 +1585,7 @@ void SCDAserver::pullMap(vector<string> prompt, vector<string> vsDIMtitle, vecto
 
 	// Get all the border coordinates, form [region index][border point index][xCoord, yCoord].
 	vector<vector<vector<double>>> areas = getBorderKM(vsGeoCode, prompt[1]);
-	addFrameKM(areas, vsGeoCode, prompt[1]);  // Final two coordinates (for the parent region) are the frame TLBR.
+	vector<vector<vector<double>>> frames = getFrameKM(vsGeoCode, prompt[1]);  // Frame TLBR.
 
 	// Determine the data's unit.
 	string sUnit;
@@ -1611,7 +1614,7 @@ void SCDAserver::pullMap(vector<string> prompt, vector<string> vsDIMtitle, vecto
 	// If the originally-specified region had no children, mark that region with an exclamation mark.
 	if (index != 0) { vsRegionName[index] += "!"; }
 
-	postDataEvent(DataEvent(DataEvent::Map, prompt[0], vsRegionName, areas, data), prompt[0]);
+	postDataEvent(DataEvent(DataEvent::Map, prompt[0], vsRegionName, frames, areas, data), prompt[0]);
 }
 void SCDAserver::pullTable(vector<string> prompt, vector<string> vsDIMtitle, vector<int> viMID)
 {

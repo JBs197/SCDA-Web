@@ -115,6 +115,7 @@ void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
 	}
 	else  // Table values override CB values. 
 	{ 
+
 		wjConfig->wjpTopicRow->setIndexMID(iRow);
 		if (iCol > 0)  // A row header was not clicked. 
 		{ 
@@ -515,7 +516,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		processEventDifferentiation(event.get_list(), event.getTitle());
 		break;
 	case 5:  // Map: display it on the painter widget.
-		processEventMap(event.get_list(), event.get_areas(), event.getRegionData());
+		processEventMap(event.get_list(), event.getFrames(), event.getAreas(), event.getRegionData());
 		break;
 	case 6:  // Parameter: create new panels with options for the user to specify.
 		updateTextCata(event.getNumCata());
@@ -584,9 +585,9 @@ void SCDAwidget::processEventDifferentiation(vector<string> vsDiff, string sTitl
 	if (sTitle == "sTitle") { wjConfig->addDifferentiator(vsDiff); }
 	else { wjConfig->addDifferentiator(vsDiff, sTitle); }
 }
-void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData)
+void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdFrame, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData)
 {
-	wjMap->boxMap->clear();
+	wjMap->boxMap->clear();  // Erase the previous map.
 	wjMap->resetMenu();
 	auto wtMapUnique = make_unique<WTPAINT>();
 	wtMap = wjMap->boxMap->addWidget(move(wtMapUnique));
@@ -616,6 +617,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 			wsUnit = "Unit: " + sUnit;
 			updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
 			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 1);
+			wjDownload->sUnit = sUnit;
 		}
 		else  // Default to this unit.
 		{
@@ -623,6 +625,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 			wsUnit = "Unit: " + temp;
 			updatePinButtons(temp, vsRegion[0]);  // Enable or disable as appropriate.
 			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 2);
+			wjDownload->sUnit = temp;
 		}
 	}
 	else 
@@ -631,19 +634,21 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		wsUnit = "Unit: " + sUnit;
 		updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
 		legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 1);
+		wjDownload->sUnit = sUnit;
 	}
 	legendTickLines = wjMap->getLegendTickLines(sUnit);
 	wjMap->textUnit->setText(wsUnit);
 
 	wtMap->legendBarDouble = legendBarDouble;
 	wtMap->legendTickLines = legendTickLines;
-	vector<Wt::WPolygonArea*> area = wtMap->drawMap(vvvdArea, vsRegion, vvdData);
+	vector<Wt::WPolygonArea*> area = wtMap->drawMap(vsRegion, vvvdFrame, vvvdArea, vvdData);
 	for (int ii = 0; ii < area.size(); ii++)
 	{
 		function<void()> fnArea = bind(&SCDAwidget::mapAreaClicked, this, ii);
 		area[ii]->clicked().connect(fnArea);
 	}
-	wjDownload->setMap(vvvdArea, vvdData);  // Store the raw data, for potential PDF rendering.
+
+	wjDownload->initMap(vsRegion, vvvdFrame, vvvdArea, vvdData);  // Store the raw data, for potential PDF rendering.
 	wjDownload->legendBarDouble = legendBarDouble;
 	wjDownload->legendTickLines = legendTickLines;
 
@@ -977,11 +982,11 @@ void SCDAwidget::seriesRemoveFromGraph(const int& seriesIndex)
 		wjBarGraph->ppUnique->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
 		wjBarGraph->ppDiff->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
 		wjBarGraph->ppCommon->deleteSignal().connect(this, std::bind(&SCDAwidget::seriesRemoveFromGraph, this, std::placeholders::_1));
-		wjDownload->pbPdfBarGraph->setEnabled(1);
+		//wjDownload->pbPdfBarGraph->setEnabled(1);
 	}
 	else
 	{
-		wjDownload->pbPdfBarGraph->setEnabled(0);
+		//wjDownload->pbPdfBarGraph->setEnabled(0);
 		tabData->setTabEnabled(3, 0);
 		tabData->setCurrentIndex(2);
 	}

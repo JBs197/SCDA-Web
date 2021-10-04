@@ -32,15 +32,16 @@ public:
 	const vector<vector<vector<string>>> parameter;
 	const string sYear, sCata, sRegion, title;
 	const vector<Wt::WPainterPath> wpPaths;
-	const vector<vector<vector<double>>> areas;
+	const vector<vector<vector<double>>> areas, frames;
 	const vector<vector<double>> regionData;
 
 	enum eType { Catalogue, Category, Connect, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
-	vector<vector<vector<double>>> get_areas() const { return areas; }
+	vector<vector<vector<double>>> getAreas() const { return areas; }
 	vector<vector<string>> getCata() const { return catalogue; }
 	vector<vector<string>> getCol() const { return treeCol; }
+	vector<vector<vector<double>>> getFrames() const { return frames; }
 	vector<string> get_list() const { return list; }
 	vector<string> getListCol() const { return listCol; }
 	vector<string> getListRow() const { return listRow; }
@@ -83,8 +84,8 @@ private:
 		: etype(et), sessionID(sID), numCata(nC), list(vsList), title(sTitle) {}
 
 	// Constructor for eType Map.
-	DataEvent(eType et, const string& sID, const vector<string>& vsRegion, const vector<vector<vector<double>>>& area, const vector<vector<double>>& rData)
-		: etype(et), sessionID(sID), list(vsRegion), areas(area), regionData(rData), numCata(1) {}
+	DataEvent(eType et, const string& sID, const vector<string>& vsRegion, const vector<vector<vector<double>>>& frame, const vector<vector<vector<double>>>& area, const vector<vector<double>>& rData)
+		: etype(et), sessionID(sID), list(vsRegion), frames(frame), areas(area), regionData(rData), numCata(1) {}
 
 	// Constructor for eType Parameter.
 	DataEvent(eType et, const string& sID, const int& nC, const vector<vector<vector<string>>>& param, const vector<vector<string>>& cata)
@@ -124,7 +125,6 @@ public:
 	Wt::WFont wfTable = Wt::WFont();
 	JFUNC jf;
 
-	void addFrameKM(vector<vector<vector<double>>>& borderKM, vector<string>& vsGeoCode, string sYear);
 	int applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsDIM);
 	vector<vector<int>> binMapBorder(string& tname0);
 	vector<vector<vector<int>>> binMapFrames(string& tname0);
@@ -145,6 +145,7 @@ public:
 	vector<string> getDifferentiatorMID(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
 	vector<string> getDifferentiatorTitle(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
 	vector<string> getDIMIndex(vector<vector<string>>& vvsCata);
+	vector<vector<vector<double>>> getFrameKM(vector<string>& vsGeoCode, string sYear);
 	vector<vector<string>> getForWhom(vector<vector<string>>& vvsCata);
 	vector<vector<string>> getGeo(string sYear, string sCata);
 	int getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName);

@@ -102,7 +102,7 @@ void WTPAINT::displaceParentToWidget(vector<vector<vector<double>>>& vvvdBorder,
 		vvvdBorder[0][ii][1] -= parentFrameKM[0][1];
 	}
 }
-vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdBorder, vector<string>& vsRegion, vector<vector<double>>& vvdData)
+vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<string>& vsRegion, vector<vector<vector<double>>>& vvvdFrame, vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& vvdData)
 {
 	if (vvvdBorder.size() < 2 || vsRegion.size() < 2 || vvdData.size() < 1) { jf.err("Less than two regions given-wtpaint.drawMap"); }
 	if (sUnit.size() < 1 || displayData.size() < 1) { jf.err("No unit initialized-wtpaint.drawMap"); }
@@ -111,36 +111,30 @@ vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdB
 	bool doubleData = 0;
 	if (vvdData.size() > 1) { doubleData = 1; }
 
-	vector<vector<double>> parentFrameKM = getParentFrameKM(vvvdBorder);
+	vector<vector<double>> parentFrameKM = vvvdFrame[0];
 	scaleImgBar(parentFrameKM);
 
+	border.resize(vsRegion.size());  // Form [parent, children].
 	displaceParentToWidget(vvvdBorder, parentFrameKM); 
-	vector<Wt::WPointF> borderParent = scaleParentToWidget(vvvdBorder, parentFrameKM);
-	border.resize(vsRegion.size());  // Form [children, parent].
-	area.resize(vsRegion.size());  // Form [children, parent].
-	areaName.resize(vsRegion.size());  // Form [children, parent].
-	areaData.resize(vvdData.size(), vector<double>(vsRegion.size()));  // Form [direct data, region population][children, parent].
+	border[0] = scaleParentToWidget(vvvdBorder, parentFrameKM);
+	area.resize(vsRegion.size());  // Form [parent, children].
+	areaName = vsRegion;  // Form [parent, children].
+	areaData = vvdData;  // Form [parent, children].
 
 	vector<vector<double>> childFrameKM;
 	vector<double> dispParentTL;  // Child's TL widget pixel displacement from (0,0). 
-	for (int ii = 1; ii < vsRegion.size(); ii++)
+	for (int ii = 1; ii < areaName.size(); ii++)
 	{
-		if (vsRegion[ii].back() == '!')
+		if (areaName[ii].back() == '!')
 		{
-			selIndex = ii - 1;
-			vsRegion[ii].pop_back();
+			selIndex = ii;
+			areaName[ii].pop_back();
 		}
-		areaName[ii - 1] = vsRegion[ii];
-		areaData[0][ii - 1] = vvdData[0][ii];
-		if (doubleData) { areaData[1][ii - 1] = vvdData[1][ii]; }
+		childFrameKM = vvvdFrame[ii];
 		dispParentTL = getChildTL(vvvdBorder[ii], childFrameKM, parentFrameKM);
 		scaleChildToWidget(vvvdBorder[ii], childFrameKM);
-		border[ii - 1] = displaceChildToParent(vvvdBorder[ii], childFrameKM[0], dispParentTL);		
+		border[ii] = displaceChildToParent(vvvdBorder[ii], childFrameKM[0], dispParentTL);		
 	}
-	areaName[vsRegion.size() - 1] = vsRegion[0];
-	areaData[0][vsRegion.size() - 1] = vvdData[0][0];
-	if (doubleData) { areaData[1][vsRegion.size() - 1] = vvdData[1][0]; }
-	border[vsRegion.size() - 1] = borderParent;
 
 	initColour();
 	makeAreas();
@@ -150,9 +144,7 @@ vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<vector<vector<double>>>& vvvdB
 vector<double> WTPAINT::getChildTL(vector<vector<double>>& vvdBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM)
 {
 	if (widgetPPKM <= 0.0) { jf.err("No widgetPPKM-wtpaint.getChildTL"); }
-	childFrameKM.assign(vvdBorder.begin() + vvdBorder.size() - 2, vvdBorder.end());
 	if (childFrameKM.size() != 2) { jf.err("Missing frameKM-wtpaint.getChildTL"); }
-	vvdBorder.resize(vvdBorder.size() - 2);
 	vector<double> vdTL(2);
 	vdTL[0] = childFrameKM[0][0] - parentFrameKM[0][0];
 	vdTL[0] *= widgetPPKM;
@@ -204,14 +196,6 @@ vector<vector<string>> WTPAINT::getGraphData()
 		}
 	}
 	return vvsData;
-}
-vector<vector<double>> WTPAINT::getParentFrameKM(vector<vector<vector<double>>>& vvvdBorder)
-{
-	vector<vector<double>> parentFrameKM;
-	parentFrameKM.assign(vvvdBorder[0].begin() + vvvdBorder[0].size() - 2, vvvdBorder[0].end());
-	if (parentFrameKM.size() != 2) { jf.err("Missing frameKM-wtpaint.drawMap"); }
-	vvvdBorder[0].resize(vvvdBorder[0].size() - 2);
-	return parentFrameKM;
 }
 vector<vector<double>> WTPAINT::getScaleValues(int numTicks)
 {
@@ -445,6 +429,7 @@ void WTPAINT::makeAreas()
 	int iAreaValue;
 	clearAreas();
 	prepareActiveData();
+	vector<unique_ptr<Wt::WPolygonArea>> vArea(border.size());
 	for (int ii = 0; ii < border.size(); ii++)
 	{
 		value = areaName[ii] + "\n";
@@ -463,10 +448,13 @@ void WTPAINT::makeAreas()
 		}
 		wTemp = Wt::WString::fromUTF8(value + suffix);
 
-		auto wpArea = make_unique<Wt::WPolygonArea>(border[ii]);
-		wpArea->setToolTip(wTemp);
-		area.push_back(wpArea.get());
-		this->addArea(move(wpArea));
+		vArea[ii] = make_unique<Wt::WPolygonArea>(border[ii]);
+		vArea[ii]->setToolTip(wTemp);
+		area.push_back(vArea[ii].get());
+	}
+	for (int ii = border.size() - 1; ii >= 0; ii--)
+	{
+		this->addArea(move(vArea[ii]));  // Parent must go last, as the lower index area receives priority when areas overlap.
 	}
 	vector<Wt::WPointF> corners(4);
 	corners[0] = Wt::WPointF(0.0, 0.0);
@@ -963,10 +951,10 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	}
 	else if (legendBarDouble == 2)
 	{
-		double parentValue = activeData->at(activeData->size() - 1);
+		double parentValue = activeData->at(0);
 		dTemp = (parentValue - (double)scaleValues[0][0]) / (double)(scaleValues[0][scaleValues[0].size() - 1] - scaleValues[0][0]);	
 		if (parentValue < 0.0) { gameOn = 0; }
-		vsList = { areaName[areaName.size() - 1] };
+		vsList = { areaName[0] };
 
 		if (parentValue > 101.0)
 		{
@@ -1061,7 +1049,7 @@ void WTPAINT::paintRegionAll(Wt::WPainter& painter)
 	Wt::WColor wColour;
 	Wt::WBrush wBrush;
 	Wt::WPen wPen;
-	for (int ii = border.size() - 1; ii >= 0; ii--)
+	for (int ii = 0; ii < border.size(); ii++)
 	{
 		painter.save();
 		if (areaName[ii] == "Canada")  // Special case wherein parent is completely obscured.
@@ -1083,7 +1071,7 @@ void WTPAINT::paintRegionAll(Wt::WPainter& painter)
 		if (ii == selIndex)  // This non-parent region was selected by the user. 
 		{
 			wPen = painter.pen();
-			if (areaName[areaName.size() - 1] == "Canada")
+			if (areaName[0] == "Canada")
 			{
 				Wt::WLength penWidth(3.0, Wt::LengthUnit::Pixel);
 				wPen.setWidth(penWidth);
@@ -1328,14 +1316,14 @@ void WTPAINT::updateAreaColour()
 	areaColour.resize(numArea, vector<int>(3));
 
 	double percentage, dR, dG, dB, remains, dMin, dMax, dVal;
-	int floor, indexEnd;
+	int floor, indexBegin;
 
 	if (legendBarDouble == 1)
 	{
-		areaColour[areaColour.size() - 1] = { 255, 255, 255 };  // Parent.
-		indexEnd = numArea - 1;
+		areaColour[0] = { 255, 255, 255 };  // Parent.
+		indexBegin = 1;
 	}
-	else { indexEnd = numArea; }
+	else { indexBegin = 0; }
 	
 	Wt::WString wTemp;
 	if (legendMin == legendMax)  // Every data point is identical ! 
@@ -1343,7 +1331,7 @@ void WTPAINT::updateAreaColour()
 		dVal = activeData->at(0);
 		if (dVal == -1.0)  // Data is missing, so draw as grey.
 		{
-			for (int ii = 0; ii < indexEnd; ii++)
+			for (int ii = indexBegin; ii < numArea; ii++)
 			{
 				areaColour[ii] = unknownColour;
 				wTemp = mapTooltip.at("grey");
@@ -1352,7 +1340,7 @@ void WTPAINT::updateAreaColour()
 		}
 		else  // There is data, but it's all the same...
 		{
-			for (int ii = 0; ii < indexEnd; ii++)
+			for (int ii = indexBegin; ii < numArea; ii++)
 			{
 				areaColour[ii] = extraColour;
 				wTemp = mapTooltip.at("pink");
@@ -1361,7 +1349,7 @@ void WTPAINT::updateAreaColour()
 		}
 		return;
 	}
-	for (int ii = 0; ii < indexEnd; ii++)
+	for (int ii = indexBegin; ii < numArea; ii++)
 	{
 		dVal = activeData->at(ii);
 		if (dVal == -1.0)  // Data is missing, so draw as grey.
@@ -1391,14 +1379,8 @@ void WTPAINT::updateDisplay(vector<int> viIndex)
 	if (viIndex.size() > 1)
 	{
 		legendTickLines = 2;
-		if (areaName[areaName.size() - 1] == "Canada")
-		{
-			legendBarDouble = 2;
-		}
-		else
-		{
-			legendBarDouble = 0;
-		}
+		if (areaName[0] == "Canada") { legendBarDouble = 2; }
+		else { legendBarDouble = 0; }
 	}
 	else
 	{

@@ -408,6 +408,8 @@ void WJPANEL::setFilter(vector<int>& filter)
 }
 void WJPANEL::setIndexMID(int indexMID)
 {
+	// Incoming indexMID values are relative to Config widget, not treeIndex.
+	jtMID.selectedIndex = indexMID + 1;
 	selMID = jtMID.treePL[indexMID + 1];
 	setTextMID(selMID);
 }

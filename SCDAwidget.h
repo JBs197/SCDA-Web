@@ -98,7 +98,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventCategory(vector<string> vsCategory);
 	void processEventDemographic(vector<vector<string>> vvsDemo);
 	void processEventDifferentiation(vector<string> vsDiff, string sTitle);
-	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData);
+	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdFrame, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData);
 	void processEventParameter(vector<vector<vector<string>>> vvvsParameter, vector<vector<string>> vvsCata);
 	void processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, string& sRegion);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
