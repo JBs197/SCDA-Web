@@ -230,20 +230,6 @@ vector<vector<double>> WTPAINT::getScaleValues(int numTicks)
 	int iMin = floor(dMin);
 	int iMax = ceil(dMax);
 
-	/*
-	if (sUnit == "%")  // Only possible when the raw table data is already a percentage.
-	{
-		ticks[0][0] = 0.0;
-		ticks[0][numTicks - 1] = 100.0;
-		iScaleWidth = 100.0 / ((double)numTicks - 1.0);
-		for (int ii = 1; ii < numTicks - 1; ii++)
-		{
-			ticks[0][ii] = round((double)ii * iScaleWidth);
-		}
-		return ticks;
-	}
-	*/
-
 	int iNum = iMin;
 	int minDigits = 1;
 	while (1)
@@ -398,7 +384,7 @@ vector<vector<double>> WTPAINT::getScaleValues(int numTicks)
 	ticks[1][0] = ticks[0][0];
 	ticks[1][1] = ticks[0][numTicks - 1];
 
-	double dMaxParent = activeData->at(activeData->size() - 1);
+	double dMaxParent = activeData->at(0);
 	ticks[1][2] = ceil(dMaxParent);
 	iNum = (int)ticks[1][2];
 	maxDigits = 1;
@@ -709,7 +695,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 
 		int coord1;  // Representing the problematic dimension of ii = 1.
 		vsVal = jf.doubleToCommaString(scaleValues[1], 1);
-		vsVal[2] = areaName[areaName.size() - 1];
+		vsVal[2] = areaName[0];
 		for (int ii = 0; ii < 4; ii++)  // For parent bar only.
 		{
 			if (ii == 1)  // If a parent region is dwarfed by one of its child regions,
@@ -1129,7 +1115,7 @@ void WTPAINT::prepareActiveData(vector<int> viIndex)
 			areaDataChildren = areaData;
 			for (int ii = 0; ii < areaDataChildren.size(); ii++)
 			{
-				areaDataChildren[ii].pop_back();
+				areaDataChildren[ii].erase(areaDataChildren[ii].begin());
 			}
 			activeDataChildren = &areaDataChildren[0];
 		}

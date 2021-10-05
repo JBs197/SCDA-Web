@@ -17,6 +17,7 @@ void SCDAwidget::connect()
 		wjConfig->resetSignal().connect(this, bind(&SCDAwidget::incomingResetSignal, this, placeholders::_1));
 		wjConfig->pbMobile->clicked().connect(this, &SCDAwidget::toggleMobile);
 		wjConfig->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
+		tabData->currentChanged().connect(this, bind(&SCDAwidget::tabChanged, this, placeholders::_1));
 		wjMap->pbPin->clicked().connect(this, bind(&SCDAwidget::seriesAddToGraph, this));
 		wjMap->pbPinReset->clicked().connect(this, bind(&SCDAwidget::resetBarGraph, this));
 		wjDownload->previewSignal().connect(this, bind(&SCDAwidget::incomingPreviewSignal, this, placeholders::_1));
@@ -593,6 +594,8 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	wtMap = wjMap->boxMap->addWidget(move(wtMapUnique));
 	populateTextLegend(wjMap->wjlMap);
 
+	wjDownload->initMap(vsRegion, vvvdFrame, vvvdArea, vvdData);  // Store the raw data, for potential PDF rendering.
+
 	int legendBarDouble, legendTickLines;
 	Wt::WString wsUnit;
 	Wt::WString wsUnitOld = wjMap->textUnit->text();
@@ -613,28 +616,28 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 
 		if (sUnitOld == sUnit)  // Keep this unit if it had been chosen previously.
 		{
+			wjDownload->setUnit(sUnit, { 0 });
 			wtMap->setUnit(sUnit, { 0 });
 			wsUnit = "Unit: " + sUnit;
 			updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
 			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 1);
-			wjDownload->sUnit = sUnit;
 		}
 		else  // Default to this unit.
 		{
+			wjDownload->setUnit(sUnit, { 0, 1 });
 			wtMap->setUnit(sUnit, { 0, 1 });
 			wsUnit = "Unit: " + temp;
 			updatePinButtons(temp, vsRegion[0]);  // Enable or disable as appropriate.
 			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 2);
-			wjDownload->sUnit = temp;
 		}
 	}
 	else 
 	{ 
+		wjDownload->setUnit(sUnit, { 0 });
 		wtMap->setUnit(sUnit, { 0 }); 
 		wsUnit = "Unit: " + sUnit;
 		updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
 		legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 1);
-		wjDownload->sUnit = sUnit;
 	}
 	legendTickLines = wjMap->getLegendTickLines(sUnit);
 	wjMap->textUnit->setText(wsUnit);
@@ -647,10 +650,6 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		function<void()> fnArea = bind(&SCDAwidget::mapAreaClicked, this, ii);
 		area[ii]->clicked().connect(fnArea);
 	}
-
-	wjDownload->initMap(vsRegion, vvvdFrame, vvvdArea, vvdData);  // Store the raw data, for potential PDF rendering.
-	wjDownload->legendBarDouble = legendBarDouble;
-	wjDownload->legendTickLines = legendTickLines;
 
 	tabData->setTabEnabled(2, 1);
 	updateDownloadTab();
@@ -1035,6 +1034,15 @@ void SCDAwidget::setTable(int geoCode, string sRegion)
 
 void SCDAwidget::tabChanged(const int& tabIndex)
 {
+	switch (tabIndex)
+	{
+	case 4:
+	{
+		int selIndex = wjDownload->getRadioIndex();
+		incomingPreviewSignal(selIndex);
+		break;
+	}
+	}
 }
 void SCDAwidget::tableReceiveDouble(const double& width)
 {
@@ -1203,6 +1211,7 @@ void SCDAwidget::updateUnit(string sUnit)
 	if (sUnit == "% of population") { viIndex = { 0, 1 }; }
 	else { viIndex = { 0 }; }
 	wtMap->updateDisplay(viIndex);
+	wjDownload->setUnit(sUnit, viIndex);
 }
 void SCDAwidget::widgetMobile()
 {
