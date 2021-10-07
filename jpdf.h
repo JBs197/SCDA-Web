@@ -12,27 +12,64 @@ namespace
     }
 }
 
+struct JPDFCELL
+{
+    string alignment = "left";
+    vector<double> backgroundColour;
+    vector<vector<vector<double>>> vBLTR;  // Form [value index][BL, TR][xCoord, yCoord]
+    HPDF_Font font;
+    vector<double> vFontSize;
+    double padding = 2.0;
+    int rowIndex, colIndex;
+    vector<string> vsValue;
+
+    JPDFCELL() {}
+    ~JPDFCELL() {}
+
+    void drawCell(HPDF_Page& page, int index, JFUNC& jf);
+};
+
 class JPDFTABLE
 {
     vector<vector<double>> boxBLTR, titleBLTR;
-    int fontSizeCell, fontSizeTitle;
+    int fontSizeTitle;
     HPDF_Font fontTitle;
+    JFUNC jf;
     int numCol = 0;
     int numRow = 0;
-    const vector<vector<double>> tableBLTR;
+    HPDF_Page& page;
+    const vector<vector<double>> tableBLTR;  // Maximum area accorded to the table.
     string title;
-    double width, height;
+    vector<vector<JPDFCELL>> vvCell;  // Form [row index][column value]
+
+    void initTitle(string sTitle, HPDF_Font& font, int fontSize);
 
 public:
-    JPDFTABLE(vector<vector<double>> bltr) : tableBLTR(bltr) 
+    JPDFTABLE(HPDF_Page& pageRef, vector<vector<double>> bltr, string sTitle, HPDF_Font& font, int fontSize)
+        : page(pageRef), tableBLTR(bltr) 
+    { 
+        initTitle(sTitle, font, fontSize); 
+    }
+    JPDFTABLE(HPDF_Page& pageRef, vector<vector<double>> bltr) : page(pageRef), tableBLTR(bltr)
     {
-        width = tableBLTR[1][0] - tableBLTR[0][0];
-        height = tableBLTR[1][1] - tableBLTR[0][1];
+        boxBLTR = tableBLTR;
     }
     ~JPDFTABLE() {}
 
-    void setTitle(string& sTitle, HPDF_Font& font, int fontSize);
+    double borderThickness = 3.0;  // Default, in units of pixels.
+    vector<vector<double>> colourListDouble;  // Form [colour index][r, g, b, a].
 
+    void addValues(vector<string>& vsValue);
+    void drawBackgroundColour();
+    void drawColSplit();
+    void drawFrames();
+    void drawLine(vector<vector<double>> startStop, vector<double> colour, double thickness);
+    void drawRect(vector<vector<double>> rectBLTR, vector<double> colour, double thickness);
+    vector<vector<double>> drawTable();
+    void drawTitle();
+    void drawValues(int index);
+    void setColourBackground(vector<vector<int>> vvColourIndex);
+    void setRowCol(int row, int col);
 };
 
 class JPDF
@@ -52,7 +89,9 @@ public:
 
     vector<double> cursor;  // Form [xCoord, yCoord]. 
     double margin = 50.0;
+    vector<JPDFTABLE> vTable;
 
+    int addTable(int numCol, vector<string>& vsList, double rowHeight, string title, double fontSizeTitle);
     float breakListFitWidth(vector<string>& vsList, float textWidth, vector<vector<string>>& vvsList);
     void drawCircle(vector<double> coordCenter, double radius, vector<double> colour, double thickness);
     void drawCircle(vector<double> coordCenter, double radius, vector<vector<double>> vColour, double thickness);

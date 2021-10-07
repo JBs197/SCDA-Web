@@ -96,6 +96,7 @@ void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChange
 	// Render the active map and its parameter list on a single page. 
 	if (wjrPDFmap != nullptr) { wjrPDFmap.reset(); }
 	wjrPDFmap = makeWJRPDF();
+	int tableFontSize = 12;
 
 	// Firstly, render the parameter section at the bottom.
 	vector<int> vColour(vChanged.size());
@@ -112,21 +113,70 @@ void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChange
 			else { vColour[ii] = 1; }
 		}
 	}
-	wjrPDFmap->jpdf.setFontSize(12);
+	wjrPDFmap->jpdf.setFontSize(tableFontSize);
 	wjrPDFmap->jpdf.parameterSectionBottom(vsParameter, vColour);
 
 	// Then, add a coloured region section lacking data values.
 	vector<string> vsRegion;
 	vsRegion.assign(mapRegion.size(), "");
-	vColour = { 1, 2 };  // White, grey alternating.
-	wjrPDFmap->jpdf.sectionListBoxed("Geographic Regions", vsRegion, vColour, 2);
+	int indexTable = wjrPDFmap->jpdf.addTable(2, vsRegion, (double)tableFontSize + 4.0, "Geographic Regions", (double)tableFontSize + 2.0);
+	vector<vector<int>> vvColour = { { 1, 1 }, { 2, 2 } };  // White, grey alternating.
+	wjrPDFmap->jpdf.vTable[indexTable].setColourBackground(vvColour);
+	vector<vector<double>> regionBLTR = wjrPDFmap->jpdf.vTable[indexTable].drawTable();
+	wjrPDFmap->jpdf.cursor[0] = regionBLTR[0][0];
+	wjrPDFmap->jpdf.cursor[1] = regionBLTR[1][1];
+	//wjrPDFmap->jpdf.sectionListBoxed("Geographic Regions", vsRegion, vColour, 2);
 
 	// Convert the raw coordinate data into an HPDF-friendly format.
 	vector<vector<vector<double>>> vvvdBorder = borderKMToBorderPDF();
 	vector<double> activeData = prepareActiveData();
+	unordered_map<string, double> mapRegionData;
+	for (int ii = 0; ii < mapRegion.size(); ii++)
+	{
+		mapRegionData.emplace(mapRegion[ii], activeData[ii]);
+	}
 
 	// Insert data and region names into the region section.
-
+	vector<string> vsValue(mapRegion.size());
+	string suffix;
+	double dVal;
+	vsRegion.assign(mapRegion.begin() + 1, mapRegion.end());
+	jf.sortAlphabetically(vsRegion);
+	if (displayData.size() > 1 || sUnit[0] == '%')
+	{
+		suffix = " %";
+		vsValue[0] = jf.doubleToCommaString(activeData[0], 1) + suffix;
+		for (int ii = 0; ii < vsRegion.size(); ii++)
+		{
+			dVal = mapRegionData.at(vsRegion[ii]);
+			vsValue[ii + 1] = jf.doubleToCommaString(dVal, 1) + suffix;
+		}
+	}
+	else if (sUnit[0] == '$')
+	{
+		suffix = " $";
+		vsValue[0] = jf.doubleToCommaString(activeData[0], 0) + suffix;
+		for (int ii = 0; ii < vsRegion.size(); ii++)
+		{
+			dVal = mapRegionData.at(vsRegion[ii]);
+			vsValue[ii + 1] = jf.doubleToCommaString(dVal, 0) + suffix;
+		}
+	}
+	else 
+	{ 
+		vsValue[0] = jf.doubleToCommaString(activeData[0], 0);
+		for (int ii = 0; ii < vsRegion.size(); ii++)
+		{
+			dVal = mapRegionData.at(vsRegion[ii]);
+			vsValue[ii + 1] = jf.doubleToCommaString(dVal, 0);
+		}
+	}
+	vsRegion.insert(vsRegion.begin(), mapRegion[0]);
+	wjrPDFmap->jpdf.vTable[indexTable].addValues(vsValue);
+	wjrPDFmap->jpdf.vTable[indexTable].drawValues(0);
+	wjrPDFmap->jpdf.vTable[indexTable].drawColSplit();
+	wjrPDFmap->jpdf.vTable[indexTable].addValues(vsRegion);
+	wjrPDFmap->jpdf.vTable[indexTable].drawValues(1);
 
 	// Render the legend bar(s).
 	drawLegend(activeData);
@@ -559,7 +609,7 @@ void WJDOWNLOAD::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>
 	// This variant is for the parent tick mark on a single bar.
 	bool orientation;
 	double length;
-	string alignment, displayUnit, suffix, temp;
+	string alignment, displayUnit, temp;
 	if (rectBLTR[1][1] - rectBLTR[0][1] > rectBLTR[1][0] - rectBLTR[0][0])  // Vertical bar.
 	{
 		orientation = 1;
@@ -571,15 +621,11 @@ void WJDOWNLOAD::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>
 		length = rectBLTR[1][0] - rectBLTR[0][0];
 	}
 	double dPercent = (parentValue - tickValues[0]) / (tickValues[tickValues.size() - 1] - tickValues[0]);
-	if (legendTickLines == 1) { suffix = " (" + sUnit + ")"; }
+	if (legendTickLines == 1) { displayUnit = " (" + sUnit + ")"; }
 	else
 	{
 		if (displayData.size() == 1) { displayUnit = "(" + sUnit + ")"; }  // # of persons
-		else
-		{
-			suffix = " %";
-			displayUnit = "(of population)";
-		}
+		else { displayUnit = "(% of population)"; }
 	}
 	vector<double> dot(2);
 	vector<double> black = { 0.0, 0.0, 0.0 };
@@ -618,14 +664,7 @@ void WJDOWNLOAD::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>
 	wjrPDFmap->jpdf.textBox(textBLTR, mapRegion[0], alignment, legendFontSize);
 	textBLTR[0][1] -= barNumberHeight;
 	textBLTR[1][1] -= barNumberHeight;
-	temp = jf.doubleToCommaString(parentValue, 1) + suffix;
-	wjrPDFmap->jpdf.textBox(textBLTR, temp, alignment, legendFontSize);
-	if (legendTickLines > 1) 
-	{ 
-		textBLTR[0][1] -= barNumberHeight;
-		textBLTR[1][1] -= barNumberHeight;
-		wjrPDFmap->jpdf.textBox(textBLTR, displayUnit, alignment, legendFontSize); 
-	}
+	wjrPDFmap->jpdf.textBox(textBLTR, displayUnit, alignment, legendFontSize); 
 }
 void WJDOWNLOAD::drawGradientBar(vector<vector<double>> rectBLTR, double frameThickness)
 {
@@ -1061,7 +1100,7 @@ void WJDOWNLOAD::initImgBar(vector<vector<double>>& mapBLTR, vector<vector<doubl
 	else if (legendBarDouble == 2)
 	{
 		barSpaceHorizontal = (2.0 * barNumberWidth) + (2.0 * barThickness);
-		barSpaceVertical = ((double)((2 * legendTickLines) + 1) * barNumberHeight) + (2.0 * barThickness);
+		barSpaceVertical = ((double)(2 * legendTickLines) * barNumberHeight) + (2.0 * barThickness);
 	}
 
 	double spaceARifVertical = (dWidth - barSpaceHorizontal) / dHeight;
@@ -1143,7 +1182,11 @@ void WJDOWNLOAD::initMap(vector<string>& region, vector<vector<vector<double>>>&
 	mapRegion = region;
 	mapFrame = frame;
 	mapBorder = border;
-	mapData = data;
+	auto scaleBar = make_unique<JSCALEBAR>();
+	for (int ii = 0; ii < data.size(); ii++)
+	{
+		scaleBar->addDataset(data[ii], )
+	}
 }
 Wt::WString WJDOWNLOAD::initStyleCSS(shared_ptr<Wt::WMemoryResource>& wmrCSS)
 {

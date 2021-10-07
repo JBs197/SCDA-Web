@@ -44,8 +44,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	unordered_set<string> setTip;         // List of helpful tips which have been dismissed by the user.
 	vector<vector<string>> tableCol, tableCore, tableRow;
 	int tableWidth, boxTableWidth;        // Used by JS functions.
-	//vector<vector<string>> vvsDemographic;  // Form [forWhom index][forWhom, sCata0, sCata1, ...]
-	//vector<vector<string>> vvsParameter;  // Form [variable index][MID0, MID1, ..., variable title].
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
 	const Wt::WString wsAll = Wt::WString("All");
 	const Wt::WString wsNoneSel = Wt::WString("[None selected]");

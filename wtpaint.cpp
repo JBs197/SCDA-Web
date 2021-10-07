@@ -304,15 +304,23 @@ vector<vector<double>> WTPAINT::getScaleValues(int numTicks)
 	}
 	else
 	{
+		// Determine the appropriate scale width between tick marks.
 		if (iBandWidth > iMinScale)
 		{
 			iNum = iBandWidth / iMinScale;
 			int lowScale = iNum * iMinScale;
 			int highScale = (iNum + 1) * iMinScale;
-			if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) { iScaleWidth = lowScale; }
+			if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) 
+			{ 
+				iScaleWidth = lowScale; 
+				double dZenith = (double)(iMinScale + ((numTicks - 1) * iScaleWidth));
+				if (dZenith < dMax) { iScaleWidth = (lowScale + highScale) / 2; }
+			}
 			else { iScaleWidth = highScale; }
 		}
 		else { iScaleWidth = iBandWidth; }
+
+		// Trim the upper and/or lower edges of the scale bar so it fits perfectly.
 		int maxDist, minDist;
 		remainderAsIs = iMaxScale - ((numTicks - 1) * iScaleWidth) - iMinScale;
 		if (remainderAsIs > 0)  // Scale bar is too long.
@@ -1100,7 +1108,6 @@ void WTPAINT::prepareActiveData(vector<int> viIndex)
 	}
 	else { activeData = &areaData[0]; }
 
-	double dMin, dMax;
 	vector<int> indexMinMax;
 	if (legendBarDouble == 1)
 	{
@@ -1119,11 +1126,17 @@ void WTPAINT::prepareActiveData(vector<int> viIndex)
 			}
 			activeDataChildren = &areaDataChildren[0];
 		}
+		indexMinMax = jf.minMax(activeDataChildren);
+		legendMin = activeDataChildren->at(indexMinMax[0]);
+		legendMax = activeDataChildren->at(indexMinMax[1]);
 	}
 	else
 	{
 		if (processed) { activeData = &areaDataProcessed; }
 		else { activeData = &areaData[0]; }
+		indexMinMax = jf.minMax(activeData);
+		legendMin = activeData->at(indexMinMax[0]);
+		legendMax = activeData->at(indexMinMax[1]);
 	}
 }
 void WTPAINT::printPDF(string filePath)

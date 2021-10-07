@@ -1,14 +1,265 @@
 #include "jpdf.h"
 
-void JPDFTABLE::setTitle(string& sTitle, HPDF_Font& font, int fontSize)
+void JPDFCELL::drawCell(HPDF_Page& page, int index, JFUNC& jf)
 {
+	if (vsValue.size() <= index) { return; }
+	float textWidth;
+	float cellWidth = vBLTR[index][1][0] - vBLTR[index][0][0] - (2.0 * padding);
+	vector<vector<double>> newBLTR = vBLTR[index];
+	HPDF_STATUS error = HPDF_Page_SetFontAndSize(page, font, vFontSize[index]);
+	if (error != HPDF_OK) { jf.err("SetFontAndSize-jpdfcell.drawCell"); }
+	float charSpace = HPDF_Page_GetCharSpace(page);
+	float wordSpace = HPDF_Page_GetWordSpace(page);
+	HPDF_UINT length = vsValue[index].size();
+	HPDF_BYTE* buffer = new unsigned char[length];
+	for (int ii = 0; ii < length; ii++)
+	{
+		buffer[ii] = (unsigned char)vsValue[index][ii];
+	}
+	HPDF_UINT max = HPDF_Font_MeasureText(font, buffer, length, cellWidth, vFontSize[index], charSpace, wordSpace, 0, &textWidth);
+	if (max >= length)
+	{
+		double bottomPadding = (vBLTR[index][1][1] - vBLTR[index][0][1] - vFontSize[index]);
+		error = HPDF_Page_TextOut(page, vBLTR[index][0][0] + padding, vBLTR[index][0][1] + bottomPadding, vsValue[index].c_str());
+		if (error != HPDF_OK) { jf.err("TextOut-jpdfcell.drawCell"); }
+		vBLTR[index][1][0] = vBLTR[index][0][0] + textWidth + (2.0 * padding);
+		newBLTR[0][0] += textWidth + (2.0 * padding);
+		vBLTR.push_back(newBLTR);
+	}
+	else
+	{
+		jf.err("Cell text too long-jpdfcell.drawCell");
+	}
+	delete[] buffer;
+}
 
+void JPDFTABLE::addValues(vector<string>& vsValue)
+{
+	int index = 0, max = vsValue.size();
+	for (int ii = 0; ii < numCol; ii++)
+	{
+		for (int jj = 0; jj < numRow; jj++)
+		{
+			vvCell[jj][ii].vsValue.push_back(vsValue[index]);
+			vvCell[jj][ii].vFontSize.push_back((double)(fontSizeTitle - 2));
+			index++;
+			if (index == max) { return; }
+		}
+	}
+}
+void JPDFTABLE::drawBackgroundColour()
+{
+	HPDF_STATUS error;
+	double width, height;
+	for (int ii = 0; ii < numRow; ii++)
+	{
+		for (int jj = 0; jj < numCol; jj++)
+		{
+			width = vvCell[ii][jj].vBLTR[vvCell[ii][jj].vBLTR.size() - 1][1][0] - vvCell[ii][jj].vBLTR[0][0][0];
+			height = vvCell[ii][jj].vBLTR[vvCell[ii][jj].vBLTR.size() - 1][1][1] - vvCell[ii][jj].vBLTR[0][0][1];
+			error = HPDF_Page_SetRGBFill(page, vvCell[ii][jj].backgroundColour[0], vvCell[ii][jj].backgroundColour[1], vvCell[ii][jj].backgroundColour[2]);
+			if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawBackgroundColour"); }
+			error = HPDF_Page_Rectangle(page, vvCell[ii][jj].vBLTR[0][0][0], vvCell[ii][jj].vBLTR[0][0][1], width, height);
+			if (error != HPDF_OK) { jf.err("Rectangle-jpdftable.drawBackgroundColour"); }
+			error = HPDF_Page_Fill(page);
+			if (error != HPDF_OK) { jf.err("Fill-jpdftable.drawBackgroundColour"); }
+		}
+	}
+}
+void JPDFTABLE::drawColSplit()
+{
+	// Draw a thin vertical line through every cell, at the beginning of its last vBLTR.
+	double xMax, xPos;
+	int index;
+	vector<vector<double>> startStop(2, vector<double>(2));
+	startStop[0][1] = boxBLTR[0][1];
+	startStop[1][1] = boxBLTR[1][1];
+	for (int ii = 0; ii < numCol; ii++)
+	{
+		xMax = 0.0;
+		for (int jj = 0; jj < numRow; jj++)
+		{
+			index = vvCell[jj][ii].vBLTR.size() - 1;
+			xPos = vvCell[jj][ii].vBLTR[index][0][0];
+			if (xPos > xMax) { xMax = xPos; }
+		}
+		startStop[0][0] = xMax;
+		startStop[1][0] = xMax;
+		drawLine(startStop, colourListDouble[0], 1.0);
+	}
+}
+void JPDFTABLE::drawFrames()
+{
+	// Draws the value box frame, as well as the column divisor lines.
+	double thickness = max(borderThickness, 1.0);
+	drawRect(boxBLTR, colourListDouble[0], thickness);
+
+	thickness = max(borderThickness - 1.0, 1.0);
+	vector<vector<double>> startStop(2, vector<double>(2));
+	startStop[0][1] = boxBLTR[0][1];
+	startStop[1][1] = boxBLTR[1][1];
+	for (int ii = 1; ii < numCol; ii++)
+	{
+		startStop[0][0] = vvCell[0][ii].vBLTR[0][0][0];
+		startStop[1][0] = startStop[0][0];
+		drawLine(startStop, colourListDouble[0], thickness);
+	}
+
+	thickness = max(borderThickness - 2.0, 1.0);
+	int numSplits;
+	for (int ii = 0; ii < numCol; ii++)
+	{
+		numSplits = vvCell[0][ii].vBLTR.size() - 1;
+		for (int jj = 0; jj < numSplits; jj++)
+		{
+			startStop[0][0] = vvCell[0][ii].vBLTR[jj][1][0];
+			startStop[1][0] = startStop[0][0];
+			drawLine(startStop, colourListDouble[0], thickness);
+		}
+	}
+}
+void JPDFTABLE::drawLine(vector<vector<double>> startStop, vector<double> colour, double thickness)
+{
+	HPDF_STATUS error = HPDF_Page_SetLineWidth(page, thickness);
+	if (error != HPDF_OK) { jf.err("SetLineWidth-jpdftable.drawLine"); }
+	error = HPDF_Page_SetRGBStroke(page, colour[0], colour[1], colour[2]);
+	if (error != HPDF_OK) { jf.err("SetRGBStroke-jpdftable.drawLine"); }
+	error = HPDF_Page_MoveTo(page, startStop[0][0], startStop[0][1]);
+	if (error != HPDF_OK) { jf.err("MoveTo-jpdftable.drawLine"); }
+	error = HPDF_Page_LineTo(page, startStop[1][0], startStop[1][1]);
+	if (error != HPDF_OK) { jf.err("LineTo-jpdftable.drawLine"); }
+	error = HPDF_Page_Stroke(page);
+	if (error != HPDF_OK) { jf.err("Stroke-jpdftable.drawLine"); }
+}
+void JPDFTABLE::drawRect(vector<vector<double>> rectBLTR, vector<double> colour, double thickness)
+{
+	// This variant will only draw the perimeter.
+	HPDF_STATUS error = HPDF_Page_SetLineWidth(page, thickness);
+	if (error != HPDF_OK) { jf.err("SetLineWidth-jpdftable.drawRect"); }
+	error = HPDF_Page_SetRGBStroke(page, colour[0], colour[1], colour[2]);
+	if (error != HPDF_OK) { jf.err("SetRGBStroke-jpdftable.drawRect"); }
+	error = HPDF_Page_MoveTo(page, rectBLTR[0][0], rectBLTR[0][1]);
+	if (error != HPDF_OK) { jf.err("MoveTo-jpdftable.drawRect"); }
+	error = HPDF_Page_Rectangle(page, rectBLTR[0][0], rectBLTR[0][1], rectBLTR[1][0] - rectBLTR[0][0], rectBLTR[1][1] - rectBLTR[0][1]);
+	if (error != HPDF_OK) { jf.err("Rectangle-jpdftable.drawRect"); }
+	error = HPDF_Page_Stroke(page);
+	if (error != HPDF_OK) { jf.err("Stroke-jpdf.drawRect"); }
+}
+vector<vector<double>> JPDFTABLE::drawTable()
+{
+	// Returns the table's BLTR.
+	drawBackgroundColour();
+	drawFrames();
+	drawValues(0);
+	drawTitle();
+	return tableBLTR;
+}
+void JPDFTABLE::drawTitle()
+{
+	if (title.size() < 1) { return; }
+	HPDF_STATUS error = HPDF_Page_SetFontAndSize(page, fontTitle, fontSizeTitle);
+	if (error != HPDF_OK) { jf.err("SetFontAndSize-jpdftable.drawTitle"); }
+	error = HPDF_Page_SetRGBFill(page, 0.0, 0.0, 0.0);
+	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawTitle"); }
+	HPDF_Page_BeginText(page);
+	error = HPDF_Page_TextOut(page, titleBLTR[0][0] + 2.0, titleBLTR[0][1] + 3.0, title.c_str());
+	if (error != HPDF_OK) { jf.err("TextOut-jpdftable.drawTitle"); }
+	error = HPDF_Page_EndText(page);
+}
+void JPDFTABLE::drawValues(int index)
+{
+	// Index refers to each cell's vsValue index.
+	HPDF_STATUS error = HPDF_Page_SetRGBFill(page, 0.0, 0.0, 0.0);  // Black.
+	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawValues"); }
+	HPDF_Page_BeginText(page);
+	for (int ii = 0; ii < numCol; ii++)
+	{
+		for (int jj = 0; jj < numRow; jj++)
+		{
+			vvCell[jj][ii].drawCell(page, index, jf);
+		}
+	}
+	HPDF_Page_EndText(page);
+}
+void JPDFTABLE::initTitle(string sTitle, HPDF_Font& font, int fontSize)
+{
+	// tableBLTR defines the entire object, while boxTLBR is for the rows/columns only;
 	title = sTitle;
 	fontTitle = font;
 	fontSizeTitle = fontSize;
-
+	titleBLTR.resize(2, vector<double>(2));
+	titleBLTR[1] = tableBLTR[1];
+	titleBLTR[0][0] = tableBLTR[0][0];
+	titleBLTR[0][1] = tableBLTR[1][1] - (fontSizeTitle + 4.0);
+	boxBLTR.resize(2, vector<double>(2));
+	boxBLTR[0] = tableBLTR[0];
+	boxBLTR[1][0] = tableBLTR[1][0];
+	boxBLTR[1][1] = titleBLTR[0][1];
+}
+void JPDFTABLE::setColourBackground(vector<vector<int>> vvColourIndex)
+{
+	// If a dimension of vvColourIndex is too small, it will restart from its beginning.
+	int rowIndex = 0, colIndex = 0;
+	for (int ii = 0; ii < numRow; ii++)
+	{
+		colIndex = 0;
+		for (int jj = 0; jj < numCol; jj++)
+		{
+			vvCell[ii][jj].backgroundColour = colourListDouble[vvColourIndex[rowIndex][colIndex]];
+			if (colIndex < vvColourIndex[rowIndex].size() - 1) { colIndex++; }
+			else { colIndex = 0; }
+		}
+		if (rowIndex < vvColourIndex.size() - 1) { rowIndex++; }
+		else { rowIndex = 0; }
+	}
+}
+void JPDFTABLE::setRowCol(int row, int col)
+{
+	numRow = row;
+	numCol = col;
+	vvCell.resize(numRow, vector<JPDFCELL>(numCol));
+	double cellWidth = floor((boxBLTR[1][0] - boxBLTR[0][0]) / (double)numCol);
+	double cellHeight = floor((boxBLTR[1][1] - boxBLTR[0][1]) / (double)numRow);
+	vector<vector<double>> cellBLTR(2, vector<double>(2));
+	cellBLTR[0][1] = boxBLTR[1][1];
+	cellBLTR[1][1] = cellBLTR[0][1] + cellHeight;
+	for (int ii = 0; ii < numRow; ii++)
+	{
+		cellBLTR[0][1] -= cellHeight;
+		cellBLTR[1][1] -= cellHeight;
+		cellBLTR[1][0] = boxBLTR[0][0];
+		cellBLTR[0][0] = cellBLTR[1][0] - cellWidth;
+		for (int jj = 0; jj < numCol; jj++)
+		{
+			vvCell[ii][jj] = JPDFCELL();
+			vvCell[ii][jj].font = fontTitle;
+			vvCell[ii][jj].rowIndex = ii;
+			vvCell[ii][jj].colIndex = jj;
+			cellBLTR[0][0] += cellWidth;
+			cellBLTR[1][0] += cellWidth;
+			vvCell[ii][jj].vBLTR.push_back(cellBLTR);
+		}
+	}
 }
 
+int JPDF::addTable(int numCol, vector<string>& vsList, double rowHeight, string title, double fontSizeTitle)
+{
+	// Will populate the table going top->bottom, then left->right. Table's BL corner 
+	// will be the current cursor position. Return the new table's index within the vector.
+	int indexTable = vTable.size();
+	int numRow = vsList.size() / numCol;
+	if (vsList.size() % numCol > 0) { numRow++; }
+	double height = ((double)numRow * rowHeight) + fontSizeTitle + 4.0;
+	vector<vector<double>> tableBLTR(2, vector<double>(2));
+	tableBLTR[0] = cursor;
+	tableBLTR[1][0] = HPDF_Page_GetWidth(page) - margin;
+	tableBLTR[1][1] = tableBLTR[0][1] + height;
+	if (fontAdded) { vTable.push_back(JPDFTABLE(page, tableBLTR, title, fontAdded, fontSizeTitle)); }
+	else { vTable.push_back(JPDFTABLE(page, tableBLTR, title, fontDefault, fontSizeTitle)); }
+	vTable[indexTable].setRowCol(numRow, numCol);
+	vTable[indexTable].colourListDouble = colourListDouble;
+	return indexTable;
+}
 float JPDF::breakListFitWidth(vector<string>& vsList, float textWidth, vector<vector<string>>& vvsList)
 {
 	// For a given vsList and max width of text, split each list item as necessary into

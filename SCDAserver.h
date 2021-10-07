@@ -6,6 +6,7 @@
 #include <Wt/WTree.h>
 #include <Wt/WTreeNode.h>
 #include <functional>
+#include "jscalebar.h"
 #include "jtree.h"
 #include "sqlfunc.h"
 #include "winfunc.h"

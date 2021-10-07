@@ -14,6 +14,7 @@
 #include <Wt/WMemoryResource.h>
 #include <Wt/Render/WPdfRenderer.h>
 #include <hpdf.h>
+#include "jscalebar.h"
 #include "jpdf.h"
 #include "wtpaint.h"
 #pragma comment(lib, "libhpdfd.lib")
@@ -54,6 +55,7 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	double barThickness = 14.0;  // Unit of pixels.
 	vector<int> displayData;
 	vector<double> extraColour, unknownColour;
+	unique_ptr<JSCALEBAR> jScaleBar = nullptr;
 	vector<vector<double>> keyColour;  // Form [colour index][r, g, b].
 	Wt::WLineEdit *leFileName;
 	int legendBarDouble = -1;  // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
@@ -63,7 +65,6 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	double legendMax, legendMin;
 	Wt::WLength maxWidth, maxHeight;
 	vector<vector<vector<double>>> mapBorder, mapFrame;
-	vector<vector<double>> mapData;
 	vector<string> mapRegion;
 	MATHFUNC mf;
 	double pdfPPKM;
