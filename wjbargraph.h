@@ -41,13 +41,14 @@ public:
 	}
 	~WJPARAMPANEL() {}
 
+	set<int> setColourLayout, setTextWidget;
+
 	void addEndspace();
 	void addParameter(string sParameter, vector<int> vIndex);
 	void clear();
 	Wt::Signal<int>& deleteSignal() { return deleteSignal_; }
 	void init(string sTitle, Wt::WLink linkIconTrash);
 	void removeParameter(const string& sID);
-
 };
 
 class WJBARGRAPH : public Wt::WContainerWidget
@@ -71,13 +72,14 @@ public:
 	JFUNC jf;
 	Wt::WLink linkIconClose = Wt::WLink(), linkIconTrash = Wt::WLink();
 	shared_ptr<Wt::WStandardItemModel> model = nullptr;
-	WJPARAMPANEL* ppCommon = nullptr, * ppDiff = nullptr, * ppUnique = nullptr;
+	WJPARAMPANEL *ppCommon = nullptr, *ppDiff = nullptr, *ppUnique = nullptr;
 	string region = "", unit = "";
 
 	void addDataset(vector<vector<string>>& vvsData, vector<string>& vsParameter);
 	void addTipWheel(int layoutIndex);
 	void configureChart();
 	void display();
+	void getParameterAll(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText);
 	vector<Wt::WColor> getSeriesColour();
 	unique_ptr<Wt::Chart::WCartesianChart> makeChart();
 	unique_ptr<WJPARAMPANEL> makeWJPP(WJPARAMPANEL*& wjpp, string sTitle, vector<Wt::WColor>& seriesColour);

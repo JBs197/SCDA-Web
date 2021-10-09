@@ -15,6 +15,7 @@ void WJPARAMPANEL::addParameter(string sParameter, vector<int> vIndex)
 	Wt::WContainerWidget* wBox = (Wt::WContainerWidget*)this->centralWidget();
 	Wt::WGridLayout* gLayout = (Wt::WGridLayout*)wBox->layout();
 	int indexRow = gLayout->rowCount();
+	int indexLayout = gLayout->count();
 	
 	auto gcLayout = make_unique<Wt::WGridLayout>();
 	if (vIndex.size() < 4)  // Display everything on a single line.
@@ -46,6 +47,8 @@ void WJPARAMPANEL::addParameter(string sParameter, vector<int> vIndex)
 		}
 		gLayout->addLayout(move(gcLayout), indexRow, 0, Wt::AlignmentFlag::Right | Wt::AlignmentFlag::Middle);
 	}
+	setColourLayout.emplace(indexLayout);
+	indexLayout++;
 
 	auto parameterText = make_unique<Wt::WText>();
 	parameterText->setTextFormat(Wt::TextFormat::Plain);
@@ -55,6 +58,7 @@ void WJPARAMPANEL::addParameter(string sParameter, vector<int> vIndex)
 	Wt::WCssDecorationStyle& style = parameterText->decorationStyle();
 	style.font().setSize(Wt::FontSize::Large);
 	gLayout->addWidget(move(parameterText), indexRow, 1, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Middle);
+	setTextWidget.emplace(indexLayout);
 }
 void WJPARAMPANEL::clear()
 {
@@ -237,6 +241,174 @@ void WJBARGRAPH::display()
 		wX.setZoomRange(0.0, 14.0);
 	}
 }
+void WJBARGRAPH::getParameterAll(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText)
+{
+	// seriesColour has form [series index][r, g, b, a]. 
+	// panelColourIndex has form [unique, diff, common][row index][colourIndex].
+	// panelText has form [unique, diff, common][row index][parameter segment].
+	vector<Wt::WColor> vwColour = getSeriesColour();
+	unordered_map<string, int> mapColourIndex;  // hexColour -> vwColour index
+	string hexColour;
+	seriesColour.resize(vwColour.size(), vector<double>(4));
+	int iColour, indexColour, indexLayout, indexPanel, indexRow, numColour, numItem;
+	for (int ii = 0; ii < seriesColour.size(); ii++)
+	{
+		hexColour.clear();
+		iColour = vwColour[ii].red();
+		hexColour += jf.decToHex(iColour);
+		seriesColour[ii][0] = (double)iColour / 255.0;
+		iColour = vwColour[ii].green();
+		hexColour += jf.decToHex(iColour);
+		seriesColour[ii][1] = (double)iColour / 255.0;
+		iColour = vwColour[ii].blue();
+		hexColour += jf.decToHex(iColour);
+		seriesColour[ii][2] = (double)iColour / 255.0;
+		iColour = vwColour[ii].alpha();
+		hexColour += jf.decToHex(iColour);
+		seriesColour[ii][3] = (double)iColour / 255.0;
+		mapColourIndex.emplace(hexColour, ii);
+	}
+
+	// For the (Unique, Diff, Common) WJPARAMPANELs, extract each row's represented
+	// colour indices as well as its text. 
+	Wt::WContainerWidget* wBox = nullptr;
+	Wt::WGridLayout* gLayout = nullptr, *gLayoutColour = nullptr;
+	Wt::WLayoutItem* wlItem = nullptr, *wlItemColour = nullptr;
+	Wt::WText* wText = nullptr;
+	WJPARAMRECT* wjpr = nullptr;
+	Wt::WString wsTemp;
+	string temp;
+	vector<string> vsTemp;
+	if (ppUnique != nullptr && !ppUnique->isHidden())
+	{
+		indexPanel = 0;
+		wBox = (Wt::WContainerWidget*)ppUnique->centralWidget();
+		gLayout = (Wt::WGridLayout*)wBox->layout();
+
+		// Extract this panel's colour indices.
+		numItem = ppUnique->setColourLayout.size();
+		panelColourIndex[indexPanel].resize(numItem);
+		indexRow = 0;
+		for (auto it = ppUnique->setColourLayout.begin(); it != ppUnique->setColourLayout.end(); it++)
+		{
+			indexLayout = *it;
+			wlItem = gLayout->itemAt(indexLayout);
+			gLayoutColour = (Wt::WGridLayout*)wlItem->layout();
+			numColour = gLayoutColour->count();
+			for (int jj = 0; jj < numColour; jj++)
+			{
+				wlItemColour = gLayoutColour->itemAt(jj);
+				wjpr = (WJPARAMRECT*)wlItemColour->widget();
+				hexColour = wjpr->getHexColour();
+				indexColour = mapColourIndex.at(hexColour);
+				panelColourIndex[indexPanel][indexRow].push_back(indexColour);
+			}
+			indexRow++;
+		}
+
+		// Extract this panel's text.
+		numItem = ppUnique->setTextWidget.size();
+		panelText[indexPanel].resize(numItem);
+		indexRow = 0;
+		for (auto it = ppUnique->setTextWidget.begin(); it != ppUnique->setTextWidget.end(); it++)
+		{
+			indexLayout = *it;
+			wlItem = gLayout->itemAt(indexLayout);
+			wText = (Wt::WText*)wlItem->widget();
+			wsTemp = wText->text();
+			temp = wsTemp.toUTF8();
+			vsTemp = jf.splitByMarker(temp, '|');
+			panelText[indexPanel][indexRow] = vsTemp;
+			indexRow++;
+		}
+	}
+	if (ppDiff != nullptr && !ppDiff->isHidden())
+	{
+		indexPanel = 1;
+		wBox = (Wt::WContainerWidget*)ppDiff->centralWidget();
+		gLayout = (Wt::WGridLayout*)wBox->layout();
+
+		// Extract this panel's colour indices.
+		numItem = ppDiff->setColourLayout.size();
+		panelColourIndex[indexPanel].resize(numItem);
+		indexRow = 0;
+		for (auto it = ppDiff->setColourLayout.begin(); it != ppDiff->setColourLayout.end(); it++)
+		{
+			indexLayout = *it;
+			wlItem = gLayout->itemAt(indexLayout);
+			gLayoutColour = (Wt::WGridLayout*)wlItem->layout();
+			numColour = gLayoutColour->count();
+			for (int jj = 0; jj < numColour; jj++)
+			{
+				wlItemColour = gLayoutColour->itemAt(jj);
+				wjpr = (WJPARAMRECT*)wlItemColour->widget();
+				hexColour = wjpr->getHexColour();
+				indexColour = mapColourIndex.at(hexColour);
+				panelColourIndex[indexPanel][indexRow].push_back(indexColour);
+			}
+			indexRow++;
+		}
+
+		// Extract this panel's text.
+		numItem = ppDiff->setTextWidget.size();
+		panelText[indexPanel].resize(numItem);
+		indexRow = 0;
+		for (auto it = ppDiff->setTextWidget.begin(); it != ppDiff->setTextWidget.end(); it++)
+		{
+			indexLayout = *it;
+			wlItem = gLayout->itemAt(indexLayout);
+			wText = (Wt::WText*)wlItem->widget();
+			wsTemp = wText->text();
+			temp = wsTemp.toUTF8();
+			vsTemp = jf.splitByMarker(temp, '|');
+			panelText[indexPanel][indexRow] = vsTemp;
+			indexRow++;
+		}
+	}
+	if (ppCommon != nullptr && !ppCommon->isHidden())
+	{
+		indexPanel = 2;
+		wBox = (Wt::WContainerWidget*)ppCommon->centralWidget();
+		gLayout = (Wt::WGridLayout*)wBox->layout();
+
+		// Extract this panel's colour indices.
+		numItem = ppCommon->setColourLayout.size();
+		panelColourIndex[indexPanel].resize(numItem);
+		indexRow = 0;
+		for (auto it = ppCommon->setColourLayout.begin(); it != ppCommon->setColourLayout.end(); it++)
+		{
+			indexLayout = *it;
+			wlItem = gLayout->itemAt(indexLayout);
+			gLayoutColour = (Wt::WGridLayout*)wlItem->layout();
+			numColour = gLayoutColour->count();
+			for (int jj = 0; jj < numColour; jj++)
+			{
+				wlItemColour = gLayoutColour->itemAt(jj);
+				wjpr = (WJPARAMRECT*)wlItemColour->widget();
+				hexColour = wjpr->getHexColour();
+				indexColour = mapColourIndex.at(hexColour);
+				panelColourIndex[indexPanel][indexRow].push_back(indexColour);
+			}
+			indexRow++;
+		}
+
+		// Extract this panel's text.
+		numItem = ppCommon->setTextWidget.size();
+		panelText[indexPanel].resize(numItem);
+		indexRow = 0;
+		for (auto it = ppCommon->setTextWidget.begin(); it != ppCommon->setTextWidget.end(); it++)
+		{
+			indexLayout = *it;
+			wlItem = gLayout->itemAt(indexLayout);
+			wText = (Wt::WText*)wlItem->widget();
+			wsTemp = wText->text();
+			temp = wsTemp.toUTF8();
+			vsTemp = jf.splitByMarker(temp, '|');
+			panelText[indexPanel][indexRow] = vsTemp;
+			indexRow++;
+		}
+	}
+}
 vector<Wt::WColor> WJBARGRAPH::getSeriesColour()
 {
 	if (chart == nullptr) { jf.err("No chart loaded-wjbargraph.getSeriesColour"); }
@@ -323,7 +495,6 @@ void WJBARGRAPH::parameterPopulation()
 }
 void WJBARGRAPH::parameterSorting()
 {
-	//if (seriesColour.size() != vviParameter[0].size()) { jf.err("Size mismatch-wjbargraph.parameterSorting"); }
 	string sParameter;
 	vector<int> vIndex;
 	int count, countCommon = 0, countDiff = 0, countUnique = 0;

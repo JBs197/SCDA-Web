@@ -80,7 +80,7 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	vector<Wt::WColor> vToolColour;
 	shared_ptr<Wt::WButtonGroup> wbGroup = nullptr;
 	shared_ptr<WJRCSV> wjrCSV = nullptr;
-	shared_ptr<WJRPDF> wjrPDFmap = nullptr;
+	shared_ptr<WJRPDF> wjrPDFbargraph = nullptr, wjrPDFmap = nullptr;
 	WTPAINT* wpPreview = nullptr;
 
 public:
@@ -99,9 +99,10 @@ public:
 	void displaceChildToParent(vector<vector<double>>& vvdBorder, vector<vector<double>>& childFrame, vector<double> dispTL);
 	void displaceParentToFrame(vector<vector<double>>& parentBorderKM, vector<vector<double>>& parentFrameKM);
 	void displayCSV(string& sCSV);
+	void displayPDFbargraph(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText);
 	void displayPDFmap(vector<string>& vsParameter, vector<int>& vChanged);
 	void downloadSettings(int mode);
-	void drawLegend(vector<double>& activeData);
+	vector<vector<double>> drawLegend(int indexDataset);
 	void drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>& tickValues, double tickThickness);
 	void drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<double>>& tickValues, double tickThickness);
 	void drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>& tickValues, double parentValue, double dotRadius, double tickThickness);
@@ -111,9 +112,7 @@ public:
 	vector<double> getChildTL(vector<vector<double>>& vpfBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM);
 	int getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize);
 	int getLegendTickLines(string sUnit);
-	vector<vector<double>> getMapColour(vector<double>& activeData);
 	int getRadioIndex();
-	vector<vector<double>> getScaleValues(vector<double>& activeData, int numTicks);
 	void init();
 	void initColour();
 	void initImgBar(vector<vector<double>>& mapBLTR, vector<vector<double>>& parentFrameKM);
@@ -124,9 +123,7 @@ public:
 	unique_ptr<Wt::WContainerWidget> makeFileNameBox();
 	shared_ptr<WJRCSV> makeWJRCSV(string& sCSV);
 	shared_ptr<WJRPDF> makeWJRPDF();
-	vector<double> prepareActiveData();
 	Wt::Signal<int>& previewSignal() { return previewSignal_; }
-	vector<double> processPercent();
 	void scaleChildToPage(vector<vector<double>>& vpfBorder, vector<vector<double>>& vpfFrame);
 	void scaleParentToPage(vector<vector<double>>& parentBorder, vector<vector<double>>& parentFrameKM);
 	void setUnit(string unit, vector<int> viIndex);

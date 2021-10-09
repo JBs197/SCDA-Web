@@ -134,6 +134,15 @@ void SCDAwidget::incomingPreviewSignal(const int& type)
 {
 	switch (type)
 	{
+	case 1:
+	{
+		vector<vector<double>> barGraphColour;
+		vector<vector<vector<int>>> barGraphParameterColour(3, vector<vector<int>>());
+		vector<vector<vector<string>>> barGraphParameterText(3, vector<vector<string>>());
+		wjBarGraph->getParameterAll(barGraphColour, barGraphParameterColour, barGraphParameterText);
+		wjDownload->displayPDFbargraph(barGraphColour, barGraphParameterColour, barGraphParameterText);
+		break;
+	}
 	case 2:
 	{
 		vector<int> vChanged;
@@ -624,8 +633,8 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		}
 		else  // Default to this unit.
 		{
-			wjDownload->setUnit(sUnit, { 0, 1 });
-			wtMap->setUnit(sUnit, { 0, 1 });
+			wjDownload->setUnit(temp, { 0, 1 });
+			wtMap->setUnit(temp, { 0, 1 });
 			wsUnit = "Unit: " + temp;
 			updatePinButtons(temp, vsRegion[0]);  // Enable or disable as appropriate.
 			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 2);

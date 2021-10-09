@@ -16,24 +16,26 @@ struct JPDFCELL
 {
     string alignment = "left";
     vector<double> backgroundColour;
-    vector<vector<vector<double>>> vBLTR;  // Form [value index][BL, TR][xCoord, yCoord]
-    HPDF_Font font;
+    HPDF_Font font, fontItalic;
     vector<double> vFontSize;
     double padding = 2.0;
     int rowIndex, colIndex;
-    vector<string> vsValue;
+    vector<vector<double>> vBarColour;  // Form [bar index][r, g, b, a].
+    vector<vector<vector<double>>> vBLTR;  // Form [value index][BL, TR][xCoord, yCoord]
+    vector<string> vsText;
 
     JPDFCELL() {}
     ~JPDFCELL() {}
 
-    void drawCell(HPDF_Page& page, int index, JFUNC& jf);
+    void drawCellBar(HPDF_Page& page, double barWidth, JFUNC& jf);
+    void drawCellText(HPDF_Page& page, int indexText, JFUNC& jf);
+    double getMaxFontHeight();
 };
 
 class JPDFTABLE
 {
     vector<vector<double>> boxBLTR, titleBLTR;
     int fontSizeTitle;
-    HPDF_Font fontTitle;
     JFUNC jf;
     int numCol = 0;
     int numRow = 0;
@@ -58,18 +60,23 @@ public:
 
     double borderThickness = 3.0;  // Default, in units of pixels.
     vector<vector<double>> colourListDouble;  // Form [colour index][r, g, b, a].
+    HPDF_Font fontItalic, fontTitle;
 
-    void addValues(vector<string>& vsValue);
+    void addColourBars(vector<vector<double>>& vColour, int iRow, int iCol);
+    void addText(vector<string>& vsText, int fontSize);
+    void addText(string& text, int iRow, int iCol, int fontSize);
+    void addTextList(vector<string>& vsText, int iRow, int iCol, int fontSize);
     void drawBackgroundColour();
+    void drawColourBars(int barWidth);
     void drawColSplit();
     void drawFrames();
     void drawLine(vector<vector<double>> startStop, vector<double> colour, double thickness);
     void drawRect(vector<vector<double>> rectBLTR, vector<double> colour, double thickness);
     vector<vector<double>> drawTable();
+    void drawText(int index);
     void drawTitle();
-    void drawValues(int index);
     void setColourBackground(vector<vector<int>> vvColourIndex);
-    void setRowCol(int row, int col);
+    void setRowCol(int row, int col, vector<double>& vRowHeight);
 };
 
 class JPDF
@@ -91,7 +98,7 @@ public:
     double margin = 50.0;
     vector<JPDFTABLE> vTable;
 
-    int addTable(int numCol, vector<string>& vsList, double rowHeight, string title, double fontSizeTitle);
+    int addTable(int numCol, vector<double> vRowHeight, string title, double fontSizeTitle);
     float breakListFitWidth(vector<string>& vsList, float textWidth, vector<vector<string>>& vvsList);
     void drawCircle(vector<double> coordCenter, double radius, vector<double> colour, double thickness);
     void drawCircle(vector<double> coordCenter, double radius, vector<vector<double>> vColour, double thickness);
@@ -104,6 +111,7 @@ public:
     bool hasFont();
     vector<double> getPageDimensions();
     HPDF_UINT32 getPDF(string& sPDF);
+    int getNumLines(string& text, double width);
     void init();
     void initColour();
     void parameterSectionBottom(vector<string>& vsParameter, vector<int>& vColour);

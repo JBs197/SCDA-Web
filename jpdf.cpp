@@ -1,26 +1,49 @@
 #include "jpdf.h"
 
-void JPDFCELL::drawCell(HPDF_Page& page, int index, JFUNC& jf)
+void JPDFCELL::drawCellBar(HPDF_Page& page, double barWidth, JFUNC& jf)
 {
-	if (vsValue.size() <= index) { return; }
+	HPDF_STATUS error;
+	int index = vBLTR.size() - 1;
+	double barHeight = vBLTR[index][1][1] - vBLTR[index][0][1] - (2.0 * padding);
+	double xCoord = vBLTR[index][0][0] + padding;
+	for (int ii = 0; ii < vBarColour.size(); ii++)
+	{
+		error = HPDF_Page_SetRGBFill(page, vBarColour[ii][0], vBarColour[ii][1], vBarColour[ii][2]);
+		if (error != HPDF_OK) { jf.err("SetRGBFill-jpdfcell.drawCellBar"); }
+		error = HPDF_Page_Rectangle(page, xCoord, vBLTR[index][0][1] + padding, barWidth, barHeight);
+		if (error != HPDF_OK) { jf.err("Rectangle-jpdfcell.drawCellBar"); }
+		error = HPDF_Page_Fill(page);
+		if (error != HPDF_OK) { jf.err("FillStroke-jpdfcell.drawCellBar"); }
+		xCoord += barWidth;
+	}
+	xCoord += padding;
+	vector<vector<double>> newBLTR = vBLTR[index];
+	vBLTR[index][1][0] = xCoord;
+	newBLTR[0][0] = xCoord;
+	vBLTR.push_back(newBLTR);
+}
+void JPDFCELL::drawCellText(HPDF_Page& page, int indexText, JFUNC& jf)
+{
+	if (vsText.size() <= indexText) { return; }
 	float textWidth;
+	int index = vBLTR.size() - 1;
 	float cellWidth = vBLTR[index][1][0] - vBLTR[index][0][0] - (2.0 * padding);
 	vector<vector<double>> newBLTR = vBLTR[index];
-	HPDF_STATUS error = HPDF_Page_SetFontAndSize(page, font, vFontSize[index]);
+	HPDF_STATUS error = HPDF_Page_SetFontAndSize(page, font, vFontSize[indexText]);
 	if (error != HPDF_OK) { jf.err("SetFontAndSize-jpdfcell.drawCell"); }
 	float charSpace = HPDF_Page_GetCharSpace(page);
 	float wordSpace = HPDF_Page_GetWordSpace(page);
-	HPDF_UINT length = vsValue[index].size();
+	HPDF_UINT length = vsText[indexText].size();
 	HPDF_BYTE* buffer = new unsigned char[length];
 	for (int ii = 0; ii < length; ii++)
 	{
-		buffer[ii] = (unsigned char)vsValue[index][ii];
+		buffer[ii] = (unsigned char)vsText[indexText][ii];
 	}
-	HPDF_UINT max = HPDF_Font_MeasureText(font, buffer, length, cellWidth, vFontSize[index], charSpace, wordSpace, 0, &textWidth);
+	HPDF_UINT max = HPDF_Font_MeasureText(font, buffer, length, cellWidth, vFontSize[indexText], charSpace, wordSpace, 0, &textWidth);
 	if (max >= length)
 	{
-		double bottomPadding = (vBLTR[index][1][1] - vBLTR[index][0][1] - vFontSize[index]);
-		error = HPDF_Page_TextOut(page, vBLTR[index][0][0] + padding, vBLTR[index][0][1] + bottomPadding, vsValue[index].c_str());
+		double bottomPadding = (vBLTR[index][1][1] - vBLTR[index][0][1] - vFontSize[indexText]);
+		error = HPDF_Page_TextOut(page, vBLTR[index][0][0] + padding, vBLTR[index][0][1] + bottomPadding, vsText[indexText].c_str());
 		if (error != HPDF_OK) { jf.err("TextOut-jpdfcell.drawCell"); }
 		vBLTR[index][1][0] = vBLTR[index][0][0] + textWidth + (2.0 * padding);
 		newBLTR[0][0] += textWidth + (2.0 * padding);
@@ -32,19 +55,51 @@ void JPDFCELL::drawCell(HPDF_Page& page, int index, JFUNC& jf)
 	}
 	delete[] buffer;
 }
-
-void JPDFTABLE::addValues(vector<string>& vsValue)
+double JPDFCELL::getMaxFontHeight()
 {
-	int index = 0, max = vsValue.size();
+	int index = vBLTR.size() - 1;
+	if (index < 0) { return -1.0; }
+	double maxHeight = vBLTR[index][1][1] - vBLTR[index][0][1] - (2.0 * padding);
+	return maxHeight;
+}
+
+void JPDFTABLE::addColourBars(vector<vector<double>>& vColour, int iRow, int iCol)
+{
+	// Adds a list of colours to a single table cell.
+	vvCell[iRow][iCol].vBarColour = vColour;
+}
+void JPDFTABLE::addText(vector<string>& vsText, int fontSize)
+{
+	// Adds one string of text to each cell, in sequential order.
+	int indexText = 0, max = vsText.size();
+	double fontHeight;
 	for (int ii = 0; ii < numCol; ii++)
 	{
 		for (int jj = 0; jj < numRow; jj++)
 		{
-			vvCell[jj][ii].vsValue.push_back(vsValue[index]);
-			vvCell[jj][ii].vFontSize.push_back((double)(fontSizeTitle - 2));
-			index++;
-			if (index == max) { return; }
+			vvCell[jj][ii].vsText.push_back(vsText[indexText]);
+			fontHeight = min((double)fontSize, vvCell[jj][ii].getMaxFontHeight());
+			vvCell[jj][ii].vFontSize.push_back(fontHeight);
+			indexText++;
+			if (indexText == max) { return; }
 		}
+	}
+}
+void JPDFTABLE::addText(string& text, int iRow, int iCol, int fontSize)
+{
+	// Adds one string of text to a specific cell.
+	vvCell[iRow][iCol].vsText.push_back(text);
+	double fontHeight = min((double)fontSize, vvCell[iRow][iCol].getMaxFontHeight());
+	vvCell[iRow][iCol].vFontSize.push_back(fontHeight);
+}
+void JPDFTABLE::addTextList(vector<string>& vsText, int iRow, int iCol, int fontSize)
+{
+	// Adds a list of strings to a specific cell.
+	double fontHeight = min((double)fontSize, vvCell[iRow][iCol].getMaxFontHeight());
+	for (int ii = 0; ii < vsText.size(); ii++)
+	{
+		vvCell[iRow][iCol].vsText.push_back(vsText[ii]);
+		vvCell[iRow][iCol].vFontSize.push_back(fontHeight);
 	}
 }
 void JPDFTABLE::drawBackgroundColour()
@@ -63,6 +118,18 @@ void JPDFTABLE::drawBackgroundColour()
 			if (error != HPDF_OK) { jf.err("Rectangle-jpdftable.drawBackgroundColour"); }
 			error = HPDF_Page_Fill(page);
 			if (error != HPDF_OK) { jf.err("Fill-jpdftable.drawBackgroundColour"); }
+		}
+	}
+}
+void JPDFTABLE::drawColourBars(int barWidth)
+{
+	// Draw every cell's pre-loaded list of colours, as rectangles of text height and given width.
+	double dWidth = (double)barWidth;
+	for (int ii = 0; ii < numCol; ii++)
+	{
+		for (int jj = 0; jj < numRow; jj++)
+		{
+			vvCell[jj][ii].drawCellBar(page, dWidth, jf);
 		}
 	}
 }
@@ -150,9 +217,23 @@ vector<vector<double>> JPDFTABLE::drawTable()
 	// Returns the table's BLTR.
 	drawBackgroundColour();
 	drawFrames();
-	drawValues(0);
 	drawTitle();
 	return tableBLTR;
+}
+void JPDFTABLE::drawText(int index)
+{
+	// Index refers to each cell's vsText index.
+	HPDF_STATUS error = HPDF_Page_SetRGBFill(page, 0.0, 0.0, 0.0);  // Black.
+	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawValues"); }
+	HPDF_Page_BeginText(page);
+	for (int ii = 0; ii < numCol; ii++)
+	{
+		for (int jj = 0; jj < numRow; jj++)
+		{
+			vvCell[jj][ii].drawCellText(page, index, jf);
+		}
+	}
+	HPDF_Page_EndText(page);
 }
 void JPDFTABLE::drawTitle()
 {
@@ -165,21 +246,6 @@ void JPDFTABLE::drawTitle()
 	error = HPDF_Page_TextOut(page, titleBLTR[0][0] + 2.0, titleBLTR[0][1] + 3.0, title.c_str());
 	if (error != HPDF_OK) { jf.err("TextOut-jpdftable.drawTitle"); }
 	error = HPDF_Page_EndText(page);
-}
-void JPDFTABLE::drawValues(int index)
-{
-	// Index refers to each cell's vsValue index.
-	HPDF_STATUS error = HPDF_Page_SetRGBFill(page, 0.0, 0.0, 0.0);  // Black.
-	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawValues"); }
-	HPDF_Page_BeginText(page);
-	for (int ii = 0; ii < numCol; ii++)
-	{
-		for (int jj = 0; jj < numRow; jj++)
-		{
-			vvCell[jj][ii].drawCell(page, index, jf);
-		}
-	}
-	HPDF_Page_EndText(page);
 }
 void JPDFTABLE::initTitle(string sTitle, HPDF_Font& font, int fontSize)
 {
@@ -213,20 +279,19 @@ void JPDFTABLE::setColourBackground(vector<vector<int>> vvColourIndex)
 		else { rowIndex = 0; }
 	}
 }
-void JPDFTABLE::setRowCol(int row, int col)
+void JPDFTABLE::setRowCol(int row, int col, vector<double>& vRowHeight)
 {
 	numRow = row;
 	numCol = col;
 	vvCell.resize(numRow, vector<JPDFCELL>(numCol));
 	double cellWidth = floor((boxBLTR[1][0] - boxBLTR[0][0]) / (double)numCol);
-	double cellHeight = floor((boxBLTR[1][1] - boxBLTR[0][1]) / (double)numRow);
 	vector<vector<double>> cellBLTR(2, vector<double>(2));
 	cellBLTR[0][1] = boxBLTR[1][1];
-	cellBLTR[1][1] = cellBLTR[0][1] + cellHeight;
+	cellBLTR[1][1] = cellBLTR[0][1] + vRowHeight[0];
 	for (int ii = 0; ii < numRow; ii++)
 	{
-		cellBLTR[0][1] -= cellHeight;
-		cellBLTR[1][1] -= cellHeight;
+		cellBLTR[0][1] -= vRowHeight[ii];
+		cellBLTR[1][1] -= vRowHeight[ii];
 		cellBLTR[1][0] = boxBLTR[0][0];
 		cellBLTR[0][0] = cellBLTR[1][0] - cellWidth;
 		for (int jj = 0; jj < numCol; jj++)
@@ -242,21 +307,26 @@ void JPDFTABLE::setRowCol(int row, int col)
 	}
 }
 
-int JPDF::addTable(int numCol, vector<string>& vsList, double rowHeight, string title, double fontSizeTitle)
+int JPDF::addTable(int numCol, vector<double> vRowHeight, string title, double fontSizeTitle)
 {
 	// Will populate the table going top->bottom, then left->right. Table's BL corner 
 	// will be the current cursor position. Return the new table's index within the vector.
 	int indexTable = vTable.size();
-	int numRow = vsList.size() / numCol;
-	if (vsList.size() % numCol > 0) { numRow++; }
-	double height = ((double)numRow * rowHeight) + fontSizeTitle + 4.0;
+	int numRow = vRowHeight.size();
+	double height = 0.0; 
+	for (int ii = 0; ii < numRow; ii++)
+	{
+		height += vRowHeight[ii];
+	}
+	height += fontSizeTitle + 4.0;
 	vector<vector<double>> tableBLTR(2, vector<double>(2));
 	tableBLTR[0] = cursor;
 	tableBLTR[1][0] = HPDF_Page_GetWidth(page) - margin;
 	tableBLTR[1][1] = tableBLTR[0][1] + height;
 	if (fontAdded) { vTable.push_back(JPDFTABLE(page, tableBLTR, title, fontAdded, fontSizeTitle)); }
 	else { vTable.push_back(JPDFTABLE(page, tableBLTR, title, fontDefault, fontSizeTitle)); }
-	vTable[indexTable].setRowCol(numRow, numCol);
+	if (fontAddedItalic) { vTable[indexTable].fontItalic = fontAddedItalic; }
+	vTable[indexTable].setRowCol(numRow, numCol, vRowHeight);
 	vTable[indexTable].colourListDouble = colourListDouble;
 	return indexTable;
 }
@@ -522,6 +592,24 @@ HPDF_UINT32 JPDF::getPDF(string& sPDF)
 	error = HPDF_ResetStream(pdf);
 	if (error != HPDF_OK) { jf.err("ResetStream-jpdf.getPDF"); }
 	return streamSize;
+}
+int JPDF::getNumLines(string& text, double width)
+{
+	int numLines = 0;
+	HPDF_UINT maxChars = 0;
+	size_t pos1 = 0;
+	string temp;
+	float fontHeight = (float)fontSize;
+	HPDF_STATUS error = HPDF_Page_SetFontAndSize(page, fontAdded, fontHeight);
+	if (error != HPDF_OK) { jf.err("SetFontAndSize-jpdf.getNumLines"); }
+	do
+	{
+		numLines++;
+		temp = text.substr(pos1);
+		maxChars = HPDF_Page_MeasureText(page, temp.c_str(), width, HPDF_TRUE, NULL);
+		if (maxChars < temp.size()) { pos1 += maxChars; }
+	} while (maxChars < temp.size());
+	return numLines;
 }
 bool JPDF::hasFont()
 {

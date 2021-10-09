@@ -91,12 +91,101 @@ void WJDOWNLOAD::displayCSV(string& sCSV)
 
 	updateStackedPB(selectedMode);
 }
+void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText)
+{
+	// Render the active bar graph and its parameter panels on a single page. 
+	if (wjrPDFbargraph != nullptr) { wjrPDFbargraph.reset(); }
+	wjrPDFbargraph = makeWJRPDF();
+	int tableFontSize = 12;
+	int cellPadding = 2;
+	wjrPDFbargraph->jpdf.setFontSize(tableFontSize);
+	int parameterColourWidth = 8;
+
+	// Firstly, render the parameter panels at the bottom.
+	int indexTable, maxBar, numRow, spaceUsed;
+	vector<int> vNumLine;
+	string sTitle, temp;
+	double textWidth;
+	vector<double> vRowHeight;
+	vector<vector<double>> panelBLTR, vColourBar;
+	vector<vector<int>> vvColour = { { 1 }, { 2 } };  // White, grey alternating.
+	vector<double> pageDimensions = wjrPDFbargraph->jpdf.getPageDimensions();
+	wjrPDFbargraph->jpdf.cursor[0] = wjrPDFbargraph->jpdf.margin;
+	wjrPDFbargraph->jpdf.cursor[1] = wjrPDFbargraph->jpdf.margin;
+	for (int ii = 2; ii >= 0; ii--)  // For every panel...
+	{
+		if (panelText[ii].size() < 1) { continue; }
+		switch (ii)
+		{
+		case 0:
+			sTitle = "Unique Parameters";
+			break;
+		case 1:
+			sTitle = "Differentiating Parameters";
+			break;
+		case 2:
+			sTitle = "Common Parameters";
+			break;
+		}
+		numRow = panelColourIndex[ii].size();
+
+		maxBar = 0;
+		for (int jj = 0; jj < numRow; jj++)
+		{
+			if (panelColourIndex[ii][jj].size() > maxBar) { maxBar = panelColourIndex[ii][jj].size(); }
+		}
+		spaceUsed = (maxBar * parameterColourWidth) + (4 * cellPadding);
+		textWidth = pageDimensions[0] - (double)spaceUsed;
+		vRowHeight.resize(numRow);
+		vNumLine.resize(numRow);
+		for (int jj = 0; jj < numRow; jj++)
+		{
+			temp.clear();
+			for (int kk = 0; kk < panelText[ii][jj].size(); kk++)
+			{
+				if (kk > 0) { temp += " | "; }
+				temp += panelText[ii][jj][kk];
+			}
+			vNumLine[jj] = wjrPDFbargraph->jpdf.getNumLines(temp, textWidth);
+			vRowHeight[jj] = (double)((tableFontSize + (2 * cellPadding)) * vNumLine[jj]);
+		}
+
+		indexTable = wjrPDFbargraph->jpdf.addTable(1, vRowHeight, sTitle, (double)(tableFontSize + 2));
+		wjrPDFbargraph->jpdf.vTable[indexTable].setColourBackground(vvColour);
+		panelBLTR = wjrPDFbargraph->jpdf.vTable[indexTable].drawTable();
+
+		for (int jj = 0; jj < numRow; jj++)  // For every row...
+		{
+			vColourBar.resize(panelColourIndex[ii][jj].size());
+			for (int kk = 0; kk < vColourBar.size(); kk++)  // For every series colour...
+			{
+				vColourBar[kk] = seriesColour[panelColourIndex[ii][jj][kk]];
+			}
+			wjrPDFbargraph->jpdf.vTable[indexTable].addColourBars(vColourBar, jj, 0);
+		}
+		wjrPDFbargraph->jpdf.vTable[indexTable].drawColourBars(parameterColourWidth);
+		wjrPDFbargraph->jpdf.vTable[indexTable].drawColSplit();
+
+		for (int jj = 0; jj < panelText[ii].size(); jj++)
+		{
+			wjrPDFbargraph->jpdf.vTable[indexTable].addTextList(panelText[ii][jj], jj, 0, tableFontSize);
+		}
+
+
+		wjrPDFbargraph->jpdf.cursor[1] += (panelBLTR[1][1] - panelBLTR[0][1]);
+	}
+
+	// Preview screen ... ?
+	updateStackedPB(selectedMode);
+}
 void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChanged)
 {
 	// Render the active map and its parameter list on a single page. 
 	if (wjrPDFmap != nullptr) { wjrPDFmap.reset(); }
 	wjrPDFmap = makeWJRPDF();
 	int tableFontSize = 12;
+	int cellPadding = 2;
+	int numCol = 2;
 
 	// Firstly, render the parameter section at the bottom.
 	vector<int> vColour(vChanged.size());
@@ -117,35 +206,37 @@ void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChange
 	wjrPDFmap->jpdf.parameterSectionBottom(vsParameter, vColour);
 
 	// Then, add a coloured region section lacking data values.
-	vector<string> vsRegion;
-	vsRegion.assign(mapRegion.size(), "");
-	int indexTable = wjrPDFmap->jpdf.addTable(2, vsRegion, (double)tableFontSize + 4.0, "Geographic Regions", (double)tableFontSize + 2.0);
-	vector<vector<int>> vvColour = { { 1, 1 }, { 2, 2 } };  // White, grey alternating.
+	int numRow = mapRegion.size() / numCol;
+	if (mapRegion.size() % numCol > 0) { numRow++; }
+	vector<double> vRowHeight;
+	vRowHeight.assign(numRow, (double)(tableFontSize + (2 * cellPadding)));
+	int indexTable = wjrPDFmap->jpdf.addTable(numCol, vRowHeight, "Geographic Regions", (double)(tableFontSize + 2));
+	vector<vector<int>> vvColour(2, vector<int>());  // Alternating white and grey.
+	vvColour[0].assign(numCol, 1);
+	vvColour[1].assign(numCol, 2);
 	wjrPDFmap->jpdf.vTable[indexTable].setColourBackground(vvColour);
 	vector<vector<double>> regionBLTR = wjrPDFmap->jpdf.vTable[indexTable].drawTable();
 	wjrPDFmap->jpdf.cursor[0] = regionBLTR[0][0];
 	wjrPDFmap->jpdf.cursor[1] = regionBLTR[1][1];
-	//wjrPDFmap->jpdf.sectionListBoxed("Geographic Regions", vsRegion, vColour, 2);
 
 	// Convert the raw coordinate data into an HPDF-friendly format.
 	vector<vector<vector<double>>> vvvdBorder = borderKMToBorderPDF();
-	vector<double> activeData = prepareActiveData();
-	unordered_map<string, double> mapRegionData;
-	for (int ii = 0; ii < mapRegion.size(); ii++)
-	{
-		mapRegionData.emplace(mapRegion[ii], activeData[ii]);
-	}
+	int indexDataset = jScaleBar->getActiveIndex();
+	if (indexDataset < 0) { jf.err("jScaleBar missing initialization-wjdownload.displayPDFmap"); }
+	unordered_map<string, double> mapRegionData = jScaleBar->getMapDatasetLabel(mapRegion, indexDataset);
 
 	// Insert data and region names into the region section.
 	vector<string> vsValue(mapRegion.size());
 	string suffix;
 	double dVal;
+	vector<string> vsRegion;
 	vsRegion.assign(mapRegion.begin() + 1, mapRegion.end());
 	jf.sortAlphabetically(vsRegion);
 	if (displayData.size() > 1 || sUnit[0] == '%')
 	{
 		suffix = " %";
-		vsValue[0] = jf.doubleToCommaString(activeData[0], 1) + suffix;
+		dVal = mapRegionData.at(mapRegion[0]);
+		vsValue[0] = jf.doubleToCommaString(dVal, 1) + suffix;
 		for (int ii = 0; ii < vsRegion.size(); ii++)
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
@@ -155,7 +246,8 @@ void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChange
 	else if (sUnit[0] == '$')
 	{
 		suffix = " $";
-		vsValue[0] = jf.doubleToCommaString(activeData[0], 0) + suffix;
+		dVal = mapRegionData.at(mapRegion[0]);
+		vsValue[0] = jf.doubleToCommaString(dVal, 0) + suffix;
 		for (int ii = 0; ii < vsRegion.size(); ii++)
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
@@ -164,7 +256,8 @@ void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChange
 	}
 	else 
 	{ 
-		vsValue[0] = jf.doubleToCommaString(activeData[0], 0);
+		dVal = mapRegionData.at(mapRegion[0]);
+		vsValue[0] = jf.doubleToCommaString(dVal, 0) + suffix;
 		for (int ii = 0; ii < vsRegion.size(); ii++)
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
@@ -172,17 +265,17 @@ void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChange
 		}
 	}
 	vsRegion.insert(vsRegion.begin(), mapRegion[0]);
-	wjrPDFmap->jpdf.vTable[indexTable].addValues(vsValue);
-	wjrPDFmap->jpdf.vTable[indexTable].drawValues(0);
+	wjrPDFmap->jpdf.vTable[indexTable].addText(vsValue, tableFontSize);
+	wjrPDFmap->jpdf.vTable[indexTable].drawText(0);
 	wjrPDFmap->jpdf.vTable[indexTable].drawColSplit();
-	wjrPDFmap->jpdf.vTable[indexTable].addValues(vsRegion);
-	wjrPDFmap->jpdf.vTable[indexTable].drawValues(1);
+	wjrPDFmap->jpdf.vTable[indexTable].addText(vsRegion, tableFontSize);
+	wjrPDFmap->jpdf.vTable[indexTable].drawText(1);
 
 	// Render the legend bar(s).
-	drawLegend(activeData);
+	vector<vector<double>> tickValues = drawLegend(indexDataset);  // Form [child bar, parent bar][tick values].
 
 	// Render the given regions using the data as colour.
-	vector<vector<double>> mapColour = getMapColour(activeData);
+	vector<vector<double>> mapColour = jScaleBar->getDatasetColour(keyColour, tickValues[0], indexDataset);
 	drawMap(vvvdBorder, mapColour);
 
 	// Preview screen ... ?
@@ -205,7 +298,7 @@ void WJDOWNLOAD::downloadSettings(int mode)
 	previewSignal_.emit(selectedMode);
 
 }
-void WJDOWNLOAD::drawLegend(vector<double>& activeData)
+vector<vector<double>> WJDOWNLOAD::drawLegend(int indexDataset)
 {
 	if (sUnit.size() < 1) { jf.err("No unit initialized-wtpaint.paintLegendBar"); }
 	double width = barBLTR[1][0] - barBLTR[0][0];
@@ -217,7 +310,22 @@ void WJDOWNLOAD::drawLegend(vector<double>& activeData)
 	if (height > width) { barVertical = 1; }
 	bool gameOn = 1;
 
-	vector<vector<double>> legendTickMarks = getScaleValues(activeData, numColour);  // Form [child bar, parent bar][ticks].
+	vector<vector<double>> legendTickMarks;  // Form [child bar, parent bar][ticks].
+	if (legendBarDouble == 1) 
+	{ 
+		legendTickMarks.resize(2, vector<double>()); 
+		legendTickMarks[0] = jScaleBar->getTickValues(indexDataset, numColour, { 0 });  // Exclude the parent region.
+		legendTickMarks[1].resize(4);
+		legendTickMarks[1][0] = legendTickMarks[0][0];
+		legendTickMarks[1][1] = legendTickMarks[0][legendTickMarks[0].size() - 1];
+		legendTickMarks[1][2] = jScaleBar->getDatasetValue(indexDataset, 0);
+		legendTickMarks[1][3] = mf.roundingCeil(legendTickMarks[1][2]);
+	}
+	else 
+	{ 
+		legendTickMarks.resize(1, vector<double>()); 
+		legendTickMarks[0] = jScaleBar->getTickValues(indexDataset, numColour);
+	}
 	legendMin = legendTickMarks[0][0];
 	legendMax = legendTickMarks[0][legendTickMarks[0].size() - 1];
 
@@ -232,11 +340,19 @@ void WJDOWNLOAD::drawLegend(vector<double>& activeData)
 	else
 	{
 		rectBLTR[0][0] = barBLTR[0][0] + barThickness;
-		rectBLTR[1][1] = barBLTR[1][1] - (2.0 * barNumberHeight) - (0.5 * barThickness);
+		rectBLTR[1][1] = barBLTR[1][1] - ((double)legendTickLines * barNumberHeight) - (0.5 * barThickness);
 		rectBLTR[1][0] = barBLTR[1][0] - barThickness;
 		rectBLTR[0][1] = rectBLTR[1][1] - barThickness;
 	}
-	drawGradientBar(rectBLTR, 2.0);
+
+	if (legendMin != legendMax) { drawGradientBar(rectBLTR, 2.0); }
+	else 
+	{ 
+		vector<vector<double>> colour(2, vector<double>());
+		colour[0] = { 0.0, 0.0, 0.0 };
+		colour[1] = extraColour;
+		wjrPDFmap->jpdf.drawRect(rectBLTR, colour, 2.0);
+	}
 	drawLegendTicks(rectBLTR, legendTickMarks[0], 2.0);
 
 	if (legendBarDouble == 1)
@@ -270,8 +386,10 @@ void WJDOWNLOAD::drawLegend(vector<double>& activeData)
 	else if (legendBarDouble == 2)
 	{
 		double dotRadius = (barThickness - 6.0) / 2.0;
-		drawLegendTicks(rectBLTR, legendTickMarks[0], activeData[0], dotRadius, 2.0);
+		drawLegendTicks(rectBLTR, legendTickMarks[0], jScaleBar->getDatasetValue(indexDataset, 0), dotRadius, 2.0);
 	}
+
+	return legendTickMarks;
 }
 void WJDOWNLOAD::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>& tickValues, double tickThickness)
 {
@@ -661,10 +779,18 @@ void WJDOWNLOAD::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>
 	}
 	wjrPDFmap->jpdf.drawCircle(dot, dotRadius, { black, black }, 2.0);
 	wjrPDFmap->jpdf.drawLine(startStop, black, 2.0);
-	wjrPDFmap->jpdf.textBox(textBLTR, mapRegion[0], alignment, legendFontSize);
-	textBLTR[0][1] -= barNumberHeight;
-	textBLTR[1][1] -= barNumberHeight;
-	wjrPDFmap->jpdf.textBox(textBLTR, displayUnit, alignment, legendFontSize); 
+	if (legendTickLines == 1)
+	{
+		temp = mapRegion[0] + displayUnit;
+		wjrPDFmap->jpdf.textBox(textBLTR, temp, alignment, legendFontSize);
+	}
+	else
+	{
+		wjrPDFmap->jpdf.textBox(textBLTR, mapRegion[0], alignment, legendFontSize);
+		textBLTR[0][1] -= barNumberHeight;
+		textBLTR[1][1] -= barNumberHeight;
+		wjrPDFmap->jpdf.textBox(textBLTR, displayUnit, alignment, legendFontSize);
+	}
 }
 void WJDOWNLOAD::drawGradientBar(vector<vector<double>> rectBLTR, double frameThickness)
 {
@@ -760,62 +886,6 @@ int WJDOWNLOAD::getLegendTickLines(string sUnit)
 	if (sUnit == "$" || sUnit == "%") { return 1; }
 	else { return 2; }
 }
-vector<vector<double>> WJDOWNLOAD::getMapColour(vector<double>& activeData)
-{
-	int floor, indexBegin;
-	int numRegion = activeData.size();
-	vector<vector<double>> vColour(numRegion, vector<double>(3));
-	if (legendBarDouble == 1)
-	{
-		vColour[0] = { 1.0, 1.0, 1.0 };  // Parent.
-		indexBegin = 1;
-	}
-	else { indexBegin = 0; }
-
-	double dR, dG, dB, dVal, percentage, remains;
-	if (legendMin == legendMax)  // Every data point is identical ! 
-	{
-		dVal = activeData[0];
-		if (dVal == -1.0)  // Data is missing, so draw as grey.
-		{
-			for (int ii = indexBegin; ii < numRegion; ii++)
-			{
-				vColour[ii] = unknownColour;
-			}
-		}
-		else  // There is data, but it's all the same...
-		{
-			for (int ii = indexBegin; ii < numRegion; ii++)
-			{
-				vColour[ii] = extraColour;
-			}
-		}
-		return vColour;
-	}
-
-	for (int ii = indexBegin; ii < numRegion; ii++)
-	{
-		dVal = activeData[ii];
-		if (dVal == -1.0)  // Data is missing, so draw as grey.
-		{
-			vColour[ii] = unknownColour;
-			continue;
-		}
-		percentage = (dVal - legendMin) / (legendMax - legendMin);
-		if (percentage > 0.9999) { percentage = 0.9999; }
-		percentage *= (double)(keyColour.size() - 1);
-		floor = int(percentage);
-		remains = percentage - (double)floor;
-		dR = (keyColour[floor + 1][0] - keyColour[floor][0]) * remains;
-		dG = (keyColour[floor + 1][1] - keyColour[floor][1]) * remains;
-		dB = (keyColour[floor + 1][2] - keyColour[floor][2]) * remains;
-		vColour[ii][0] = keyColour[floor][0] + dR;
-		vColour[ii][1] = keyColour[floor][1] + dG;
-		vColour[ii][2] = keyColour[floor][2] + dB;
-	}
-
-	return vColour;
-}
 int WJDOWNLOAD::getRadioIndex()
 {
 	int index = -1;
@@ -824,213 +894,6 @@ int WJDOWNLOAD::getRadioIndex()
 		index = wbGroup->checkedId();
 	}
 	return index;
-}
-vector<vector<double>> WJDOWNLOAD::getScaleValues(vector<double>& activeData, int numTicks)
-{
-	// Despite returning doubles, this function tries to return whole numbers if possible.
-	vector<vector<double>> ticks(1, vector<double>(numTicks));
-	vector<double> activeDataChildren;
-	vector<int> indexMinMax;
-	int iMinScale, iMaxScale, minDivisor, divisor, quotient, remainder, iScaleWidth;
-	double dMin = -1.0, dMax = -1.0;
-	if (legendBarDouble == 0 || legendBarDouble == 2)
-	{
-		indexMinMax = jf.minMax(activeData);
-		dMin = activeData[indexMinMax[0]];
-		dMax = activeData[indexMinMax[1]];
-	}
-	else if (legendBarDouble == 1)  // Form [child bar, parent bar][ticks].
-	{
-		ticks.resize(2);
-		ticks[1].resize(4);  // Form [child bar min, child bar max, parent, parent bar max].
-		activeDataChildren.assign(activeData.begin() + 1, activeData.end());
-		indexMinMax = jf.minMax(activeDataChildren);
-		dMin = activeDataChildren[indexMinMax[0]];
-		dMax = activeDataChildren[indexMinMax[1]];
-	}
-	else { jf.err("Missing legendBarDouble.wjdownload.getScaleValues"); }
-
-	if (dMin < 0.0) { dMin = 0.0; }
-	if (dMax < 0.0) { dMax = 0.0; }
-	int iMin = floor(dMin);
-	int iMax = ceil(dMax);
-
-	int iNum = iMin;
-	int minDigits = 1;
-	while (1)
-	{
-		iNum /= 10;
-		if (iNum > 0) { minDigits++; }
-		else { break; }
-	}
-	iNum = iMax;
-	int maxDigits = 1;
-	while (1)
-	{
-		iNum /= 10;
-		if (iNum > 0) { maxDigits++; }
-		else { break; }
-	}
-
-	string sMin = "1";
-	for (int ii = 0; ii < minDigits - 1; ii++)
-	{
-		sMin += "0";
-	}
-	minDivisor = stoi(sMin);
-	string sMax = "1";
-	for (int ii = 0; ii < maxDigits - 1; ii++)
-	{
-		sMax += "0";
-	}
-	divisor = stoi(sMax);
-
-	double idle = 1.0;
-	do
-	{
-		quotient = iMin / minDivisor;
-		iMinScale = quotient * minDivisor;
-
-		quotient = iMax / divisor;
-		remainder = iMax % divisor;
-		if (remainder != 0) { quotient++; }
-		iMaxScale = quotient * divisor;
-
-		idle = 1.0 - ((double)(iMax - iMin) / (double)(iMaxScale - iMinScale));
-		if (minDivisor <= 2 && divisor <= 2)
-		{
-			iMaxScale = iMax;
-			iMinScale = iMin;
-			break;
-		}
-		else if (minDivisor > 2) { minDivisor /= 2; }
-		else if (divisor > 2) { divisor /= 2; }
-	} while (idle > legendIdleThreshold);
-
-	if (maxDigits > minDigits + 1) { iMinScale = 0; }
-
-	int iBandWidth = (iMaxScale - iMinScale) / (numTicks - 1);
-	int remainderAsIs = iMaxScale - ((numTicks - 1) * iBandWidth) - iMinScale;
-	if (iBandWidth == 0)
-	{
-		double dBandWidth = (double)(iMaxScale - iMinScale) / (double)(numTicks - 1);
-		for (int ii = 1; ii < numTicks - 1; ii++)
-		{
-			ticks[0][ii] = ((double)ii * dBandWidth) + (double)iMinScale;
-		}
-	}
-	else if (iMinScale == 0)
-	{
-		iMaxScale -= remainderAsIs;
-		for (int ii = 1; ii < numTicks - 1; ii++)
-		{
-			ticks[0][ii] = (double)(ii * iBandWidth);
-		}
-	}
-	else
-	{
-		if (iBandWidth > iMinScale)
-		{
-			iNum = iBandWidth / iMinScale;
-			int lowScale = iNum * iMinScale;
-			int highScale = (iNum + 1) * iMinScale;
-			if (abs(iBandWidth - lowScale) < abs(iBandWidth - highScale)) { iScaleWidth = lowScale; }
-			else { iScaleWidth = highScale; }
-		}
-		else { iScaleWidth = iBandWidth; }
-		int maxDist, minDist;
-		remainderAsIs = iMaxScale - ((numTicks - 1) * iScaleWidth) - iMinScale;
-		if (remainderAsIs > 0)  // Scale bar is too long.
-		{
-			maxDist = iMaxScale - iMax;
-			minDist = iMin - iMinScale;
-			while (maxDist > minDist && remainderAsIs > 0)
-			{
-				iMaxScale--;
-				remainderAsIs--;
-				maxDist--;
-			}
-			while (maxDist < minDist && remainderAsIs > 0)
-			{
-				iMinScale++;
-				remainderAsIs--;
-				minDist--;
-			}
-			if (remainderAsIs > 0)
-			{
-				iMinScale += remainderAsIs / 2;
-				iMaxScale -= remainderAsIs / 2;
-				iMaxScale -= remainderAsIs % 2;
-			}
-		}
-		else if (remainderAsIs < 0)  // Scale bar is too short.
-		{
-			if (iMinScale == 0) { iMaxScale -= remainderAsIs; }
-			else if (iMaxScale == 100) { iMinScale += remainderAsIs; }
-			else
-			{
-				maxDist = iMaxScale - iMax;
-				minDist = iMin - iMinScale;
-				while (maxDist > minDist && remainderAsIs < 0)
-				{
-					iMinScale--;
-					remainderAsIs++;
-					minDist++;
-				}
-				while (maxDist < minDist && remainderAsIs < 0)
-				{
-					iMaxScale++;
-					remainderAsIs++;
-					maxDist++;
-				}
-				if (remainderAsIs < 0)
-				{
-					iMinScale -= remainderAsIs / 2;
-					iMaxScale += remainderAsIs / 2;
-					iMaxScale += remainderAsIs % 2;
-				}
-			}
-
-			if (iMinScale < 0)
-			{
-				iMaxScale -= iMinScale;
-				iMinScale = 0;
-			}
-		}
-		for (int ii = 1; ii < numTicks - 1; ii++)
-		{
-			ticks[0][ii] = (double)((ii * iScaleWidth) + iMinScale);
-		}
-	}
-	ticks[0][0] = (double)iMinScale;
-	ticks[0][numTicks - 1] = (double)iMaxScale;
-	if (legendBarDouble == 0 || legendBarDouble == 2) { return ticks; }
-
-	ticks[1][0] = ticks[0][0];
-	ticks[1][1] = ticks[0][numTicks - 1];
-
-	double dMaxParent = activeData[0];
-	ticks[1][2] = ceil(dMaxParent);
-	iNum = (int)ticks[1][2];
-	maxDigits = 1;
-	while (1)
-	{
-		iNum /= 10;
-		if (iNum > 0) { maxDigits++; }
-		else { break; }
-	}
-
-	string sMaxParent = "1";
-	for (int ii = 0; ii < maxDigits - 1; ii++)
-	{
-		sMaxParent += "0";
-	}
-	divisor = stoi(sMaxParent);
-	quotient = (int)ticks[1][2] / divisor;
-	quotient++;
-	ticks[1][3] = (double)(quotient * divisor);
-
-	return ticks;
 }
 void WJDOWNLOAD::init()
 {
@@ -1183,10 +1046,8 @@ void WJDOWNLOAD::initMap(vector<string>& region, vector<vector<vector<double>>>&
 	mapFrame = frame;
 	mapBorder = border;
 	auto scaleBar = make_unique<JSCALEBAR>();
-	for (int ii = 0; ii < data.size(); ii++)
-	{
-		scaleBar->addDataset(data[ii], )
-	}
+	scaleBar->addDataset(data);
+	swap(scaleBar, jScaleBar);
 }
 Wt::WString WJDOWNLOAD::initStyleCSS(shared_ptr<Wt::WMemoryResource>& wmrCSS)
 {
@@ -1289,27 +1150,6 @@ shared_ptr<WJRPDF> WJDOWNLOAD::makeWJRPDF()
 	initJPDF(pdfTemp->jpdf);  // Font.
 	return pdfTemp;
 }
-vector<double> WJDOWNLOAD::prepareActiveData()
-{
-	if (displayData.size() < 1) { jf.err("Missing displayData-wjdownload.prepareActiveData"); }
-	size_t numRegion = mapRegion.size();
-	if (numRegion != mapData[0].size()) { jf.err("Area size mismatch-wjdownload.prepareActiveData"); }
-	vector<double> activeData;
-	if (displayData.size() > 1) { activeData = processPercent(); }
-	else { activeData = mapData[0]; }
-	return activeData;
-}
-vector<double> WJDOWNLOAD::processPercent()
-{
-	if (displayData.size() > mapData.size()) { jf.err("Parameter mismatch-wjdownload.processPercent"); }
-	int dataSize = mapData[displayData[0]].size();
-	vector<double> vdPercent(dataSize);
-	for (int ii = 0; ii < dataSize; ii++)
-	{
-		vdPercent[ii] = 100.0 * mapData[displayData[0]][ii] / mapData[displayData[1]][ii];
-	}
-	return vdPercent;
-}
 void WJDOWNLOAD::scaleChildToPage(vector<vector<double>>& vvdBorder, vector<vector<double>>& vvdFrame)
 {
 	if (pdfPPKM <= 0.0) { jf.err("Missing pdfPPKM-wjdownload.scaleChildToPage"); }
@@ -1342,6 +1182,23 @@ void WJDOWNLOAD::setUnit(string unit, vector<int> viIndex)
 	displayData = viIndex;
 	legendBarDouble = getLegendBarDouble(mapRegion, unit, viIndex.size());
 	legendTickLines = getLegendTickLines(unit);
+	int index;
+	if (displayData.size() > 1)
+	{
+		index = jScaleBar->makeDataset(displayData, '/');
+	}
+	else 
+	{ 
+		index = displayData[0]; 
+	}
+	if (sUnit[0] == '%')
+	{
+		jScaleBar->setUnit(index, sUnit, 1);
+	}
+	else
+	{
+		jScaleBar->setUnit(index, sUnit, 0);
+	}
 }
 Wt::WString WJDOWNLOAD::stringToHTML(string& sLine)
 {
@@ -1360,6 +1217,9 @@ void WJDOWNLOAD::updateStackedPB(int index)
 	auto pbUnique = make_unique<Wt::WPushButton>();
 	switch (index)
 	{
+	case 1:
+		pbUnique->setLink(Wt::WLink(wjrPDFbargraph));
+		break;
 	case 2:
 		pbUnique->setLink(Wt::WLink(wjrPDFmap));
 		break;
