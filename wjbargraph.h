@@ -80,6 +80,9 @@ public:
 	void configureChart();
 	void display();
 	void getParameterAll(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText);
+	vector<double> getMinMaxY();
+	vector<vector<string>> getModelValues();
+	int getNumSeries() { return vDataset.size(); }
 	vector<Wt::WColor> getSeriesColour();
 	unique_ptr<Wt::Chart::WCartesianChart> makeChart();
 	unique_ptr<WJPARAMPANEL> makeWJPP(WJPARAMPANEL*& wjpp, string sTitle, vector<Wt::WColor>& seriesColour);

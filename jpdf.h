@@ -1,7 +1,7 @@
 #pragma once
 #define HPDF_DLL
 #include <hpdf.h>
-#include "jfunc.h"
+#include "mathfunc.h"
 
 using namespace std;
 namespace
@@ -12,23 +12,61 @@ namespace
     }
 }
 
+class JPDFBARGRAPH
+{
+    const vector<vector<double>> bargraphBLTR;  // Maximum area accorded to the bar graph.
+    vector<double> black = { 0.0, 0.0, 0.0 };
+    HPDF_Font font;
+    JFUNC jf;
+    HPDF_Page& page;
+    MATHFUNC mf;
+    string sUnit;
+    vector<vector<double>> vRegionData;  // Form [indexRegion][series0, series1, ...]
+    vector<string> xValues;
+
+public:
+    JPDFBARGRAPH(HPDF_Page& pageRef, HPDF_Font& barFont, vector<vector<double>>& bltr) 
+        : page(pageRef), font(barFont), bargraphBLTR(bltr) {}
+    ~JPDFBARGRAPH() {}
+
+    vector<vector<double>> dataBLTR, xAxisBLTR, yAxisBLTR;
+    double fontSize = 12.0;
+    double lineThickness = 2.0;
+    double padding = 2.0;
+    double tickLength = 7.0;
+
+    void addRegionData(int indexRegion, vector<double>& regionData);
+    void addValuesX(vector<string>& vsValue, double rotationDeg);
+    void drawAxis(vector<vector<double>> startStop, vector<double> vTick, vector<double> colour, double thickness);
+    void drawAxisX(vector<string>& vsValue, double rotationDeg);
+    void drawAxisY(vector<double>& minMax, string unit);
+    void drawData(vector<vector<double>>& seriesColour);
+    void drawLine(vector<vector<double>> startStop, vector<double> colour, double thickness);
+    void textBox(vector<vector<double>> boxBLTR, string sText, string alignment, int fontsize);
+};
+
 struct JPDFCELL
 {
     string alignment = "left";
     vector<double> backgroundColour;
+    const vector<vector<double>> cellBLTR;  // For the entire cell.
     HPDF_Font font, fontItalic;
-    vector<double> vFontSize;
     double padding = 2.0;
     int rowIndex, colIndex;
+    vector<double> splitPos;            // List of xCoords where a column split exists.
     vector<vector<double>> vBarColour;  // Form [bar index][r, g, b, a].
     vector<vector<vector<double>>> vBLTR;  // Form [value index][BL, TR][xCoord, yCoord]
     vector<string> vsText;
 
-    JPDFCELL() {}
+    JPDFCELL(vector<vector<double>> cBLTR) : cellBLTR(cBLTR) {}
     ~JPDFCELL() {}
 
     void drawCellBar(HPDF_Page& page, double barWidth, JFUNC& jf);
-    void drawCellText(HPDF_Page& page, int indexText, JFUNC& jf);
+    void drawCellText(HPDF_Page& page, string text, JFUNC& jf);
+    void drawCellTextItalic(HPDF_Page& page, int indexText, JFUNC& jf);
+    void drawCellTextItalic(HPDF_Page& page, string text, JFUNC& jf);
+    void drawCellTextPlain(HPDF_Page& page, int indexText, JFUNC& jf);
+    void drawCellTextPlain(HPDF_Page& page, string text, JFUNC& jf);
     double getMaxFontHeight();
 };
 
@@ -63,9 +101,9 @@ public:
     HPDF_Font fontItalic, fontTitle;
 
     void addColourBars(vector<vector<double>>& vColour, int iRow, int iCol);
-    void addText(vector<string>& vsText, int fontSize);
-    void addText(string& text, int iRow, int iCol, int fontSize);
-    void addTextList(vector<string>& vsText, int iRow, int iCol, int fontSize);
+    void addText(vector<string>& vsText);
+    void addText(string& text, int iRow, int iCol);
+    void addTextList(vector<string>& vsText, int iRow, int iCol);
     void drawBackgroundColour();
     void drawColourBars(int barWidth);
     void drawColSplit();
@@ -74,9 +112,10 @@ public:
     void drawRect(vector<vector<double>> rectBLTR, vector<double> colour, double thickness);
     vector<vector<double>> drawTable();
     void drawText(int index);
+    void drawTextListItalic(int italicFreq);
     void drawTitle();
     void setColourBackground(vector<vector<int>> vvColourIndex);
-    void setRowCol(int row, int col, vector<double>& vRowHeight);
+    void setRowCol(vector<int>& vNumLine, vector<double>& vRowHeight, int numCol);
 };
 
 class JPDF
@@ -96,9 +135,11 @@ public:
 
     vector<double> cursor;  // Form [xCoord, yCoord]. 
     double margin = 50.0;
+    vector<JPDFBARGRAPH> vBarGraph;
     vector<JPDFTABLE> vTable;
 
-    int addTable(int numCol, vector<double> vRowHeight, string title, double fontSizeTitle);
+    int addBarGraph(vector<vector<double>>& bargraphBLTR);
+    int addTable(int numCol, vector<int> vNumLine, vector<double> vRowHeight, string title, double fontSizeTitle);
     float breakListFitWidth(vector<string>& vsList, float textWidth, vector<vector<string>>& vvsList);
     void drawCircle(vector<double> coordCenter, double radius, vector<double> colour, double thickness);
     void drawCircle(vector<double> coordCenter, double radius, vector<vector<double>> vColour, double thickness);
@@ -111,7 +152,7 @@ public:
     bool hasFont();
     vector<double> getPageDimensions();
     HPDF_UINT32 getPDF(string& sPDF);
-    int getNumLines(string& text, double width);
+    int getNumLines(vector<string>& vsText, double width, int iFontHeight);
     void init();
     void initColour();
     void parameterSectionBottom(vector<string>& vsParameter, vector<int>& vColour);

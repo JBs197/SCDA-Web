@@ -131,8 +131,7 @@ void WJBARGRAPH::addDataset(vector<vector<string>>& vvsData, vector<string>& vsP
 		for (int ii = 0; ii < numRegion; ii++)
 		{
 			index = mapIndexRegion.at(vvsData[ii][0]);
-			if (index != ii) { jf.err("Region-data mismatch-wjbargraph.addDataset"); }
-			wjds.vsData[ii] = vvsData[ii][1];
+			wjds.vsData[index] = vvsData[ii][1];
 		}
 	}
 	wjds.vsParameter = vsParam;
@@ -408,6 +407,35 @@ void WJBARGRAPH::getParameterAll(vector<vector<double>>& seriesColour, vector<ve
 			indexRow++;
 		}
 	}
+}
+vector<double> WJBARGRAPH::getMinMaxY()
+{
+	vector<double> minMax(2, -1.0);
+	if (chart == nullptr) { return minMax; }
+	Wt::Chart::WAxis& yAxis = chart->axis(Wt::Chart::Axis::Y);
+	minMax[0] = yAxis.minimum();
+	minMax[1] = yAxis.maximum();
+	return minMax;
+}
+vector<vector<string>> WJBARGRAPH::getModelValues()
+{
+	vector<vector<string>> data;
+	if (model == nullptr) { return data; }
+	Wt::WStandardItem* wsItem = nullptr;
+	Wt::WString wsTemp;
+	int numRow = model->rowCount();
+	int numCol = model->columnCount();
+	data.resize(numRow, vector<string>(numCol));
+	for (int ii = 0; ii < numRow; ii++)
+	{
+		for (int jj = 0; jj < numCol; jj++)
+		{
+			wsItem = model->item(ii, jj);
+			wsTemp = wsItem->text();
+			data[ii][jj] = wsTemp.toUTF8();
+		}
+	}
+	return data;
 }
 vector<Wt::WColor> WJBARGRAPH::getSeriesColour()
 {

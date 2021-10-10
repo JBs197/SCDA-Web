@@ -68,7 +68,7 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	vector<string> mapRegion;
 	MATHFUNC mf;
 	double pdfPPKM;
-	const int numDLtypes = 4;
+	const int numDLtypes = 3;
 	Wt::Signal<int> previewSignal_;
 	int selectedMode = -1, selIndex = -1;
 	Wt::WStackedWidget *stackedPB, *stackedPreview;
@@ -80,7 +80,9 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	vector<Wt::WColor> vToolColour;
 	shared_ptr<Wt::WButtonGroup> wbGroup = nullptr;
 	shared_ptr<WJRCSV> wjrCSV = nullptr;
-	shared_ptr<WJRPDF> wjrPDFbargraph = nullptr, wjrPDFmap = nullptr;
+	shared_ptr<WJRPDF> wjrPDFall = nullptr;
+	shared_ptr<WJRPDF> wjrPDFbargraph = nullptr;
+	shared_ptr<WJRPDF> wjrPDFmap = nullptr;
 	WTPAINT* wpPreview = nullptr;
 
 public:
@@ -99,7 +101,7 @@ public:
 	void displaceChildToParent(vector<vector<double>>& vvdBorder, vector<vector<double>>& childFrame, vector<double> dispTL);
 	void displaceParentToFrame(vector<vector<double>>& parentBorderKM, vector<vector<double>>& parentFrameKM);
 	void displayCSV(string& sCSV);
-	void displayPDFbargraph(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText);
+	void displayPDFbargraph(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText, string unit, vector<vector<string>>& modelData, vector<double> minMaxY);
 	void displayPDFmap(vector<string>& vsParameter, vector<int>& vChanged);
 	void downloadSettings(int mode);
 	vector<vector<double>> drawLegend(int indexDataset);

@@ -134,23 +134,26 @@ void SCDAwidget::incomingPreviewSignal(const int& type)
 {
 	switch (type)
 	{
-	case 1:
+	case 0:
 	{
 		vector<vector<double>> barGraphColour;
 		vector<vector<vector<int>>> barGraphParameterColour(3, vector<vector<int>>());
 		vector<vector<vector<string>>> barGraphParameterText(3, vector<vector<string>>());
 		wjBarGraph->getParameterAll(barGraphColour, barGraphParameterColour, barGraphParameterText);
-		wjDownload->displayPDFbargraph(barGraphColour, barGraphParameterColour, barGraphParameterText);
+		vector<vector<string>> modelData = wjBarGraph->getModelValues();
+		string sUnit = wjBarGraph->unit;
+		vector<double> minMaxY = wjBarGraph->getMinMaxY();
+		wjDownload->displayPDFbargraph(barGraphColour, barGraphParameterColour, barGraphParameterText, sUnit, modelData, minMaxY);
 		break;
 	}
-	case 2:
+	case 1:
 	{
 		vector<int> vChanged;
 		vector<string> vsParameter = wjConfig->getTextLegend(vChanged);
 		wjDownload->displayPDFmap(vsParameter, vChanged);
 		break;
 	}
-	case 3:
+	case 2:
 	{
 		string tableCSV = wjTableBox->makeCSV();
 		wjDownload->displayCSV(tableCSV);
@@ -934,7 +937,7 @@ void SCDAwidget::resetTree()
 void SCDAwidget::seriesAddToGraph()
 {
 	Wt::WString wsTemp;
-	string temp;
+	string parentRegion, temp;
 	if (activeCata != wjBarGraph->activeCata)
 	{
 		wjBarGraph->reset();
@@ -962,6 +965,23 @@ void SCDAwidget::seriesAddToGraph()
 
 	vector<vector<string>> vvsData = wtMap->getGraphData();
 	vector<string> vsParameter = wjConfig->getTextLegend();
+	int numSeries = wjBarGraph->getNumSeries();
+	if (numSeries == 0)
+	{
+		parentRegion = tableData->getCell(-1, 0);
+		vector<string> parentRow;
+		for (int ii = 0; ii < vvsData.size(); ii++)
+		{
+			if (vvsData[ii][0] == parentRegion)
+			{
+				parentRow = vvsData[ii];
+				vvsData.erase(vvsData.begin() + ii);
+				jf.sortAlphabetically(vvsData, 0);
+				vvsData.insert(vvsData.begin(), parentRow);
+				break;
+			}
+		}
+	}
 	wjBarGraph->addDataset(vvsData, vsParameter);
 	wjBarGraph->display();
 

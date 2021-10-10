@@ -91,7 +91,7 @@ void WJDOWNLOAD::displayCSV(string& sCSV)
 
 	updateStackedPB(selectedMode);
 }
-void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText)
+void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText, string unit, vector<vector<string>>& modelData, vector<double> minMaxY)
 {
 	// Render the active bar graph and its parameter panels on a single page. 
 	if (wjrPDFbargraph != nullptr) { wjrPDFbargraph.reset(); }
@@ -100,11 +100,12 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 	int cellPadding = 2;
 	wjrPDFbargraph->jpdf.setFontSize(tableFontSize);
 	int parameterColourWidth = 8;
+	double xLabelRotation = 30.0;  // Degrees
 
 	// Firstly, render the parameter panels at the bottom.
 	int indexTable, maxBar, numRow, spaceUsed;
 	vector<int> vNumLine;
-	string sTitle, temp;
+	string sTitle;
 	double textWidth;
 	vector<double> vRowHeight;
 	vector<vector<double>> panelBLTR, vColourBar;
@@ -140,17 +141,11 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 		vNumLine.resize(numRow);
 		for (int jj = 0; jj < numRow; jj++)
 		{
-			temp.clear();
-			for (int kk = 0; kk < panelText[ii][jj].size(); kk++)
-			{
-				if (kk > 0) { temp += " | "; }
-				temp += panelText[ii][jj][kk];
-			}
-			vNumLine[jj] = wjrPDFbargraph->jpdf.getNumLines(temp, textWidth);
+			vNumLine[jj] = wjrPDFbargraph->jpdf.getNumLines(panelText[ii][jj], textWidth, tableFontSize);
 			vRowHeight[jj] = (double)((tableFontSize + (2 * cellPadding)) * vNumLine[jj]);
 		}
 
-		indexTable = wjrPDFbargraph->jpdf.addTable(1, vRowHeight, sTitle, (double)(tableFontSize + 2));
+		indexTable = wjrPDFbargraph->jpdf.addTable(1, vNumLine, vRowHeight, sTitle, (double)(tableFontSize + 2));
 		wjrPDFbargraph->jpdf.vTable[indexTable].setColourBackground(vvColour);
 		panelBLTR = wjrPDFbargraph->jpdf.vTable[indexTable].drawTable();
 
@@ -168,12 +163,40 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 
 		for (int jj = 0; jj < panelText[ii].size(); jj++)
 		{
-			wjrPDFbargraph->jpdf.vTable[indexTable].addTextList(panelText[ii][jj], jj, 0, tableFontSize);
+			wjrPDFbargraph->jpdf.vTable[indexTable].addTextList(panelText[ii][jj], jj, 0);
 		}
-
+		wjrPDFbargraph->jpdf.vTable[indexTable].drawTextListItalic(2);
 
 		wjrPDFbargraph->jpdf.cursor[1] += (panelBLTR[1][1] - panelBLTR[0][1]);
 	}
+
+	// Use the remaining space on the page to render the bar graph.
+	wjrPDFbargraph->jpdf.cursor[1] += (2.0 * (double)cellPadding);
+	vector<vector<double>> bargraphBLTR(2, vector<double>(2));
+	bargraphBLTR[0] = wjrPDFbargraph->jpdf.cursor;
+	bargraphBLTR[1][0] = bargraphBLTR[0][0] + pageDimensions[0];
+	bargraphBLTR[1][1] = wjrPDFbargraph->jpdf.margin + pageDimensions[1];
+	int indexBarGraph = wjrPDFbargraph->jpdf.addBarGraph(bargraphBLTR);
+	int numRegion = modelData.size();
+	vector<string> xValues(numRegion);
+	for (int ii = 0; ii < numRegion; ii++)
+	{
+		xValues[ii] = modelData[ii][0];
+	}
+	wjrPDFbargraph->jpdf.vBarGraph[indexBarGraph].addValuesX(xValues, xLabelRotation);
+	wjrPDFbargraph->jpdf.vBarGraph[indexBarGraph].drawAxisY(minMaxY, unit);
+	wjrPDFbargraph->jpdf.vBarGraph[indexBarGraph].drawAxisX(xValues, xLabelRotation);
+	int numSeries = modelData[0].size() - 1;
+	vector<double> regionData(numSeries);
+	for (int ii = 0; ii < numRegion; ii++)
+	{
+		for (int jj = 0; jj < numSeries; jj++)
+		{
+			regionData[jj] = (stod(modelData[ii][jj + 1]) - minMaxY[0]) / (minMaxY[1] - minMaxY[0]);
+		}
+		wjrPDFbargraph->jpdf.vBarGraph[indexBarGraph].addRegionData(ii, regionData);
+	}
+	wjrPDFbargraph->jpdf.vBarGraph[indexBarGraph].drawData(seriesColour);
 
 	// Preview screen ... ?
 	updateStackedPB(selectedMode);
@@ -210,7 +233,9 @@ void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChange
 	if (mapRegion.size() % numCol > 0) { numRow++; }
 	vector<double> vRowHeight;
 	vRowHeight.assign(numRow, (double)(tableFontSize + (2 * cellPadding)));
-	int indexTable = wjrPDFmap->jpdf.addTable(numCol, vRowHeight, "Geographic Regions", (double)(tableFontSize + 2));
+	vector<int> vNumLine;
+	vNumLine.assign(numRow, 1);
+	int indexTable = wjrPDFmap->jpdf.addTable(numCol, vNumLine, vRowHeight, "Geographic Regions", (double)(tableFontSize + 2));
 	vector<vector<int>> vvColour(2, vector<int>());  // Alternating white and grey.
 	vvColour[0].assign(numCol, 1);
 	vvColour[1].assign(numCol, 2);
@@ -265,10 +290,10 @@ void WJDOWNLOAD::displayPDFmap(vector<string>& vsParameter, vector<int>& vChange
 		}
 	}
 	vsRegion.insert(vsRegion.begin(), mapRegion[0]);
-	wjrPDFmap->jpdf.vTable[indexTable].addText(vsValue, tableFontSize);
+	wjrPDFmap->jpdf.vTable[indexTable].addText(vsValue);
 	wjrPDFmap->jpdf.vTable[indexTable].drawText(0);
 	wjrPDFmap->jpdf.vTable[indexTable].drawColSplit();
-	wjrPDFmap->jpdf.vTable[indexTable].addText(vsRegion, tableFontSize);
+	wjrPDFmap->jpdf.vTable[indexTable].addText(vsRegion);
 	wjrPDFmap->jpdf.vTable[indexTable].drawText(1);
 
 	// Render the legend bar(s).
@@ -1073,9 +1098,9 @@ unique_ptr<Wt::WContainerWidget> WJDOWNLOAD::makeDownloadBox()
 	swap(group, wbGroup);
 
 	Wt::WRadioButton* wrb = nullptr;
-	wrb = layout->addWidget(make_unique<Wt::WRadioButton>("All (PDF)"));
-	wrb->setInline(0);
-	wbGroup->addButton(wrb);
+	//wrb = layout->addWidget(make_unique<Wt::WRadioButton>("All (PDF)"));
+	//wrb->setInline(0);
+	//wbGroup->addButton(wrb);
 	wrb = layout->addWidget(make_unique<Wt::WRadioButton>("Bar Graph (PDF)"));
 	wrb->setInline(0);
 	wbGroup->addButton(wrb);
@@ -1217,13 +1242,13 @@ void WJDOWNLOAD::updateStackedPB(int index)
 	auto pbUnique = make_unique<Wt::WPushButton>();
 	switch (index)
 	{
-	case 1:
+	case 0:
 		pbUnique->setLink(Wt::WLink(wjrPDFbargraph));
 		break;
-	case 2:
+	case 1:
 		pbUnique->setLink(Wt::WLink(wjrPDFmap));
 		break;
-	case 3:
+	case 2:
 		pbUnique->setLink(Wt::WLink(wjrCSV));
 		break;
 	}	
