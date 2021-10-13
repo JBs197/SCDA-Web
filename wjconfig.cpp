@@ -190,24 +190,25 @@ int WJPANEL::getIndexMID(int mode)
 	}
 	return index;
 }
-string WJPANEL::getTextLegend()
+vector<string> WJPANEL::getTextLegend()
 {
-	// Return a string representing this panel's detailed parameter listing.
-	string sLegend, sTitle, temp;
+	// Return a list of segments representing this panel's detailed parameter listing.
+	vector<string> vsLegend(1);
+	string temp;
 	Wt::WString wsTemp;
 	if (boxMID->isHidden())
 	{
+		vsLegend.resize(2);
 		wsTemp = title();
-		sLegend = wsTemp.toUTF8() + " | ";
+		vsLegend[0] = wsTemp.toUTF8();
 		wsTemp = cbTitle->currentText();
-		sLegend += wsTemp.toUTF8();	
-		return sLegend;
+		vsLegend[1] = wsTemp.toUTF8();	
+		return vsLegend;
 	}
 	
 	size_t pos1;
 	wsTemp = cbTitle->currentText();
-	sTitle = wsTemp.toUTF8();
-	sLegend = sTitle;
+	vsLegend[0] = wsTemp.toUTF8();
 	int path, index = jtMID.selectedIndex;  // JTREE index.
 	vector<int> viAncestry = jtMID.treeSTanc[index];
 	viAncestry.push_back(index);
@@ -217,15 +218,15 @@ string WJPANEL::getTextLegend()
 		if (temp == "") { continue; }
 		while (temp[0] == '+') { temp.erase(temp.begin()); }
 		pos1 = temp.find("Total -");
-		if (pos1 > temp.size()) { sLegend += " | " + temp; }
+		if (pos1 > temp.size()) { vsLegend.push_back(temp); }
 		else
 		{
-			pos1 = temp.find(sTitle);
-			if (pos1 > temp.size()) { sLegend += " | " + temp; }
-			else { sLegend += " | Total"; }
+			pos1 = temp.find(vsLegend[0]);
+			if (pos1 > temp.size()) { vsLegend.push_back(temp); }
+			else { vsLegend.push_back("Total"); }
 		}
 	}
-	return sLegend;
+	return vsLegend;
 }
 void WJPANEL::init()
 {
@@ -947,13 +948,13 @@ void WJCONFIG::getPrompt(vector<string>& vsP1, vector<string>& vsP2, vector<int>
 	vsP2 = vsDIMtitle;
 	viP = viMID;
 }
-vector<string> WJCONFIG::getTextLegend()
+vector<vector<string>> WJCONFIG::getTextLegend()
 {
 	vector<int> viChanged;
-	vector<string> vsTextLegend = getTextLegend(viChanged);
-	return vsTextLegend;
+	vector<vector<string>> vvsTextLegend = getTextLegend(viChanged);
+	return vvsTextLegend;
 }
-vector<string> WJCONFIG::getTextLegend(vector<int>& viChanged)
+vector<vector<string>> WJCONFIG::getTextLegend(vector<int>& viChanged)
 {
 	// Read all the WJPANELs, and return a list of the displayed options. 
 	// If the user has changed a panel's MID value from its default, mark it TRUE.
@@ -961,26 +962,26 @@ vector<string> WJCONFIG::getTextLegend(vector<int>& viChanged)
 	if (wjpDemo != nullptr) { numParam++; }
 
 	int index = 0;
-	vector<string> vsLegend(numParam);
+	vector<vector<string>> vvsLegend(numParam);
 	viChanged.assign(numParam, 0);
 	for (int ii = 0; ii < basicWJP.size(); ii++)
 	{
-		vsLegend[index] = basicWJP[ii]->getTextLegend();
+		vvsLegend[index] = basicWJP[ii]->getTextLegend();
 		if (basicWJP[ii]->MIDchanged > 0) { viChanged[index] = 1; }
 		index++;
 	}
 	if (wjpDemo != nullptr)
 	{
-		vsLegend[index] = wjpDemo->getTextLegend();
+		vvsLegend[index] = wjpDemo->getTextLegend();
 		index++;
 	}
 	for (int ii = 0; ii < varWJP.size(); ii++)
 	{
-		vsLegend[index] = varWJP[ii]->getTextLegend();
+		vvsLegend[index] = varWJP[ii]->getTextLegend();
 		if (varWJP[ii]->MIDchanged > 0) { viChanged[index] = 1; }
 		index++;
 	}
-	return vsLegend;
+	return vvsLegend;
 }
 vector<vector<string>> WJCONFIG::getVariable()
 {

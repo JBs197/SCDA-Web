@@ -53,7 +53,7 @@ struct WJPANEL : public Wt::WPanel
 	Wt::Signal<string>& dialogOpenSignal() { return dialogOpenSignal_; }
 	Wt::Signal<>& filterSignal() { return filterSignal_; }
 	int getIndexMID(int mode);
-	string getTextLegend();
+	vector<string> getTextLegend();
 	void highlight(int widgetIndex);
 	void init();
 	void initStackedPB(Wt::WLink wlClosed, Wt::WLink wlOpened);
@@ -136,8 +136,8 @@ public:
 	void getPrompt(vector<string>& vsP, vector<vector<string>>& vvsP);
 	void getPrompt(string& sP, vector<vector<string>>& vvsP1, vector<vector<string>>& vvsP2);
 	void getPrompt(vector<string>& vsP1, vector<string>& vsP2, vector<int>& viP);
-	vector<string> getTextLegend();
-	vector<string> getTextLegend(vector<int>& viChanged);
+	vector<vector<string>> getTextLegend();
+	vector<vector<string>> getTextLegend(vector<int>& viChanged);
 	vector<vector<string>> getVariable();
 	void getVariable(vector<string>& vsDIMtitle, vector<int>& viMID);
 	void highlightPanel(Wt::WPanel*& wPanel, int widgetIndex);

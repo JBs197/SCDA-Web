@@ -149,8 +149,8 @@ void SCDAwidget::incomingPreviewSignal(const int& type)
 	case 1:
 	{
 		vector<int> vChanged;
-		vector<string> vsParameter = wjConfig->getTextLegend(vChanged);
-		wjDownload->displayPDFmap(vsParameter, vChanged);
+		vector<vector<string>> vvsParameter = wjConfig->getTextLegend(vChanged);
+		wjDownload->displayPDFmap(vvsParameter, vChanged);
 		break;
 	}
 	case 2:
@@ -478,7 +478,7 @@ void SCDAwidget::populateTextLegend(WJLEGEND*& wjLegend)
 {
 	Wt::WString wsTemp;
 	vector<int> viChanged;
-	wjLegend->vsParameter = wjConfig->getTextLegend(viChanged);
+	wjLegend->vvsParameter = wjConfig->getTextLegend(viChanged);
 	wjLegend->setColour(viChanged);
 	wjLegend->display(1);
 }
@@ -605,6 +605,12 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	auto wtMapUnique = make_unique<WTPAINT>();
 	wtMap = wjMap->boxMap->addWidget(move(wtMapUnique));
 	populateTextLegend(wjMap->wjlMap);
+	if (wjMap->linkIconClose.isNull())
+	{
+		wjMap->linkIconClose = Wt::WLink(iconClose);
+		wjMap->tipSignal().connect(this, std::bind(&SCDAwidget::setTipAdd, this, std::placeholders::_1));
+		wjMap->addTipPin(2);
+	}
 
 	wjDownload->initMap(vsRegion, vvvdFrame, vvvdArea, vvdData);  // Store the raw data, for potential PDF rendering.
 
@@ -964,7 +970,7 @@ void SCDAwidget::seriesAddToGraph()
 	}
 
 	vector<vector<string>> vvsData = wtMap->getGraphData();
-	vector<string> vsParameter = wjConfig->getTextLegend();
+	vector<vector<string>> vvsParameter = wjConfig->getTextLegend();
 	int numSeries = wjBarGraph->getNumSeries();
 	if (numSeries == 0)
 	{
@@ -982,7 +988,7 @@ void SCDAwidget::seriesAddToGraph()
 			}
 		}
 	}
-	wjBarGraph->addDataset(vvsData, vsParameter);
+	wjBarGraph->addDataset(vvsData, vvsParameter);
 	wjBarGraph->display();
 
 	if (!mobile && !setTip.count("barGraphWheel"))

@@ -68,18 +68,40 @@ void WJPARAMPANEL::clear()
 	if (cwTemp != nullptr) { cwTemp->clear(); }
 	mapSeries.clear();
 }
+void WJPARAMPANEL::drawTrashRect(vector<int>& vColourIndex)
+{
+	vector<Wt::WColor> vwc(vColourIndex.size());
+	for (int ii = 0; ii < vColourIndex.size(); ii++)
+	{
+		vwc[ii] = seriesColour[vColourIndex[ii]];
+	}
+	Wt::WContainerWidget* cwTitle = titleBarWidget();
+	Wt::WHBoxLayout* titleLayout = (Wt::WHBoxLayout*)cwTitle->layout();
+	Wt::WLayoutItem* wlItem = titleLayout->itemAt(2);
+	WJTRASHRECT* wjTrashRect = (WJTRASHRECT*)wlItem->widget();
+	wjTrashRect->setColours(vwc);
+}
 void WJPARAMPANEL::init(string sTitle, Wt::WLink linkIconTrash)
 {
 	setTitleBar(1);
 	Wt::WContainerWidget* cwTitle = titleBarWidget();
 	cwTitle->setPadding(0.0);
 	auto hLayout = make_unique<Wt::WHBoxLayout>();
-	hLayout->setSpacing(40);
+	hLayout->setSpacing(0);
 
 	Wt::WString wsTemp = Wt::WString::fromUTF8(sTitle);
 	auto wText = make_unique<Wt::WText>(wsTemp);
 	wText->decorationStyle().font().setSize(Wt::FontSize::Large);
 	hLayout->addWidget(move(wText), 0, Wt::AlignmentFlag::Middle);
+
+	auto boxDummy = make_unique<Wt::WContainerWidget>();
+	Wt::WLength wlAuto = Wt::WLength::Auto;
+	boxDummy->setMinimumSize(40.0, wlAuto);
+	hLayout->addWidget(move(boxDummy), 0, Wt::AlignmentFlag::Middle);
+
+	auto wjTrashRect = make_unique<WJTRASHRECT>();
+	wjTrashRect->deleteSignal().connect(this, std::bind(&WJPARAMPANEL::removeParameter, this, std::placeholders::_1));
+	hLayout->addWidget(move(wjTrashRect), 0, Wt::AlignmentFlag::Middle);
 
 	auto wjTrash = make_unique<WJTRASH>(linkIconTrash);
 	wjTrash->deleteSignal().connect(this, std::bind(&WJPARAMPANEL::removeParameter, this, std::placeholders::_1));
@@ -108,7 +130,7 @@ void WJPARAMPANEL::removeParameter(const string& sID)
 	deleteSignal_.emit(seriesIndex);
 }
 
-void WJBARGRAPH::addDataset(vector<vector<string>>& vvsData, vector<string>& vsParam)
+void WJBARGRAPH::addDataset(vector<vector<string>>& vvsData, vector<vector<string>>& vvsParameter)
 {
 	// vvsData has form [x-axis category][category label, bar value0, bar value1, ...].	
 	WJDATASET wjds;
@@ -133,6 +155,12 @@ void WJBARGRAPH::addDataset(vector<vector<string>>& vvsData, vector<string>& vsP
 			index = mapIndexRegion.at(vvsData[ii][0]);
 			wjds.vsData[index] = vvsData[ii][1];
 		}
+	}
+
+	vector<string> vsParam(vvsParameter.size());
+	for (int ii = 0; ii < vvsParameter.size(); ii++)
+	{
+		vsParam[ii] = italicize(vvsParameter[ii], 0);
 	}
 	wjds.vsParameter = vsParam;
 	for (int ii = 0; ii < vsParam.size(); ii++)
@@ -451,6 +479,24 @@ vector<Wt::WColor> WJBARGRAPH::getSeriesColour()
 	}
 	return seriesColour;
 }
+string WJBARGRAPH::italicize(vector<string>& vsParameter, int italicFreq)
+{
+	// Adds HTML italic tags to every Nth segment within vsParameter, and 
+	// combines all parameters into a single string segmented by markers.
+	string italic;
+	for (int ii = 0; ii < vsParameter.size(); ii++)
+	{
+		if (ii > 0) { italic += " | "; }
+		if (italicFreq > 0)
+		{
+			if (ii % italicFreq == italicFreq - 1) { italic += "<i>"; }
+			italic += vsParameter[ii];
+			if (ii % italicFreq == italicFreq - 1) { italic += "</i>"; }
+		}
+		else { italic += vsParameter[ii]; }
+	}
+	return italic;
+}
 unique_ptr<Wt::Chart::WCartesianChart> WJBARGRAPH::makeChart()
 {
 	auto modelTemp = make_shared<Wt::WStandardItemModel>(vsRegion.size(), vDataset.size() + 1);
@@ -528,6 +574,7 @@ void WJBARGRAPH::parameterSorting()
 	int count, countCommon = 0, countDiff = 0, countUnique = 0;
 	const vector<unique_ptr<Wt::Chart::WDataSeries>>& vSeries = chart->series();
 	int numSeries = vSeries.size();
+	set<int> setColourUnique, setColourDiff, setColourCommon;
 
 	for (int ii = 0; ii < vviParameter.size(); ii++)
 	{
@@ -545,26 +592,62 @@ void WJBARGRAPH::parameterSorting()
 		if (count == 1) 
 		{ 
 			ppUnique->addParameter(sParameter, vIndex);
+			for (int jj = 0; jj < vIndex.size(); jj++)
+			{
+				setColourUnique.emplace(vIndex[jj]);
+			}
 			countUnique++;
 		}
 		else if (count == numSeries) 
 		{ 
 			ppCommon->addParameter(sParameter, vIndex);
+			for (int jj = 0; jj < vIndex.size(); jj++)
+			{
+				setColourCommon.emplace(vIndex[jj]);
+			}
 			countCommon++;
 		}
 		else 
 		{ 
 			ppDiff->addParameter(sParameter, vIndex);
+			for (int jj = 0; jj < vIndex.size(); jj++)
+			{
+				setColourDiff.emplace(vIndex[jj]);
+			}
 			countDiff++;
 		}
 	}
 
 	if (countUnique < 1) { ppUnique->setHidden(1); }
-	else { ppUnique->addEndspace(); }
+	else { 
+		ppUnique->addEndspace(); 
+		vIndex.clear();
+		for (auto it = setColourUnique.begin(); it != setColourUnique.end(); it++)
+		{
+			vIndex.push_back(*it);
+		}
+		ppUnique->drawTrashRect(vIndex);
+	}
 	if (countDiff < 1) { ppDiff->setHidden(1); }
-	else { ppDiff->addEndspace(); }
+	else { 
+		ppDiff->addEndspace(); 
+		vIndex.clear();
+		for (auto it = setColourDiff.begin(); it != setColourDiff.end(); it++)
+		{
+			vIndex.push_back(*it);
+		}
+		ppDiff->drawTrashRect(vIndex);
+	}
 	if (countCommon < 1) { ppCommon->setHidden(1); }
-	else { ppCommon->addEndspace(); }
+	else { 
+		ppCommon->addEndspace(); 
+		vIndex.clear();
+		for (auto it = setColourCommon.begin(); it != setColourCommon.end(); it++)
+		{
+			vIndex.push_back(*it);
+		}
+		ppCommon->drawTrashRect(vIndex);
+	}
 }
 int WJBARGRAPH::removeDataset(int seriesIndex)
 {

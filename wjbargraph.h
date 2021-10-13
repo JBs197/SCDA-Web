@@ -47,6 +47,7 @@ public:
 	void addParameter(string sParameter, vector<int> vIndex);
 	void clear();
 	Wt::Signal<int>& deleteSignal() { return deleteSignal_; }
+	void drawTrashRect(vector<int>& vColourIndex);
 	void init(string sTitle, Wt::WLink linkIconTrash);
 	void removeParameter(const string& sID);
 };
@@ -75,7 +76,7 @@ public:
 	WJPARAMPANEL *ppCommon = nullptr, *ppDiff = nullptr, *ppUnique = nullptr;
 	string region = "", unit = "";
 
-	void addDataset(vector<vector<string>>& vvsData, vector<string>& vsParameter);
+	void addDataset(vector<vector<string>>& vvsData, vector<vector<string>>& vvsParameter);
 	void addTipWheel(int layoutIndex);
 	void configureChart();
 	void display();
@@ -84,6 +85,7 @@ public:
 	vector<vector<string>> getModelValues();
 	int getNumSeries() { return vDataset.size(); }
 	vector<Wt::WColor> getSeriesColour();
+	string italicize(vector<string>& vsParameter, int italicFreq);
 	unique_ptr<Wt::Chart::WCartesianChart> makeChart();
 	unique_ptr<WJPARAMPANEL> makeWJPP(WJPARAMPANEL*& wjpp, string sTitle, vector<Wt::WColor>& seriesColour);
 	void parameterPopulation();

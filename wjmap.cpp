@@ -1,20 +1,24 @@
 #include "wjmap.h"
 
-void WJLEGEND::display(bool italicize)
+void WJLEGEND::display(bool oddItalics)
 {
 	Wt::WContainerWidget::clear();
 	auto layout = make_unique<Wt::WVBoxLayout>();
 	Wt::WColor wColour;
 	Wt::WString wsTemp;
 	string temp;
-	for (int ii = 0; ii < vsParameter.size(); ii++)
+	for (int ii = 0; ii < vvsParameter.size(); ii++)
 	{
-		if (italicize)
+		if (oddItalics)
 		{
-			temp = italicizeOdd(vsParameter[ii]);
+			temp = italicize(vvsParameter[ii], 2);
 			wsTemp = Wt::WString::fromUTF8(temp);
 		}
-		else { wsTemp = Wt::WString::fromUTF8(vsParameter[ii]); }
+		else 
+		{ 
+			temp = italicize(vvsParameter[ii], 0);
+			wsTemp = Wt::WString::fromUTF8(temp); 
+		}
 		auto wText = make_unique<Wt::WText>(wsTemp);
 		wText->setTextAlignment(Wt::AlignmentFlag::Left);
 		wText->decorationStyle().font().setSize(Wt::FontSize::Large);
@@ -35,6 +39,24 @@ void WJLEGEND::initColour()
 	colourList[2] = { 210, 210, 210, 255 };  // Light Grey
 	colourList[3] = { 200, 200, 255, 255 };  // SelectedWeak
 	colourList[4] = { 150, 150, 192, 255 };  // SelectedStrong
+}
+string WJLEGEND::italicize(vector<string>& vsParameter, int italicFreq)
+{
+	// Adds HTML italic tags to every Nth segment within vsParameter, and 
+	// combines all parameters into a single string segmented by markers.
+	string italic;
+	for (int ii = 0; ii < vsParameter.size(); ii++)
+	{
+		if (ii > 0) { italic += " | "; }
+		if (italicFreq > 0)
+		{
+			if (ii % italicFreq == italicFreq - 1) { italic += "<i>"; }
+			italic += vsParameter[ii];
+			if (ii % italicFreq == italicFreq - 1) { italic += "</i>"; }
+		}
+		else { italic += vsParameter[ii]; }
+	}
+	return italic;
 }
 string WJLEGEND::italicizeOdd(string& sParameter)
 {
@@ -72,7 +94,7 @@ string WJLEGEND::italicizeOdd(string& sParameter)
 }
 void WJLEGEND::setColour(vector<int>& viChanged)
 {
-	if (viChanged.size() != vsParameter.size()) { jf.err("Size mismatch-wjlegend.setColour"); }
+	if (viChanged.size() != vvsParameter.size()) { jf.err("Size mismatch-wjlegend.setColour"); }
 	vColour.resize(viChanged.size());
 	for (int ii = 0; ii < vColour.size(); ii++)
 	{
@@ -89,6 +111,42 @@ void WJLEGEND::setColour(vector<int>& viChanged)
 	}
 }
 
+void WJMAP::addTipPin(int layoutIndex)
+{
+	Wt::WFlags<Wt::Orientation> flags;
+	Wt::WColor wcTip(255, 255, 180);
+	auto box = make_unique<Wt::WContainerWidget>();
+	box->decorationStyle().setBackgroundColor(wcTip);
+	box->setPadding(0.0);
+	auto tipLayout = make_unique<Wt::WGridLayout>();
+
+	auto boxText = make_unique<Wt::WContainerWidget>();
+	boxText->setPadding(0.0);
+	auto text = make_unique<Wt::WText>();
+	text->decorationStyle().font().setSize(Wt::FontSize::Small);
+	text->decorationStyle().font().setWeight(Wt::FontWeight::Bold);
+	Wt::WString wsTip = "Tip: The easiest way to compare datasets from different maps is to pin each dataset to a bar graph, using the buttons located at the top-right corner of the data map.";
+	text->setText(wsTip);
+	boxText->addWidget(move(text));
+	tipLayout->addWidget(move(boxText), 0, 0, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Middle);
+
+	auto button = make_unique<Wt::WPushButton>();
+	button->setMinimumSize(25.0, 25.0);
+	Wt::WCssDecorationStyle& buttonStyle = button->decorationStyle();
+	buttonStyle.setBackgroundColor(Wt::StandardColor::White);
+	buttonStyle.setBackgroundImage(linkIconClose, flags, Wt::Side::CenterX | Wt::Side::CenterY);
+	button->clicked().connect(this, std::bind(&WJMAP::removeTipPin, this, layoutIndex));
+	tipLayout->addWidget(move(button), 0, 1, Wt::AlignmentFlag::Right | Wt::AlignmentFlag::Middle);
+
+	auto boxDummy = make_unique<Wt::WContainerWidget>();
+	tipLayout->addWidget(move(boxDummy), 2, 0, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Top);
+	tipLayout->setColumnStretch(0, 1);
+	tipLayout->setRowStretch(2, 1);
+
+	box->setLayout(move(tipLayout));
+	Wt::WVBoxLayout* bigLayout = (Wt::WVBoxLayout*)this->layout();
+	bigLayout->insertWidget(layoutIndex, move(box));
+}
 void WJMAP::build()
 {
 	auto boxOptionUnique = make_unique<Wt::WContainerWidget>();
@@ -139,6 +197,13 @@ void WJMAP::init()
 	textUnit->decorationStyle().font().setSize(Wt::FontSize::Large);
 	textUnit->setTextAlignment(Wt::AlignmentFlag::Middle);
 
+}
+void WJMAP::removeTipPin(int layoutIndex)
+{
+	Wt::WVBoxLayout* bigLayout = (Wt::WVBoxLayout*)this->layout();
+	Wt::WLayoutItem* layoutItem = bigLayout->itemAt(layoutIndex);
+	bigLayout->removeItem(layoutItem);
+	tipSignal_.emit("mapPin");
 }
 void WJMAP::resetMenu()
 {

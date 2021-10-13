@@ -20,10 +20,11 @@ public:
 	WJLEGEND() { initColour(); }
 	~WJLEGEND() {}
 
-	vector<string> vsParameter;
+	vector<vector<string>> vvsParameter;
 
-	void display(bool italicize);
+	void display(bool oddItalics);
 	void initColour();
+	string italicize(vector<string>& vsParameter, int italicFreq);
 	string italicizeOdd(string& sParameter);
 	void setColour(vector<int>& viChanged);
 };
@@ -31,6 +32,7 @@ public:
 class WJMAP : public Wt::WContainerWidget
 {
 	bool mobile = 0;
+	Wt::Signal<string> tipSignal_;
 
 public:
 	WJMAP() { init(); }
@@ -43,12 +45,16 @@ public:
 	Wt::WText* textUnit;
 	WJLEGEND* wjlMap;
 	Wt::WLength wlAuto;
+	Wt::WLink linkIconClose = Wt::WLink();
 
+	void addTipPin(int layoutIndex);
 	void build();
 	int getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize);
 	int getLegendTickLines(string sUnit);
 	void init();
+	void removeTipPin(int layoutIndex);
 	void resetMenu();
+	Wt::Signal<string>& tipSignal() { return tipSignal_; }
 	void updateUnit(string sUnit);
 	void widgetMobile(bool mobile);
 };

@@ -1,8 +1,11 @@
 #pragma once
+#include <Wt/WApplication.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPainter.h>
 #include <Wt/Chart/WDataSeries.h>
 #include <Wt/WRectArea.h>
+#include <Wt/WStackedWidget.h>
+#include "jfunc.h"
 
 using namespace std;
 
@@ -15,12 +18,35 @@ class WJPARAMRECT : public Wt::WPaintedWidget
 	Wt::WRectF wRect;
 
 public:
+	WJPARAMRECT(Wt::WColor self, double frameWidth) : Wt::WPaintedWidget(), wcSelf(self) { init(frameWidth); }
 	WJPARAMRECT(Wt::WColor self) : Wt::WPaintedWidget(), wcSelf(self) { init(); }
 	~WJPARAMRECT() {}
 	void init();
+	void init(double frameWidth);
 	string getHexColour();
 
 protected:
+	virtual void paintEvent(Wt::WPaintDevice* paintDevice) override;
+};
+
+class WJTRASHRECT : public Wt::WPaintedWidget
+{
+	Wt::Signal<string> deleteSignal_;
+	double perimeterWidth;
+	vector<Wt::WColor> vColour;
+	Wt::WBrush wBrush;
+	Wt::WLength wlMinWidth, wlMinHeight;
+	Wt::WPen wPen;
+	Wt::WRectF wRect;
+
+public:
+	WJTRASHRECT() : Wt::WPaintedWidget() { init(); }
+	~WJTRASHRECT() {}
+	Wt::Signal<string>& deleteSignal() { return deleteSignal_; }
+	void init();
+	void setColours(vector<Wt::WColor> vwcColours);
+protected:
+	void dropEvent(Wt::WDropEvent wde) override;
 	virtual void paintEvent(Wt::WPaintDevice* paintDevice) override;
 };
 
@@ -37,4 +63,3 @@ public:
 protected:
 	void dropEvent(Wt::WDropEvent wde) override;
 };
-
