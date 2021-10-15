@@ -21,6 +21,7 @@ class JPDF
     JFUNC jf;
     HPDF_Page page;
     HPDF_Doc pdf;
+    mutex m_pdf;
 
 public:
     JPDF() { init(); }
@@ -28,7 +29,7 @@ public:
 
     vector<double> cursor;  // Form [xCoord, yCoord]. 
     double margin = 50.0;
-    vector<unique_ptr<JPDFSECTION>> vSection;
+    vector<shared_ptr<JPDFSECTION>> vSection;
 
     int addBargraph(vector<vector<double>>& bargraphBLTR);
     int addMap(vector<vector<double>>& mapBLTR);
@@ -37,6 +38,7 @@ public:
     bool hasFont();
     vector<double> getPageDimensions();
     HPDF_UINT32 getPDF(string& sPDF);
+    HPDF_UINT32 getPDF(vector<unsigned char>& binPDF);
     int getNumLines(vector<string>& vsText, double width, int iFontHeight);
     void init();
     void setFont(string filePath);

@@ -30,16 +30,13 @@ void WJDOWNLOAD::adjustLineEditWidth()
 	double dMax = min(700.0, dWidth);
 	leFileName->setMaximumSize(dMax, wlAuto);
 }
-void WJDOWNLOAD::displayCSV(string& sCSV)
+void WJDOWNLOAD::displayCSV(string& csv)
 {
 	if (wjrCSV != nullptr) { wjrCSV.reset(); }
 	wjrCSV = makeWJRCSV(sCSV);
-
-	Wt::WString wsCSV = Wt::WString::fromUTF8(sCSV);
-	taPreview->setText(wsCSV);
-	stackedPreview->setCurrentIndex(0);
-
+	sCSV = csv;
 	updateStackedPB(selectedMode);
+	updateStackedPreview(selectedMode);
 }
 void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText, string unit, vector<vector<string>>& modelData, vector<double> minMaxY)
 {
@@ -147,8 +144,18 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 	}
 	wjrPDFbargraph->jpdf.vSection[indexBarGraph]->jpBargraph->drawData(seriesColour);
 
-	// Preview screen ... ?
+	// Make a local image file for the given PDF.
+	auto app = Wt::WApplication::instance();
+	string sessionID = app->sessionId();
+	vector<unsigned char> binPDF;
+	wjrPDFbargraph->jpdf.getPDF(binPDF);
+	string pathPNG = gs.binToPng(binPDF, sessionID);
+
+	// Paint the preview screen.
+	auto preview = make_shared<Wt::WFileResource>("application/pdf", pathPNG);
+	swap(preview, wjrPDFbargraphPreview);
 	updateStackedPB(selectedMode);
+	updateStackedPreview(selectedMode);
 }
 void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>& vChanged)
 {
@@ -272,8 +279,18 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	// Render the map and legend bar using the data as colour.	
 	wjrPDFmap->jpdf.vSection[indexMap]->jpMap->drawMap();
 
-	// Preview screen ... ?
+	// Make a local image file for the given PDF.
+	auto app = Wt::WApplication::instance();
+	string sessionID = app->sessionId();
+	vector<unsigned char> binPDF;
+	wjrPDFmap->jpdf.getPDF(binPDF);
+	string pathPNG = gs.binToPng(binPDF, sessionID);
+
+	// Paint the preview screen.
+	auto preview = make_shared<Wt::WFileResource>("application/pdf", pathPNG);
+	swap(preview, wjrPDFmapPreview);
 	updateStackedPB(selectedMode);
+	updateStackedPreview(selectedMode);
 }
 void WJDOWNLOAD::downloadSettings(int mode)
 {
@@ -322,7 +339,7 @@ void WJDOWNLOAD::downloadSettings(int mode)
 	}
 
 	// Update the file extension.
-	if (selectedMode == 3) { wsTemp = ".csv"; }
+	if (selectedMode == 2) { wsTemp = ".csv"; }
 	else { wsTemp = ".pdf"; }
 	textExt->setText(wsTemp);
 
@@ -354,6 +371,11 @@ void WJDOWNLOAD::init()
 {
 	initColour();
 
+	auto app = Wt::WApplication::instance();
+	string appPath = app->appRoot() + "gswin64c.exe";
+	string docFolder = app->docRoot();
+	gs.init(appPath, docFolder);
+
 	this->setMaximumSize(maxWidth, maxHeight);
 	auto vLayout = make_unique<Wt::WVBoxLayout>();
 
@@ -366,8 +388,11 @@ void WJDOWNLOAD::init()
 
 	auto stackedPreviewUnique = make_unique<Wt::WStackedWidget>();
 	stackedPreview = stackedPreviewUnique.get();
+	auto previewBar = make_unique<Wt::WImage>();
+	stackedPreview->addWidget(move(previewBar));
+	auto previewMap = make_unique<Wt::WImage>();
+	stackedPreview->addWidget(move(previewMap));
 	auto textArea = make_unique<Wt::WTextArea>();
-	taPreview = textArea.get();
 	stackedPreview->addWidget(move(textArea));
 	hLayout->addWidget(move(stackedPreviewUnique));
 	
@@ -497,6 +522,13 @@ shared_ptr<WJRPDF> WJDOWNLOAD::makeWJRPDF()
 	initJPDF(pdfTemp->jpdf);  // Font.
 	return pdfTemp;
 }
+shared_ptr<WJRPDF> WJDOWNLOAD::makeWJRPDF(string& sName)
+{
+	Wt::WString wsFileName = Wt::WString::fromUTF8(sName);
+	auto pdfTemp = make_shared<WJRPDF>(wsFileName);
+	initJPDF(pdfTemp->jpdf);  // Font.
+	return pdfTemp;
+}
 void WJDOWNLOAD::setUnit(string unit, vector<int> viIndex)
 {
 	sUnit = unit;
@@ -536,4 +568,55 @@ void WJDOWNLOAD::updateStackedPB(int index)
 	stackedPB->insertWidget(index, move(pbUnique));
 	stackedPB->setCurrentIndex(index);
 	stackedPB->setDisabled(0);
+}
+void WJDOWNLOAD::updateStackedPreview(int index)
+{
+	// This function specifically re-creates the preview widget within the "preview"
+	// stacked widget, using the latest WJR struct. The preview widget must be recreated
+	// (rather than relinked) due to the nature of (or a bug in) WT.
+	switch (index)
+	{
+	case 0:
+	{
+		Wt::WLink wLink = Wt::WLink(wjrPDFbargraphPreview);
+		Wt::WImage* wImageOld = (Wt::WImage*)stackedPreview->widget(index);
+		stackedPreview->removeWidget(wImageOld);
+		auto wImage = make_unique<Wt::WImage>(wLink);
+		double imageWidth = maxWidth.value() - 200.0;
+		double imageHeight = round(imageWidth * 1.294117647);
+		Wt::WLength wlWidth = Wt::WLength(imageWidth);
+		Wt::WLength wlHeight = Wt::WLength(imageHeight);
+		wImage->setMinimumSize(wlWidth, wlHeight);
+		stackedPreview->insertWidget(index, move(wImage));
+		break;
+	}
+	case 1:
+	{
+		Wt::WLink wLink = Wt::WLink(wjrPDFmapPreview);
+		Wt::WImage* wImageOld = (Wt::WImage*)stackedPreview->widget(index);
+		stackedPreview->removeWidget(wImageOld);
+		auto wImage = make_unique<Wt::WImage>(wLink);
+		double imageWidth = maxWidth.value() - 200.0;
+		double imageHeight = round(imageWidth * 1.294117647);
+		Wt::WLength wlWidth = Wt::WLength(imageWidth);
+		Wt::WLength wlHeight = Wt::WLength(imageHeight);
+		wImage->setMinimumSize(wlWidth, wlHeight);
+		stackedPreview->insertWidget(index, move(wImage));
+		break;
+	}
+	case 2:
+	{
+		Wt::WTextArea* wTextAreaOld = (Wt::WTextArea*)stackedPreview->widget(index);
+		auto oldUnique = stackedPreview->removeWidget(wTextAreaOld);
+		Wt::WCssDecorationStyle& style = oldUnique->decorationStyle();
+		auto wTextArea = make_unique<Wt::WTextArea>();
+		Wt::WString wsTemp = Wt::WString::fromUTF8(sCSV);
+		wTextArea->setText(wsTemp);
+		wTextArea->setDecorationStyle(style);
+		stackedPreview->insertWidget(index, move(wTextArea));
+		break;
+	}
+	}
+	stackedPreview->setCurrentIndex(index);
+	stackedPreview->setDisabled(0);
 }

@@ -12,8 +12,9 @@
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
 #include <Wt/WMemoryResource.h>
+#include <Wt/WFileResource.h>
 #include <Wt/Render/WPdfRenderer.h>
-#include <hpdf.h>
+#include "gsfunc.h"
 #include "jscalebar.h"
 #include "jpdf.h"
 #include "wtpaint.h"
@@ -51,6 +52,7 @@ struct WJRPDF : public Wt::WMemoryResource
 class WJDOWNLOAD : public Wt::WContainerWidget
 {
 	vector<int> displayData;
+	GSFUNC gs;
 	Wt::WLineEdit *leFileName;
 	int legendBarDouble = -1;  // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
 	int legendFontSize = 12;
@@ -65,17 +67,17 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	Wt::Signal<int> previewSignal_;
 	int selectedMode = -1;
 	Wt::WStackedWidget *stackedPB, *stackedPreview;
-	Wt::WTextArea *taPreview;
 	Wt::WText *textExt;
 	Wt::WToolBar *toolButtons;
-	string sUnit;
+	string sCSV, sUnit;
 	vector<Wt::WLink> vLink;
 	vector<Wt::WColor> vToolColour;
 	shared_ptr<Wt::WButtonGroup> wbGroup = nullptr;
 	shared_ptr<WJRCSV> wjrCSV = nullptr;
-	shared_ptr<WJRPDF> wjrPDFall = nullptr;
 	shared_ptr<WJRPDF> wjrPDFbargraph = nullptr;
+	shared_ptr<Wt::WFileResource> wjrPDFbargraphPreview = nullptr;
 	shared_ptr<WJRPDF> wjrPDFmap = nullptr;
+	shared_ptr<Wt::WFileResource> wjrPDFmapPreview = nullptr;
 	WTPAINT* wpPreview = nullptr;
 
 public:
@@ -89,7 +91,7 @@ public:
 	Wt::WLength wlAuto = Wt::WLength();
 
 	void adjustLineEditWidth();
-	void displayCSV(string& sCSV);
+	void displayCSV(string& csv);
 	void displayPDFbargraph(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText, string unit, vector<vector<string>>& modelData, vector<double> minMaxY);
 	void displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>& vChanged);
 	void downloadSettings(int mode);
@@ -105,9 +107,11 @@ public:
 	unique_ptr<Wt::WContainerWidget> makeFileNameBox();
 	shared_ptr<WJRCSV> makeWJRCSV(string& sCSV);
 	shared_ptr<WJRPDF> makeWJRPDF();
+	shared_ptr<WJRPDF> makeWJRPDF(string& sName);
 	Wt::Signal<int>& previewSignal() { return previewSignal_; }
 	void setUnit(string unit, vector<int> viIndex);
 	Wt::WString stringToHTML(string& sLine);
 	void updateStackedPB(int index);
+	void updateStackedPreview(int index);
 };
 

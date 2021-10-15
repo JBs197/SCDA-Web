@@ -8,7 +8,7 @@ using namespace std;
 class JPDFMAP
 {
 	double barNumberHeight = 14.0;  // Unit of pixels, for a horizontal legend bar.
-	double barNumberWidth = 100.0;  // Unit of pixels, for a vertical legend bar.
+	double barNumberWidth = 104.0;  // Unit of pixels, for a vertical legend bar.
 	double barThickness = 14.0;  // Unit of pixels.
 	vector<vector<unsigned char>> colourList;  // Form [colour index][r, g, b, a].
 	vector<vector<double>> colourListDouble;  // Form [colour index][r, g, b, a]. All values are inside the interval [0.0, 1.0].

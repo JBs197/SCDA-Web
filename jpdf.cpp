@@ -7,7 +7,7 @@ int JPDF::addBargraph(vector<vector<double>>& bargraphBLTR)
 	HPDF_Font font;
 	if (fontAdded) { font = fontAdded; }
 	else { font = fontDefault; }
-	unique_ptr<JPDFSECTION> jpSection = make_unique<JPDFSECTION>(page, font, bargraphBLTR);
+	shared_ptr<JPDFSECTION> jpSection = make_shared<JPDFSECTION>(page, font, bargraphBLTR);
 	jpSection->makeBargraph();
 	vSection.push_back(move(jpSection));
 	return index;
@@ -19,7 +19,7 @@ int JPDF::addMap(vector<vector<double>>& mapBLTR)
 	HPDF_Font font;
 	if (fontAdded) { font = fontAdded; }
 	else { font = fontDefault; }
-	unique_ptr<JPDFSECTION> jpSection = make_unique<JPDFSECTION>(page, font, mapBLTR);
+	shared_ptr<JPDFSECTION> jpSection = make_shared<JPDFSECTION>(page, font, mapBLTR);
 	jpSection->makeMap();
 	vSection.push_back(move(jpSection));
 	return index;
@@ -44,7 +44,7 @@ int JPDF::addTable(int numCol, vector<int> vNumLine, vector<double> vRowHeight, 
 	HPDF_Font font;
 	if (fontAdded) { font = fontAdded; }
 	else { font = fontDefault; }
-	unique_ptr<JPDFSECTION> jpSection = make_unique<JPDFSECTION>(page, font, tableBLTR);
+	shared_ptr<JPDFSECTION> jpSection = make_shared<JPDFSECTION>(page, font, tableBLTR);
 	if (fontAddedItalic) { jpSection->fontItalic = fontAddedItalic; }
 	jpSection->makeTable(title, fontSizeTitle);
 	jpSection->jpTable->setRowCol(vNumLine, vRowHeight, numCol);
@@ -88,6 +88,7 @@ vector<double> JPDF::getPageDimensions()
 HPDF_UINT32 JPDF::getPDF(string& sPDF)
 {
 	// Return the complete PDF as a string. 
+	lock_guard<mutex> lock(m_pdf);
 	sPDF.clear();
 	HPDF_STATUS error = HPDF_SaveToStream(pdf);
 	if (error != HPDF_OK) { jf.err("SaveToStream-jpdf.getPDF"); }
@@ -102,6 +103,22 @@ HPDF_UINT32 JPDF::getPDF(string& sPDF)
 		sPDF[ii] = (char)buffer[ii];
 	}
 	delete[] buffer;
+	error = HPDF_ResetStream(pdf);
+	if (error != HPDF_OK) { jf.err("ResetStream-jpdf.getPDF"); }
+	return streamSize;
+}
+HPDF_UINT32 JPDF::getPDF(vector<unsigned char>& binPDF)
+{
+	// Return the complete PDF as a block of memory. 
+	lock_guard<mutex> lock(m_pdf);
+	binPDF.clear();
+	HPDF_STATUS error = HPDF_SaveToStream(pdf);
+	if (error != HPDF_OK) { jf.err("SaveToStream-jpdf.getPDF"); }
+	HPDF_UINT32 streamSize = HPDF_GetStreamSize(pdf);
+	if (!streamSize) { jf.err("GetStreamSize-jpdf.getPDF"); }
+	binPDF.resize(streamSize);
+	error = HPDF_ReadFromStream(pdf, &binPDF[0], &streamSize);
+	if (error != HPDF_OK) { jf.err("ReadFromStream-jpdf.getPDF"); }
 	error = HPDF_ResetStream(pdf);
 	if (error != HPDF_OK) { jf.err("ResetStream-jpdf.getPDF"); }
 	return streamSize;

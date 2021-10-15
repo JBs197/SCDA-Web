@@ -672,7 +672,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	tabData->setTabEnabled(2, 1);
 	updateDownloadTab();
 	if (first) { tabData->setCurrentIndex(2); }	
-	else if (tabData->currentIndex() == 3) { tabData->setCurrentIndex(2); }
+	else if (tabData->currentIndex() >= 3) { tabData->setCurrentIndex(2); }
 	first = 0;
 }
 void SCDAwidget::processEventParameter(vector<vector<vector<string>>> vvvsParameter, vector<vector<string>> vvsCata)

@@ -685,9 +685,9 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>& t
 		startStop[0][1] = rectBLTR[0][1];
 		startStop[1][0] = startStop[0][0];
 		startStop[1][1] = startStop[0][1] - (0.5 * barThickness);
-		textBLTR[0][0] = startStop[1][0] - (0.5 * barNumberWidth);
+		textBLTR[0][0] = startStop[0][0] - (0.5 * barNumberWidth);
 		textBLTR[0][1] = startStop[1][1] - barNumberHeight;
-		textBLTR[1][0] = textBLTR[0][0] + barNumberWidth;
+		textBLTR[1][0] = startStop[0][0] + (0.5 * barNumberWidth);
 		textBLTR[1][1] = startStop[1][1];
 		alignment = "center";
 	}
@@ -1011,6 +1011,7 @@ void JPDFMAP::textBox(vector<vector<double>> boxBLTR, string sText, string align
 	// Accepted alignment strings are "left", "right", "center", "justify".
 	HPDF_STATUS error = HPDF_Page_SetFontAndSize(page, font, fontsize);
 	if (error != HPDF_OK) { jf.err("SetFontAndSize-jpdfmap.textBox"); }
+	double textWidth = HPDF_Page_TextWidth(page, sText.c_str());
 	HPDF_Page_BeginText(page);
 	if (alignment == "right") {
 		error = HPDF_Page_TextRect(page, boxBLTR[0][0], boxBLTR[1][1], boxBLTR[1][0], boxBLTR[0][1], sText.c_str(), HPDF_TALIGN_RIGHT, NULL);

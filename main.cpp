@@ -17,6 +17,7 @@ public:
 SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(env), serverRef(serv), envRef(env)
 {
 	this->enableUpdates(1);
+	this->require("//mozilla.github.io/pdf.js/build/pdf.js");
 
 	setTitle("SCDA Web Tool");
 	auto BootstrapTheme = make_unique<Wt::WBootstrapTheme>();
