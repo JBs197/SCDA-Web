@@ -16,10 +16,19 @@ vector<int> JSCALEBAR::addDataset(vector<vector<double>>& datasetList)
 	}
 	return vIndex;
 }
+void JSCALEBAR::clear()
+{
+	activeIndex = -1;
+	vDataset.clear();
+	vDecimalPlaces.clear();
+	vUnit.clear();
+}
 vector<vector<double>> JSCALEBAR::getDatasetColour(vector<vector<double>>& keyColour, vector<double>& keyValue, int index)
 {
 	// From the matching sets of colours and values, return a list of colours for the dataset.
-	if (keyColour.size() != keyValue.size()) { jf.err("Size mismatch-jscalebar.getDatasetColour"); }
+	// Only the first/last (min/max) values of keyValues are needed.
+	if (index < 0) { index = activeIndex; }
+	else if (keyValue.size() < 2) { jf.err("Missing keyValue-jscalebar.getDatasetColour"); }
 	int colourWidth = keyColour[0].size(), floor;
 	vector<double> unknownColour = { 0.7, 0.7, 0.7 };  // Grey
 	vector<double> extraColour = { 1.0, 0.0, 0.5 };  // Pink
@@ -67,9 +76,16 @@ vector<vector<double>> JSCALEBAR::getDatasetColour(vector<vector<double>>& keyCo
 }
 double JSCALEBAR::getDatasetValue(int index, int indexValue)
 {
-	if (index >= vDataset.size()) { jf.err("Invalid dataset index-jscalebar.getDatasetValue"); }
+	if (index < 0) { index = activeIndex; }
+	else if (index >= vDataset.size()) { jf.err("Invalid dataset index-jscalebar.getDatasetValue"); }
 	if (indexValue >= vDataset[index].size()) { jf.err("Invalid value index-jscalebar.getDatasetValue"); }
 	return vDataset[index][indexValue];
+}
+int JSCALEBAR::getDecimalPlaces(int index)
+{
+	if (index < 0) { index = activeIndex; }
+	else if (index >= vDecimalPlaces.size()) { jf.err("Invalid index-jscalebar.getDecimalPlaces"); }
+	return vDecimalPlaces[index];
 }
 unordered_map<string, double> JSCALEBAR::getMapDatasetLabel(vector<string>& vsLabel, int index)
 {
@@ -83,13 +99,14 @@ unordered_map<string, double> JSCALEBAR::getMapDatasetLabel(vector<string>& vsLa
 }
 vector<double> JSCALEBAR::getTickValues(int index, int numTicks)
 {
+	if (index < 0) { index = activeIndex; }
 	vector<double> tickValues = getTickValues(index, numTicks, {});
 	return tickValues;
 }
 vector<double> JSCALEBAR::getTickValues(int index, int numTicks, vector<int> vExclude)
 {
 	// vExclude specifies indices within the dataset to exclude from consideration.
-	activeIndex = index;
+	if (index < 0) { index = activeIndex; }
 	vector<double> vTick(numTicks);
 	vector<double> dataset = vDataset[index];
 	for (int ii = vExclude.size() - 1; ii >= 0; ii--)
@@ -125,23 +142,30 @@ vector<double> JSCALEBAR::getTickValues(int index, int numTicks, vector<int> vEx
 }
 int JSCALEBAR::makeDataset(vector<int> vIndex, char operation)
 {
+	// Returns the index of the newly-made dataset.
 	if (vIndex.size() < 2 || vDataset.size() < 2) { jf.err("Missing parameters-jscalebar.makeDataset"); }
 	int length;
-	activeIndex = vDataset.size();
+	int index = vDataset.size();
 	vDataset.push_back(vDataset[vIndex[0]]);
 	for (int ii = 1; ii < vIndex.size(); ii++)
 	{
 		length = min(vDataset[vIndex[0]].size(), vDataset[vIndex[ii]].size());
 		for (int jj = 0; jj < length; jj++)
 		{
-			if (operation == '+') { vDataset[activeIndex][jj] += vDataset[vIndex[ii]][jj]; }
-			else if (operation == '-') { vDataset[activeIndex][jj] -= vDataset[vIndex[ii]][jj]; }
-			else if (operation == '*') { vDataset[activeIndex][jj] *= vDataset[vIndex[ii]][jj]; }
-			else if (operation == '/') { vDataset[activeIndex][jj] /= vDataset[vIndex[ii]][jj]; }
+			if (operation == '+') { vDataset[index][jj] += vDataset[vIndex[ii]][jj]; }
+			else if (operation == '-') { vDataset[index][jj] -= vDataset[vIndex[ii]][jj]; }
+			else if (operation == '*') { vDataset[index][jj] *= vDataset[vIndex[ii]][jj]; }
+			else if (operation == '/') { vDataset[index][jj] /= vDataset[vIndex[ii]][jj]; }
 			else { jf.err("Invalid operation-jscalebar.makeDataset"); }
 		}
 	}
-	return activeIndex;
+	return index;
+}
+string JSCALEBAR::getUnit(int index)
+{
+	if (index < 0) { index = activeIndex; }
+	else if (index >= vUnit.size()) { jf.err("Invalid index-jscalebar.getUnit"); }
+	return vUnit[index];
 }
 void JSCALEBAR::setUnit(int index, string unit, int decimalPlaces)
 {

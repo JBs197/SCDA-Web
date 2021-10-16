@@ -802,12 +802,13 @@ unordered_map<string, double> JPDFMAP::getMapRegionData()
 	unordered_map<string, double> mapRegionData = jsb.getMapDatasetLabel(mapRegion, indexDataset);
 	return mapRegionData;
 }
-void JPDFMAP::kmToPixel(vector<vector<vector<double>>>& frame, vector<vector<vector<double>>>& border)
+void JPDFMAP::kmToPixel(vector<vector<vector<double>>> frame, vector<vector<vector<double>>>& border)
 {
 	if (legendBarDouble < 0 || legendTickLines < 0) { jf.err("Missing legend init-jpdfmap.kmToPixel"); }
+	mapBorder = border;
 	initImgBar(frame[0]);
-	displaceParentToFrame(border[0], frame[0]);
-	scaleParentToPage(border[0], frame[0]);
+	displaceParentToFrame(mapBorder[0], frame[0]);
+	scaleParentToPage(mapBorder[0], frame[0]);
 	vector<double> vCenter, dispParentTL;  // dispParent TL is child's TL pixel displacement from parent TL.
 	for (int ii = 1; ii < mapRegion.size(); ii++)
 	{
@@ -816,17 +817,16 @@ void JPDFMAP::kmToPixel(vector<vector<vector<double>>>& frame, vector<vector<vec
 			selIndex = ii;
 			mapRegion.pop_back();
 		}
-		dispParentTL = getChildTL(border[ii], frame[ii], frame[0]);
-		scaleChildToPage(border[ii], frame[ii]);
-		displaceChildToParent(border[ii], frame[ii], dispParentTL);
+		dispParentTL = getChildTL(mapBorder[ii], frame[ii], frame[0]);
+		scaleChildToPage(mapBorder[ii], frame[ii]);
+		displaceChildToParent(mapBorder[ii], frame[ii], dispParentTL);
 	}
 	vector<double> delta = { imgBLTR[0][0], imgBLTR[1][1] };
 	for (int ii = 0; ii < mapRegion.size(); ii++)
 	{
-		mf.coordReflectY(border[ii], 0.0);
-		mf.coordDisplacement(border[ii], delta);
+		mf.coordReflectY(mapBorder[ii], 0.0);
+		mf.coordDisplacement(mapBorder[ii], delta);
 	}
-	mapBorder = border;
 }
 void JPDFMAP::initColour()
 {

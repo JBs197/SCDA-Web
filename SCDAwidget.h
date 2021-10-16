@@ -73,7 +73,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 
 	void cleanUnit(string& unit);
 	void connect();
-	void downloadMap();
 	int getHeight();
 	string getUnit();
 	int getWidth();

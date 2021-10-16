@@ -37,9 +37,9 @@ struct WJRCSV : public Wt::WMemoryResource
 
 struct WJRPDF : public Wt::WMemoryResource
 {
-	string error;
+	vector<unsigned char> binPDF;
+	string error, pathPNG;
 	JPDF jpdf;
-	HPDF_UINT32 pdfSize;
 	WJRPDF(Wt::WString wsFileName) : Wt::WMemoryResource("pdf")
 	{
 		setDispositionType(Wt::ContentDisposition::Attachment);
@@ -54,30 +54,31 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	vector<int> displayData;
 	GSFUNC gs;
 	Wt::WLineEdit *leFileName;
-	int legendBarDouble = -1;  // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
+	int legendBarDouble = -1;                // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
 	int legendFontSize = 12;
-	int legendTickLines = -1;  // How many lines of text are needed at each tick mark on the bar.
+	int legendTickLines = -1;                // How many lines of text are needed at each tick mark on the bar.
 	const double legendIdleThreshold = 0.4;  // Minimum percentage of bar unused, to trigger action.
 	Wt::WLength maxWidth, maxHeight;
-	vector<vector<vector<double>>> mapBorder, mapFrame;
+	vector<vector<vector<double>>> mapBorderKM, mapFrameKM;
 	vector<vector<double>> mapData;
 	vector<string> mapRegion;
 	MATHFUNC mf;
 	const int numDLtypes = 3;
 	Wt::Signal<int> previewSignal_;
 	int selectedMode = -1;
+	int sessionCounter = 0;                  // For PDF/PNG temp files.
 	Wt::WStackedWidget *stackedPB, *stackedPreview;
 	Wt::WText *textExt;
 	Wt::WToolBar *toolButtons;
 	string sCSV, sUnit;
 	vector<Wt::WLink> vLink;
 	vector<Wt::WColor> vToolColour;
-	shared_ptr<Wt::WButtonGroup> wbGroup = nullptr;
+	WINFUNC wf;
 	shared_ptr<WJRCSV> wjrCSV = nullptr;
 	shared_ptr<WJRPDF> wjrPDFbargraph = nullptr;
-	shared_ptr<Wt::WFileResource> wjrPDFbargraphPreview = nullptr;
+	shared_ptr<Wt::WMemoryResource> wmrPNGbargraph = nullptr;
 	shared_ptr<WJRPDF> wjrPDFmap = nullptr;
-	shared_ptr<Wt::WFileResource> wjrPDFmapPreview = nullptr;
+	shared_ptr<Wt::WMemoryResource> wmrPNGmap = nullptr;
 	WTPAINT* wpPreview = nullptr;
 
 public:
@@ -87,6 +88,7 @@ public:
 
 	JFUNC jf;
 	Wt::WString styleTextPlain, styleTextShaded;
+	shared_ptr<Wt::WButtonGroup> wbGroup = nullptr;
 	Wt::WColor wcBlack, wcSelected, wcWhite;
 	Wt::WLength wlAuto = Wt::WLength();
 
@@ -98,6 +100,7 @@ public:
 	int getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize);
 	int getLegendTickLines(string sUnit);
 	int getRadioIndex();
+	string getSessionCounter(int length);
 	void init();
 	void initColour();
 	void initJPDF(JPDF& jpdf);

@@ -55,13 +55,6 @@ void SCDAwidget::displayCata(const Wt::WKeyEvent& wKey)
 		wjConfig->textCata->setText(wsCata);
 	}
 }
-void SCDAwidget::downloadMap()
-{
-	auto app = Wt::WApplication::instance();
-	string fileRoot = app->docRoot();
-	string filePath = fileRoot + "/MapTest.pdf";
-	wtMap->printPDF(filePath);
-}
 
 int SCDAwidget::getHeight()
 {
@@ -602,9 +595,11 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 {
 	wjMap->boxMap->clear();  // Erase the previous map.
 	wjMap->resetMenu();
+
 	auto wtMapUnique = make_unique<WTPAINT>();
 	wtMap = wjMap->boxMap->addWidget(move(wtMapUnique));
 	populateTextLegend(wjMap->wjlMap);
+	wtMap->jsb.addDataset(vvdData);
 	if (wjMap->linkIconClose.isNull())
 	{
 		wjMap->linkIconClose = Wt::WLink(iconClose);
@@ -629,13 +624,17 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	if (sUnit == "# of persons")
 	{
 		string temp = "% of population";
+		wtMap->jsb.setUnit(0, sUnit, 0);
+		wtMap->jsb.setUnit(1, "population", 0);
+		int indexJsb = wtMap->jsb.makeDataset({ 0, 1 }, '/');
+		wtMap->jsb.setUnit(indexJsb, temp, 1);
+
 		function<void()> fnUnit2 = bind(&SCDAwidget::updateUnit, this, temp);
 		wjMap->popupUnit->addItem(temp)->triggered().connect(fnUnit2);
-
 		if (sUnitOld == sUnit)  // Keep this unit if it had been chosen previously.
 		{
 			wjDownload->setUnit(sUnit, { 0 });
-			wtMap->setUnit(sUnit, { 0 });
+			wtMap->jsb.activeIndex = 0;
 			wsUnit = "Unit: " + sUnit;
 			updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
 			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 1);
@@ -643,7 +642,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		else  // Default to this unit.
 		{
 			wjDownload->setUnit(temp, { 0, 1 });
-			wtMap->setUnit(temp, { 0, 1 });
+			wtMap->jsb.activeIndex = 2;
 			wsUnit = "Unit: " + temp;
 			updatePinButtons(temp, vsRegion[0]);  // Enable or disable as appropriate.
 			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 2);
@@ -652,7 +651,8 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	else 
 	{ 
 		wjDownload->setUnit(sUnit, { 0 });
-		wtMap->setUnit(sUnit, { 0 }); 
+		wtMap->jsb.setUnit(0, sUnit, 0);
+		wtMap->jsb.activeIndex = 0; 
 		wsUnit = "Unit: " + sUnit;
 		updatePinButtons(sUnit, vsRegion[0]);  // Enable or disable as appropriate.
 		legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnit, 1);
@@ -662,7 +662,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 
 	wtMap->legendBarDouble = legendBarDouble;
 	wtMap->legendTickLines = legendTickLines;
-	vector<Wt::WPolygonArea*> area = wtMap->drawMap(vsRegion, vvvdFrame, vvvdArea, vvdData);
+	vector<Wt::WPolygonArea*> area = wtMap->drawMap(vsRegion, vvvdFrame, vvvdArea);
 	for (int ii = 0; ii < area.size(); ii++)
 	{
 		function<void()> fnArea = bind(&SCDAwidget::mapAreaClicked, this, ii);
@@ -1073,6 +1073,13 @@ void SCDAwidget::tabChanged(const int& tabIndex)
 	{
 	case 4:
 	{
+		Wt::WRadioButton* wrb = wjDownload->wbGroup->button(0);
+		if (tabData->isTabEnabled(3)) {
+			wrb->setEnabled(1);
+		}
+		else {
+			wrb->setEnabled(0);
+		}
 		int selIndex = wjDownload->getRadioIndex();
 		incomingPreviewSignal(selIndex);
 		break;
@@ -1242,11 +1249,22 @@ void SCDAwidget::updateUnit(string sUnit)
 
 	if (wjBarGraph != nullptr) { updatePinButtons(sUnit); }
 
-	vector<int> viIndex;
-	if (sUnit == "% of population") { viIndex = { 0, 1 }; }
-	else { viIndex = { 0 }; }
-	wtMap->updateDisplay(viIndex);
-	wjDownload->setUnit(sUnit, viIndex);
+	for (int ii = 0; ii < wtMap->jsb.vUnit.size(); ii++)
+	{
+		if (wtMap->jsb.vUnit[ii] == sUnit) {
+			wtMap->updateDisplay(ii);
+			if (ii >= 2) {
+				wjDownload->setUnit(sUnit, { 0, 1 });
+			}
+			else {
+				wjDownload->setUnit(sUnit, { ii });
+			}
+			break;
+		}
+		else if (ii == wtMap->jsb.vUnit.size() - 1) {
+			jf.err("Failed to locate unit index-SCDAwidget.updateUnit");
+		}
+	}
 }
 void SCDAwidget::widgetMobile()
 {

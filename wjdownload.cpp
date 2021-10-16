@@ -10,16 +10,21 @@ void WJRCSV::handleRequest(const Wt::Http::Request& request, Wt::Http::Response&
 void WJRPDF::handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response)
 {
 	response.setMimeType("pdf");
-	string sPDF;
-	pdfSize = jpdf.getPDF(sPDF);
-	if (!pdfSize)
+	size_t binSize = binPDF.size();
+	if (!binSize)
 	{
 		error = "WJRPDF ERROR: pdfSize is zero";
 		response.out().write(error.c_str(), error.size());
 		return;
 	}
-	response.setContentLength(pdfSize);
-	response.out().write(sPDF.c_str(), pdfSize);
+	response.setContentLength(binSize + 1);
+	string sPDF;
+	sPDF.resize(binSize);
+	for (int ii = 0; ii < binSize; ii++)
+	{
+		sPDF[ii] = (char)binPDF[ii];
+	}
+	response.out().write(sPDF.c_str(), binSize + 1);
 }
 
 void WJDOWNLOAD::adjustLineEditWidth()
@@ -33,7 +38,7 @@ void WJDOWNLOAD::adjustLineEditWidth()
 void WJDOWNLOAD::displayCSV(string& csv)
 {
 	if (wjrCSV != nullptr) { wjrCSV.reset(); }
-	wjrCSV = makeWJRCSV(sCSV);
+	wjrCSV = makeWJRCSV(csv);
 	sCSV = csv;
 	updateStackedPB(selectedMode);
 	updateStackedPreview(selectedMode);
@@ -145,15 +150,16 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 	wjrPDFbargraph->jpdf.vSection[indexBarGraph]->jpBargraph->drawData(seriesColour);
 
 	// Make a local image file for the given PDF.
+	sessionCounter++;
 	auto app = Wt::WApplication::instance();
-	string sessionID = app->sessionId();
-	vector<unsigned char> binPDF;
-	wjrPDFbargraph->jpdf.getPDF(binPDF);
-	string pathPNG = gs.binToPng(binPDF, sessionID);
+	string unique = app->sessionId() + getSessionCounter(8);
+	wjrPDFbargraph->jpdf.getPDF(wjrPDFbargraph->binPDF);
+	long long sizePNG;
+	wjrPDFbargraph->pathPNG = gs.binToPng(wjrPDFbargraph->binPDF, unique, sizePNG);
+	vector<unsigned char> binPNG = wf.loadBin(wjrPDFbargraph->pathPNG);
+	wmrPNGbargraph = make_shared<Wt::WMemoryResource>("png", binPNG);
 
 	// Paint the preview screen.
-	auto preview = make_shared<Wt::WFileResource>("application/pdf", pathPNG);
-	swap(preview, wjrPDFbargraphPreview);
 	updateStackedPB(selectedMode);
 	updateStackedPreview(selectedMode);
 }
@@ -227,7 +233,7 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	wjrPDFmap->jpdf.vSection[indexMap]->jpMap->initScaleBar(sUnit, displayData, legendBarDouble, legendTickLines);
 
 	// Convert the raw coordinate data into an HPDF-friendly format.
-	wjrPDFmap->jpdf.vSection[indexMap]->jpMap->kmToPixel(mapFrame, mapBorder);
+	wjrPDFmap->jpdf.vSection[indexMap]->jpMap->kmToPixel(mapFrameKM, mapBorderKM);
 	unordered_map<string, double> mapRegionData = wjrPDFmap->jpdf.vSection[indexMap]->jpMap->getMapRegionData();
 
 	// Insert data and region names into the region section.
@@ -280,15 +286,17 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	wjrPDFmap->jpdf.vSection[indexMap]->jpMap->drawMap();
 
 	// Make a local image file for the given PDF.
+	sessionCounter++;
 	auto app = Wt::WApplication::instance();
-	string sessionID = app->sessionId();
-	vector<unsigned char> binPDF;
-	wjrPDFmap->jpdf.getPDF(binPDF);
-	string pathPNG = gs.binToPng(binPDF, sessionID);
+	string unique = app->sessionId() + getSessionCounter(8);
+	wjrPDFmap->jpdf.getPDF(wjrPDFmap->binPDF);
+	long long sizePNG;
+	wjrPDFmap->pathPNG = gs.binToPng(wjrPDFmap->binPDF, unique, sizePNG);
+	vector<unsigned char> binPNG = wf.loadBin(wjrPDFmap->pathPNG);
+	if (wmrPNGmap != nullptr) { wmrPNGmap.reset(); }
+	wmrPNGmap = make_shared<Wt::WMemoryResource>("png", binPNG);
 
 	// Paint the preview screen.
-	auto preview = make_shared<Wt::WFileResource>("application/pdf", pathPNG);
-	swap(preview, wjrPDFmapPreview);
 	updateStackedPB(selectedMode);
 	updateStackedPreview(selectedMode);
 }
@@ -367,6 +375,15 @@ int WJDOWNLOAD::getRadioIndex()
 	}
 	return index;
 }
+string WJDOWNLOAD::getSessionCounter(int length)
+{
+	// Returns a unique number for this sessionID.
+	string session = to_string(sessionCounter);
+	while (session.size() < length) {
+		session.insert(session.begin(), '0');
+	}
+	return session;
+}
 void WJDOWNLOAD::init()
 {
 	initColour();
@@ -417,8 +434,8 @@ void WJDOWNLOAD::initMap(vector<string>& region, vector<vector<vector<double>>>&
 {
 	// Save the raw pixel data from the active map, for possible rendering later.
 	mapRegion = region;
-	mapFrame = frame;
-	mapBorder = border;
+	mapFrameKM = frame;
+	mapBorderKM = border;
 	mapData = data;
 }
 Wt::WString WJDOWNLOAD::initStyleCSS(shared_ptr<Wt::WMemoryResource>& wmrCSS)
@@ -578,29 +595,31 @@ void WJDOWNLOAD::updateStackedPreview(int index)
 	{
 	case 0:
 	{
-		Wt::WLink wLink = Wt::WLink(wjrPDFbargraphPreview);
 		Wt::WImage* wImageOld = (Wt::WImage*)stackedPreview->widget(index);
 		stackedPreview->removeWidget(wImageOld);
+		Wt::WLink wLink = Wt::WLink(wmrPNGbargraph);
 		auto wImage = make_unique<Wt::WImage>(wLink);
 		double imageWidth = maxWidth.value() - 200.0;
 		double imageHeight = round(imageWidth * 1.294117647);
 		Wt::WLength wlWidth = Wt::WLength(imageWidth);
 		Wt::WLength wlHeight = Wt::WLength(imageHeight);
 		wImage->setMinimumSize(wlWidth, wlHeight);
+		wImage->setMaximumSize(wlWidth, wlHeight);
 		stackedPreview->insertWidget(index, move(wImage));
 		break;
 	}
 	case 1:
 	{
-		Wt::WLink wLink = Wt::WLink(wjrPDFmapPreview);
 		Wt::WImage* wImageOld = (Wt::WImage*)stackedPreview->widget(index);
 		stackedPreview->removeWidget(wImageOld);
+		Wt::WLink wLink = Wt::WLink(wmrPNGmap);
 		auto wImage = make_unique<Wt::WImage>(wLink);
 		double imageWidth = maxWidth.value() - 200.0;
 		double imageHeight = round(imageWidth * 1.294117647);
 		Wt::WLength wlWidth = Wt::WLength(imageWidth);
 		Wt::WLength wlHeight = Wt::WLength(imageHeight);
 		wImage->setMinimumSize(wlWidth, wlHeight);
+		wImage->setMaximumSize(wlWidth, wlHeight);
 		stackedPreview->insertWidget(index, move(wImage));
 		break;
 	}

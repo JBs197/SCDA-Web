@@ -8,24 +8,18 @@
 #include <Wt/WPainter.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPaintDevice.h>
-#include <Wt/WPdfImage.h>
-#include <Wt/Render/WPdfRenderer.h>
 #include <Wt/WPolygonArea.h>
 #include <Wt/WRectArea.h>
 #include <Wt/WFlags.h>
-#include <hpdf.h>
-#include "mathfunc.h"
+#include "jscalebar.h"
 
 using namespace std;
 
 class WTPAINT : public Wt::WPaintedWidget
 {
-	vector<double>* activeData = nullptr;
-	vector<double>* activeDataChildren = nullptr;
 	vector<Wt::WPolygonArea*> area;
 	vector<vector<int>> areaColour, keyColour;  // Wt prefers ints for some reason...
-	vector<vector<double>> areaData, areaDataChildren;
-	vector<double> areaDataProcessed, areaDataProcessedChildren;
+	vector<vector<double>> keyColourDouble;
 	vector<string> areaName, dataName;
 	const double barNumberHeight = 14.0;  // Unit of pixels, for a horizontal bar.
 	const double barNumberWidth = 100.0;  // Unit of pixels, for a vertical bar.
@@ -35,16 +29,16 @@ class WTPAINT : public Wt::WPaintedWidget
 	const double colourDimPercent = 0.7;
 	const string defaultLength = "200.0";
 	double dHeight = -1.0, dWidth = -1.0;  // Unit of pixels.
-	vector<int> displayData;
 	vector<int> extraColour, unknownColour;
+	vector<double> extraColourDouble, unknownColourDouble;
 	const double legendIdleThreshold = 0.4;  // Minimum percentage of bar unused, to trigger action.
 	double legendMin = -1.0, legendMax = -1.0;
 	unordered_map<string, int> mapArea;  // Form "Region Name"->indexArea.
 	unordered_map<string, Wt::WString> mapTooltip;
+	MATHFUNC mf;
 	const int numColourBands = 5;
 	double parentAspectRatio = -1.0;  // Width divided by height.
 	int selIndex = -1;
-	string sUnit;
 	double widgetPPKM = -1.0;
 
 public:
@@ -55,6 +49,7 @@ public:
 	~WTPAINT() override {}
 
 	JFUNC jf;
+	JSCALEBAR jsb;
 	int legendBarDouble = -1;  // 0 = single bar, 1 = double bars, 2 = single bar with Canada.
 	int legendTickLines = -1;  // How many lines of text are needed at each tick mark on the bar.
 
@@ -64,29 +59,25 @@ public:
 	vector<string> delinearizeTitle(string& linearTitle);
 	vector<Wt::WPointF> displaceChildToParent(vector<vector<double>>& vvdBorder, vector<double>& childTL, vector<double> dispTL);
 	void displaceParentToWidget(vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& parentFrameKM);
-	vector<Wt::WPolygonArea*> drawMap(vector<string>& vsRegion, vector<vector<vector<double>>>& vvvdFrame, vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& vvdData);
+	vector<Wt::WPolygonArea*> drawMap(vector<string>& vsRegion, vector<vector<vector<double>>>& vvvdFrame, vector<vector<vector<double>>>& vvvdBorder);
 	void initColour();
 	vector<double> getChildTL(vector<vector<double>>& vpfBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM);
 	vector<double> getDimensions();
 	vector<vector<int>> getFrame(vector<Wt::WPointF>& path);
 	vector<vector<string>> getGraphData();
-	vector<vector<double>> getScaleValues(int numTicks);
+	int getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize);
+	int getLegendTickLines(string sUnit);
 	void makeAreas();
 	void paintLegendBar(Wt::WPainter& painter);
 	void paintRegionAll(Wt::WPainter& painter);
-	void prepareActiveData();
-	void prepareActiveData(vector<int> viIndex);
-	void printPDF(string filePath);
-	vector<double> processPercent(vector<int> viIndex);
 	void scaleChildToWidget(vector<vector<double>>& vpfBorder, vector<vector<double>>& vpfFrame);
 	void scaleImgBar();
 	void scaleImgBar(vector<vector<double>>& parentFrameKM);
 	vector<Wt::WPointF> scaleParentToWidget(vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& parentFrameKM);
 	void setDimensions(int iHeight, int iWidth);
-	void setUnit(string unit, vector<int> viIndex);
 	void setWColour(Wt::WColor& wColour, vector<int> rgb, double percent);
 	void updateAreaColour();
-	void updateDisplay(vector<int> viIndex);
+	void updateDisplay(int index);
 
 protected:
 	virtual void paintEvent(Wt::WPaintDevice* paintDevice) override;

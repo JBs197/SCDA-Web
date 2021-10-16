@@ -95,6 +95,14 @@ int main()
 	const string execPath = wf.get_exec_path(), wtAppPath = "";
 	string dbPath = sroot + "\\SCDA.db";
 	const vector<string> args = make_wrun_args(execPath);
+	string tempFolder = getDocPath(execPath) + "/temp";
+	vector<string> tempList = wf.getFileList(tempFolder, "*");
+	string tempFile;
+	for (int ii = 0; ii < tempList.size(); ii++)
+	{
+		tempFile = tempFolder + "/" + tempList[ii];
+		wf.delete_file(tempFile);
+	}
 	Wt::WServer wtServer(execPath, args, wtAppPath);
 	SCDAserver myServer(wtServer, dbPath);
 	wtServer.addEntryPoint(Wt::EntryPointType::Application, bind(makeApp, placeholders::_1, ref(myServer)));
