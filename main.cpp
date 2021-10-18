@@ -31,9 +31,6 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	vector<unsigned char> binIconClose = serverRef.jf.loadBin(docRoot() + "/Close_Icon_16px.png");
 	vector<unsigned char> binIconTrash = serverRef.jf.loadBin(docRoot() + "/DragIntoTrash_Icon_42px.png");
 
-	const string mrb = docRoot() + "\\SCDA-Wt";
-	this->messageResourceBundle().use(mrb);
-
 	//root()->addWidget(make_unique<Wt::WText>(Wt::WString::tr("introduction")));
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
 	scdaWidget->cssTextPlain = scdaWidget->loadCSS(binCSSplain);

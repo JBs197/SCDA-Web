@@ -23,24 +23,33 @@
 using namespace std;
 extern const string sroot;
 
+struct WJUNITPIN
+{
+	string activeRegion, activeUnit, sRegionPopulation;
+	int regionPopulation = -1;
+	string sUnitPreference = "% of population";
+	unsigned xChecksum;
+};
+
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
-	string activeCata, activeTableColTitle, activeTableRowTitle;
+	string activeCata;
 	string db_path = sroot + "\\SCDA.db";
 	bool filtersEnabled = 0;
 	bool first = 1;
+	JCRC32 jcrc;
 	JFUNC jf;
 	bool jsEnabled = 0;
 	JTREE jtRegion, jtWidget;
 	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
 	unordered_map<int, string> mapTimeWord;  // word index -> word  (shown in init).
-	unordered_map<string, Wt::WString> mapTooltip;  // widget -> tooltip
+	unordered_map<string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
 	unordered_map<string, string> mapUnit;  // ambiguous unit -> definitive unit
 	bool mobile = 0;
 	const int num_filters = 3;
 	int screenWidth, screenHeight;         // Unit of pixels, measured from the client. 
 	Wt::WString selectedRegion, selectedFolder;
-	string sessionID, tableRegion;
+	string sessionID;
 	unordered_set<string> setTip;         // List of helpful tips which have been dismissed by the user.
 	vector<vector<string>> tableCol, tableCore, tableRow;
 	int tableWidth, boxTableWidth;        // Used by JS functions.
@@ -55,6 +64,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	WJLEGEND* wjlMap = nullptr;
 	WJTABLE* tableData = nullptr;
 	WJTABLEBOX* wjTableBox = nullptr;
+	WJUNITPIN wjUnitPin;
 	WTPAINT* wtMap = nullptr;
 
 	Wt::WColor wcGrey, wcSelectedStrong, wcSelectedWeak, wcWhite;
@@ -93,11 +103,12 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processDataEvent(const DataEvent& event);
 	void processEventCatalogue(string sYear, string sCata);
 	void processEventCategory(vector<string> vsCategory);
+	void processEventConnection();
 	void processEventDemographic(vector<vector<string>> vvsDemo);
 	void processEventDifferentiation(vector<string> vsDiff, string sTitle);
 	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdFrame, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData);
 	void processEventParameter(vector<vector<vector<string>>> vvvsParameter, vector<vector<string>> vvsCata);
-	void processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, string& sRegion);
+	void processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
 	void processEventTree(JTREE jt);
 	void resetBarGraph();
@@ -106,7 +117,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void resetTabAll();
 	void resetTable();
 	void resetTree();
-	void seriesAddToGraph();
+	void seriesAddToGraph(int mode);
 	void seriesRemoveFromGraph(const int& seriesIndex);
 	void setMap(int iRow, int iCol, string sRegion);
 	void setTable(int geoCode, string sRegion);
@@ -116,8 +127,9 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void treeClicked();
 	void treeClicked(int& geoCode, string& sRegion);
 	void updateDownloadTab();
-	void updatePinButtons(string mapUnit);
-	void updatePinButtons(string mapUnit, string sRegion);
+	void updatePinButtons();
+	void updatePinButtons(int mode);
+	void updateRegion(vector<string> vsNamePop);
 	void updateTextCata(int numCata);
 	void updateUnit(string sUnit);
 	void widgetMobile();

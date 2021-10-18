@@ -132,28 +132,28 @@ void WJPARAMPANEL::removeParameter(const string& sID)
 
 void WJBARGRAPH::addDataset(vector<vector<string>>& vvsData, vector<vector<string>>& vvsParameter)
 {
-	// vvsData has form [x-axis category][category label, bar value0, bar value1, ...].	
-	// vvsParameter has form [parameter index][sTitle, 
+	// vvsData has form [x-axis section][section name, data value].	
+	// vvsParameter has form [parameter index][sTitle, MIDAncestor0, MIDAncestor1, ..., MID].
 	WJDATASET wjds;
-	int numRegion = vvsData.size();
-	wjds.vsData.resize(numRegion);
+	int numXName = vvsData.size();
+	wjds.vsData.resize(numXName);
 	if (vDataset.size() < 1)
 	{
-		vsRegion.resize(numRegion);
-		mapIndexRegion.clear();
-		for (int ii = 0; ii < numRegion; ii++)
+		vXName.resize(numXName);
+		mapIndexXName.clear();
+		for (int ii = 0; ii < numXName; ii++)
 		{
-			vsRegion[ii] = vvsData[ii][0];
-			mapIndexRegion.emplace(vvsData[ii][0], ii);
+			vXName[ii] = vvsData[ii][0];
+			mapIndexXName.emplace(vvsData[ii][0], ii);
 			wjds.vsData[ii] = vvsData[ii][1];
 		}
 	}
 	else
 	{
 		int index;
-		for (int ii = 0; ii < numRegion; ii++)
+		for (int ii = 0; ii < numXName; ii++)
 		{
-			index = mapIndexRegion.at(vvsData[ii][0]);
+			index = mapIndexXName.at(vvsData[ii][0]);
 			wjds.vsData[index] = vvsData[ii][1];
 		}
 	}
@@ -500,7 +500,7 @@ string WJBARGRAPH::italicize(vector<string>& vsParameter, int italicFreq)
 }
 unique_ptr<Wt::Chart::WCartesianChart> WJBARGRAPH::makeChart()
 {
-	auto modelTemp = make_shared<Wt::WStandardItemModel>(vsRegion.size(), vDataset.size() + 1);
+	auto modelTemp = make_shared<Wt::WStandardItemModel>(vXName.size(), vDataset.size() + 1);
 	swap(modelTemp, model);
 	setModelValues();
 	auto chartTemp = make_unique<Wt::Chart::WCartesianChart>();
@@ -665,8 +665,12 @@ void WJBARGRAPH::removeTipWheel(int layoutIndex)
 void WJBARGRAPH::reset()
 {
 	unit = "";
-	activeCata.clear();
+	region = "";
+	activeCata = "";
+	setParameter.clear();
 	vDataset.clear();
+	bgMode = -1;
+	xChecksum = 0;
 	if (chart != nullptr)
 	{
 		removeWidget(chart);
@@ -692,16 +696,15 @@ void WJBARGRAPH::reset()
 		model.reset();
 		model = nullptr;
 	}
-	
 }
 void WJBARGRAPH::setModelValues()
 {
 	double dnum;
 	size_t pos1, pos2;
 	string temp, toolTip;
-	for (int ii = 0; ii < vsRegion.size(); ii++)
+	for (int ii = 0; ii < vXName.size(); ii++)
 	{
-		model->setData(ii, 0, vsRegion[ii], Wt::ItemDataRole::Display);
+		model->setData(ii, 0, vXName[ii], Wt::ItemDataRole::Display);
 	}
 	for (int ii = 0; ii < vDataset.size(); ii++)
 	{

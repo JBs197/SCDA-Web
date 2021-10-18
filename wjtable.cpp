@@ -177,6 +177,19 @@ string WJTABLE::getCell(int iRow, int iCol)
 	string sCell = wsTemp.toUTF8();
 	return sCell;
 }
+string WJTABLE::getCellValue(int iRow, int iCol)
+{
+	// This variant will remove the cell's unit and commas.
+	string sCell = getCell(iRow, iCol);
+	size_t pos1 = sCell.find('\n');
+	string cellValue = sCell.substr(0, pos1);
+	pos1 = cellValue.rfind(',');
+	while (pos1 < cellValue.size()) {
+		cellValue.erase(cellValue.begin() + pos1);
+		pos1 = cellValue.rfind(',', pos1);
+	}
+	return cellValue;
+}
 int WJTABLE::getColIndex(string sHeader)
 {
 	int index = -1;
@@ -211,7 +224,7 @@ string WJTABLE::getUnit()
 }
 string WJTABLE::getUnit(int iRow, int iCol)
 {
-	string unit;
+	string unit, sCell;
 	if (mapColUnit.count(iCol))
 	{
 		unit = mapColUnit.at(iCol);
@@ -222,7 +235,10 @@ string WJTABLE::getUnit(int iRow, int iCol)
 		unit = mapRowUnit.at(iRow);
 		return unit;
 	}
-	unit = "";
+	sCell = getCell(iRow, iCol);
+	size_t pos1 = sCell.find('(') + 1;
+	size_t pos2 = sCell.rfind(')');
+	unit = sCell.substr(pos1, pos2 - pos1);
 	return unit;
 }
 string WJTABLE::getUnit(string header)
@@ -241,7 +257,12 @@ string WJTABLE::getUnit(string header)
 }
 string WJTABLE::getUnitParser(string header)
 {
-	if (setUnitPercent.count(header)) { return "%"; }
+	size_t pos1;
+	for (auto it = setUnitPercent.begin(); it != setUnitPercent.end(); it++)
+	{
+		pos1 = header.find(*it);
+		if (pos1 < header.size()) { return "%"; }
+	}
 	return "";
 }
 void WJTABLE::headerSelect(int iCol)
@@ -340,11 +361,18 @@ void WJTABLE::headerSelect(int iCol)
 		wBox->setPadding(6.0, Wt::Side::Left);
 	}
 }
-void WJTABLE::init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, string& sRegion)
+void WJTABLE::init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop)
 {
+	// vsNamePop has form [sRegion, sRegionPopulation, sUnitPreference]. sUnitPreference can
+	// be "# of persons" or "% of population", and is used if a cell does not have a unit.
 	initValues();
+	try {
+		regionPopulation = stod(vsNamePop[1]);
+	}
+	catch (invalid_argument) { jf.err("stod-wjtable.init"); }
+	sUnitPreference = vsNamePop[2];
 	initModel(vvsCore.size(), vvsCore[0].size() + 1);
-	modelSetTopLeft(sRegion);
+	modelSetTopLeft(vsNamePop[0]);
 	modelSetTop(vvsCol);
 	modelSetLeft(vvsRow);
 	modelSetCore(vvsCore);
@@ -371,6 +399,7 @@ void WJTABLE::initModel(int numRow, int numCol)
 	setItemDelegate(wjDel);
 	wjhDel = make_shared<WJHDELEGATE>(heightHeader);
 	setHeaderItemDelegate(wjhDel);
+	wjsDel = make_shared<WJSDELEGATE>(heightCell);  // Not assigned to anything by default.
 	model = make_shared<Wt::WStandardItemModel>(numRow, numCol);
 	setModel(model);
 	setSortingEnabled(0);
@@ -418,6 +447,7 @@ void WJTABLE::initValues()
 void WJTABLE::modelSetCore(vector<vector<string>>& vvsCore)
 {
 	bool rowUnit;
+	double dNum;
 	string unit, temp;
 	for (int ii = 0; ii < vvsCore.size(); ii++)
 	{
@@ -431,14 +461,18 @@ void WJTABLE::modelSetCore(vector<vector<string>>& vvsCore)
 		for (int jj = 0; jj < vvsCore[ii].size(); jj++)
 		{
 			if (!rowUnit && mapColUnit.count(jj + 1)) { unit = mapColUnit.at(jj + 1); }
-			else if (!rowUnit)  { unit = "# of persons"; }
+			else if (!rowUnit)  { 
+				unit = sUnitPreference; 
+			}
 
-			if (unit == "%") 
-			{ 
+			if (unit == "% of population") {
+				dNum = 100.0 * stod(vvsCore[ii][jj]) / regionPopulation;
+				temp = jf.doubleToCommaString(dNum, 1) + "\n(" + unit + ")";
+			}
+			else if (unit[0] == '%') { 
 				temp = jf.numericToCommaString(vvsCore[ii][jj], 1) + "\n(" + unit + ")";
 			}
-			else
-			{
+			else {
 				temp = jf.numericToCommaString(vvsCore[ii][jj], 0) + "\n(" + unit + ")";
 			}
 
@@ -462,7 +496,7 @@ void WJTABLE::modelSetLeft(vector<vector<string>>& vvsRow)
 }
 void WJTABLE::modelSetTop(vector<vector<string>>& vvsCol)
 {
-	// vvsCol has form [MID1, MID2, ...][MID, sVal, Ancestor0, ...]
+	// vvsCol has form [MID1, MID2, ...][MID number, sVal, Ancestor0, ...]
 	int count;
 	for (int ii = 0; ii < vvsCol.size(); ii++)
 	{
@@ -493,13 +527,23 @@ void WJTABLE::setColUnit(string& colHeader, int index)
 	{
 		pos2 = colHeader.size() - 1;
 		pos1 = colHeader.rfind('(') + 1;
-		unit = colHeader.substr(pos1, pos2 - pos1);
-		if (!setUnitBreaker.count(unit)) { mapColUnit.emplace(index, unit); }
+		if (pos2 - pos1 == 1) {
+			unit = colHeader.substr(pos1, pos2 - pos1);
+			mapColUnit.emplace(index, unit);
+		}
 	}
 	else
 	{
 		unit = getUnitParser(colHeader);
-		if (unit.size() > 0) { mapColUnit.emplace(index, unit); }
+		if (unit.size() > 0) { 
+			mapColUnit.emplace(index, unit); 
+		}
+		else if (sUnitPreference == "% of population") {
+			setItemDelegateForColumn(index, wjsDel);
+		}
+		else {
+			setItemDelegateForColumn(index, wjDel);
+		}
 	}
 }
 void WJTABLE::setProperty(Wt::WWidget* widget, string property, string value)
@@ -576,6 +620,13 @@ void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent
 	int iCol = wmIndex.column();
 	headerSignal_.emit(iRow, iCol);
 }
+void WJTABLE::tableClickedSimulated(int iRow, int iCol)
+{
+	// Used to simulate a user click.
+	jf.timerStart();
+	cellSelect(iRow, iCol);
+	headerSignal_.emit(iRow, iCol);
+}
 void WJTABLE::tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent)
 {
 	// Triggered in response to a user click.
@@ -636,15 +687,77 @@ void WJTABLEBOX::addTipWidth()
 
 	boxTip->setLayout(move(tipLayout));
 }
+vector<vector<string>> WJTABLEBOX::getBargraphCol()
+{
+	vector<vector<string>> bgCol;  
+	vector<int> modelSel = wjTable->getRowColSel();  // Form [selectedRow, selectedCol].
+	bool unitCol = 0;
+	vector<string> vsRow(2);
+	string sUnitCell, sUnitCol;
+	if (wjTable->mapColUnit.count(modelSel[1])) {
+		sUnitCol = wjTable->mapColUnit.at(modelSel[1]);
+		unitCol = 1;
+	}
+	else {
+		sUnitCol = wjTable->getUnit();  // Uses the table rows/columns.
+		if (sUnitCol.size() < 1) { jf.err("Missing unit-wjtablebox.getBargraphCol"); }
+	}
+	int numRow = wjTable->model->rowCount();
+	for (int ii = 0; ii < numRow; ii++)
+	{
+		if (!unitCol) {
+			sUnitCell = wjTable->getUnit(ii, modelSel[1]);
+			if (sUnitCell != sUnitCol) { continue; }
+		}
+		vsRow[0] = wjTable->getCell(ii, 0);
+		vsRow[1] = wjTable->getCellValue(ii, modelSel[1]);
+		bgCol.push_back(vsRow);
+	}
+	return bgCol;
+}
+vector<vector<string>> WJTABLEBOX::getBargraphRow()
+{
+	vector<vector<string>> bgRow;
+	vector<int> modelSel = wjTable->getRowColSel();  // Form [selectedRow, selectedCol].
+	bool unitRow = 0;
+	vector<string> vsCol(2);
+	string sUnitCell, sUnitRow;
+	if (wjTable->mapRowUnit.count(modelSel[0])) {
+		sUnitRow = wjTable->mapRowUnit.at(modelSel[0]);
+		unitRow = 1;
+	}
+	else {
+		sUnitRow = wjTable->getUnit();
+		if (sUnitRow.size() < 1) { jf.err("Missing unit-wjtablebox.getBargraphRow"); }
+	}
+	int numCol = wjTable->model->columnCount();
+	for (int ii = 1; ii < numCol; ii++)
+	{
+		if (!unitRow) {
+			sUnitCell = wjTable->getUnit(modelSel[0], ii);
+			if (sUnitCell != sUnitRow) { continue; }
+		}
+		vsCol[0] = wjTable->getCell(-1, ii);
+		vsCol[1] = wjTable->getCellValue(modelSel[0], ii);
+		bgRow.push_back(vsCol);
+	}
+	return bgRow;
+}
 void WJTABLEBOX::init()
 {
 	vviFilter.resize(2, vector<int>());
-
+	wlAuto = Wt::WLength::Auto;
+	wlTableWidth = Wt::WLength::Auto;
+	wlTableHeight = Wt::WLength::Auto;
 	setPadding(2.0);
+	initColour();
+	initMaps();
+
 	auto vLayout = make_unique<Wt::WVBoxLayout>();
+	auto boxUnitPin = makeUnitPinBox(popupUnit, textUnit, pbUnit, pbPinRow, pbPinCol, pbPinReset);
 	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
-	boxTable = boxTableUnique.get();
-	vLayout->addWidget(move(boxTableUnique));
+	boxOption = vLayout->addWidget(move(boxUnitPin));
+	boxTable = vLayout->addWidget(move(boxTableUnique));
 
 	auto boxTipUnique = make_unique<Wt::WContainerWidget>();
 	boxTip = boxTipUnique.get();
@@ -653,6 +766,32 @@ void WJTABLEBOX::init()
 
 	vLayout->addStretch(1);
 	this->setLayout(move(vLayout));
+}
+void WJTABLEBOX::initColour()
+{
+	wcSelectedWeak = Wt::WColor(200, 200, 255);
+	wcWhite = Wt::WColor(255, 255, 255);
+}
+void WJTABLEBOX::initMaps()
+{
+	Wt::WString wsTooltip = "Click on a table cell to load a new map using that column and row.";
+	mapTooltip.emplace("table", wsTooltip);
+	wsTooltip = "Displayed region does not match the pinned region.";
+	mapTooltip.emplace("pinRegion", wsTooltip);
+	wsTooltip = "Displayed data unit does not match the pinned data unit.";
+	mapTooltip.emplace("pinUnit", wsTooltip);
+	wsTooltip = "Displayed region and data unit do not match the\npinned region and data unit.";
+	mapTooltip.emplace("pinRegionUnit", wsTooltip);
+	wsTooltip = "There are no currently-pinned data series\non the bar graph which can be reset.";
+	mapTooltip.emplace("pinEmpty", wsTooltip);
+	wsTooltip = "The existing bar graph has table row data pinned to it.\nReset the bar graph before pinning column or map data.";
+	mapTooltip.emplace("pinRow", wsTooltip);
+	wsTooltip = "The existing bar graph has table column data pinned to it.\nReset the bar graph before pinning row or map data.";
+	mapTooltip.emplace("pinCol", wsTooltip);
+	wsTooltip = "The existing bar graph has map data pinned to it.\nReset the bar graph before pinning table data.";
+	mapTooltip.emplace("pinMap", wsTooltip);
+	wsTooltip = "The existing bar graph has different x-axis names\ncompared to the current selection.";
+	mapTooltip.emplace("pinChecksum", wsTooltip);
 }
 string WJTABLEBOX::makeCSV()
 {
@@ -688,21 +827,116 @@ string WJTABLEBOX::makeCSV()
 	}
 	return sCSV;
 }
+unique_ptr<Wt::WContainerWidget> WJTABLEBOX::makeUnitPinBox(Wt::WPopupMenu*& popupUnit, Wt::WText*& textUnit, Wt::WPushButton*& pbUnit, Wt::WPushButton*& pbPinRow, Wt::WPushButton*& pbPinCol, Wt::WPushButton*& pbPinReset)
+{
+	auto boxOptionUnique = make_unique<Wt::WContainerWidget>();
+	auto textUnitUnique = make_unique<Wt::WText>();
+	textUnitUnique->setTextFormat(Wt::TextFormat::Plain);
+	textUnitUnique->setText("");
+	textUnitUnique->decorationStyle().font().setSize(Wt::FontSize::Large);
+	textUnitUnique->setTextAlignment(Wt::AlignmentFlag::Middle);
+	auto pbUnitUnique = make_unique<Wt::WPushButton>();
+	auto popupUnitUnique = make_unique<Wt::WPopupMenu>();
+	popupUnit = popupUnitUnique.get();
+	auto pbPinRowUnique = make_unique<Wt::WPushButton>("Pin Row Data To Bar Graph");
+	auto pbPinColUnique = make_unique<Wt::WPushButton>("Pin Column Data To Bar Graph");
+	auto pbPinResetUnique = make_unique<Wt::WPushButton>("Reset Bar Graph");
+
+	auto layoutOption = make_unique<Wt::WHBoxLayout>();
+	textUnit = layoutOption->addWidget(move(textUnitUnique));
+	pbUnitUnique->setMenu(move(popupUnitUnique));
+	pbUnit = layoutOption->addWidget(move(pbUnitUnique));
+	layoutOption->addStretch(1);
+	pbPinRow = layoutOption->addWidget(move(pbPinRowUnique));
+	pbPinCol = layoutOption->addWidget(move(pbPinColUnique));
+	pbPinReset = layoutOption->addWidget(move(pbPinResetUnique));
+	boxOptionUnique->setLayout(move(layoutOption));
+
+	return boxOptionUnique;
+}
 void WJTABLEBOX::removeTipWidth()
 {
 	tipSignal_.emit("tableWidth");
 	boxTip->clear();
 	boxTip->setHidden(1);
 }
-WJTABLE* WJTABLEBOX::setTable(vector<vector<string>>& core, vector<vector<string>>& col, vector<vector<string>>& row, string& region)
+void WJTABLEBOX::resetMenu()
+{
+	auto popupItems = popupUnit->items();
+	for (int ii = 0; ii < popupItems.size(); ii++)
+	{
+		popupUnit->removeItem(popupItems[ii]);
+	}
+}
+WJTABLE* WJTABLEBOX::setTable(vector<vector<string>>& core, vector<vector<string>>& col, vector<vector<string>>& row, vector<string>& vsNamePop)
 {
 	if (boxTable != nullptr) { boxTable->clear(); }
 	vvsCore = core;
 	vvsCol = col;
 	vvsRow = row;
-	sRegion = region;
-	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, sRegion);
-	return boxTable->addWidget(move(tableUnique));
+	sRegion = vsNamePop[0];
+	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, vsNamePop);
+	wjTable = boxTable->addWidget(move(tableUnique));
+	return wjTable;
+}
+void WJTABLEBOX::setTableSize()
+{
+	if (wjTable != nullptr) {
+		wjTable->setMaximumSize(wlTableWidth, wlTableHeight);
+	}
+}
+void WJTABLEBOX::setTableSize(Wt::WLength& wlWidth, Wt::WLength& wlHeight)
+{
+	wlTableWidth = wlWidth;
+	wlTableHeight = wlHeight;
+	setTableSize();
+}
+void WJTABLEBOX::updatePinButtons(vector<string> vsTooltip)
+{
+	if (vsTooltip.size() != 3) { jf.err("Invalid input-wjtablebox.updatePinButtons"); }
+	Wt::WPushButton* wpb = nullptr;
+	Wt::WString wsTemp;
+	for (int ii = 0; ii < vsTooltip.size(); ii++)
+	{
+		switch (ii)
+		{
+		case 0:
+			wpb = pbPinRow;
+			break;
+		case 1:
+			wpb = pbPinCol;
+			break;
+		case 2:
+			wpb = pbPinReset;
+			break;
+		}
+		if (vsTooltip[ii].size() < 1) {
+			wsTemp = "";
+			wpb->setToolTip(wsTemp);
+			wpb->decorationStyle().setBackgroundColor(wcSelectedWeak);
+			wpb->setEnabled(1);
+		}
+		else if (mapTooltip.count(vsTooltip[ii])) {
+			wsTemp = mapTooltip.at(vsTooltip[ii]);
+			wpb->setToolTip(wsTemp);
+			wpb->decorationStyle().setBackgroundColor(wcWhite);
+			wpb->setEnabled(0);
+		}
+		else { jf.err("Tooltip not found-wjtablebox.updatePinButtons"); }
+	}
+}
+WJTABLE* WJTABLEBOX::updateTable(vector<string>& vsNamePop, vector<int>& rowColSel)
+{
+	if (vvsCore.size() < 1 || vvsCol.size() < 2 || vvsRow.size() < 2) { jf.err("Cannot update without initial values-wjtable.updateTable"); }
+	if (vsNamePop[0] != sRegion) { jf.err("Region mismatch-wjtablebox.updateTable"); }
+	rowColSel = wjTable->getRowColSel();
+	if (boxTable != nullptr) { boxTable->clear(); }
+	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, vsNamePop);
+	wjTable = boxTable->addWidget(move(tableUnique));
+	wjTable->setMaximumSize(wlTableWidth, wlTableHeight);
+	auto app = Wt::WApplication::instance();
+	app->processEvents();
+	return wjTable;
 }
 void WJTABLEBOX::widgetMobile(bool mobile)
 {

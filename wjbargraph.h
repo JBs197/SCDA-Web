@@ -56,11 +56,11 @@ class WJBARGRAPH : public Wt::WContainerWidget
 {
 	Wt::Chart::WCartesianChart *chart = nullptr;
 	unordered_map<string, int> mapIndexParameter;
-	unordered_map<string, int> mapIndexRegion;
+	unordered_map<string, int> mapIndexXName;
 	unordered_map<int, string> mapValueParameter;
 	Wt::Signal<string> tipSignal_;
 	vector<WJDATASET> vDataset;
-	vector<string> vsRegion;
+	vector<string> vXName; // List of x-axis bar groupings (region names, or table headers).
 	vector<vector<int>> vviParameter;  // Form [indexParameter][count in Dataset0, count in Dataset1, ...]
 	Wt::WLength wlChartHeight;
 
@@ -70,11 +70,14 @@ public:
 	~WJBARGRAPH() {}
 
 	string activeCata;
+	int bgMode = -1;  // 0 = table row, 1 = table col, 2 = map.
 	JFUNC jf;
 	Wt::WLink linkIconClose = Wt::WLink(), linkIconTrash = Wt::WLink();
 	shared_ptr<Wt::WStandardItemModel> model = nullptr;
 	WJPARAMPANEL *ppCommon = nullptr, *ppDiff = nullptr, *ppUnique = nullptr;
 	string region = "", unit = "";
+	set<unsigned> setParameter;
+	unsigned xChecksum = 0;
 
 	void addDataset(vector<vector<string>>& vvsData, vector<vector<string>>& vvsParameter);
 	void addTipWheel(int layoutIndex);

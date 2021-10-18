@@ -6,6 +6,7 @@
 #include <Wt/WTree.h>
 #include <Wt/WTreeNode.h>
 #include <functional>
+#include "jcrc32.h"
 #include "jscalebar.h"
 #include "jtree.h"
 #include "sqlfunc.h"
@@ -27,7 +28,7 @@ class DataEvent
 public:
 	const JTREE tree;
 	const int numCata;
-	const vector<string> list, listCol, listRow;
+	const vector<string> list, listCol, listRow, vsNamePop;
 	const vector<vector<string>> catalogue, table, treeCol, treeRow, variable;
 	const vector<string> ancestry;
 	const vector<vector<vector<string>>> parameter;
@@ -36,7 +37,7 @@ public:
 	const vector<vector<vector<double>>> areas, frames;
 	const vector<vector<double>> regionData;
 
-	enum eType { Catalogue, Category, Connect, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree };
+	enum eType { Catalogue, Category, Connection, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree };
 	string getSessionID() { return sessionID; }
 	vector<string> get_ancestry() const { return ancestry; }
 	vector<vector<vector<double>>> getAreas() const { return areas; }
@@ -46,6 +47,7 @@ public:
 	vector<string> get_list() const { return list; }
 	vector<string> getListCol() const { return listCol; }
 	vector<string> getListRow() const { return listRow; }
+	vector<string> getNamePop() const { return vsNamePop; }
 	int getNumCata() const { return numCata; }
 	vector<vector<vector<string>>> getParameter() const { return parameter; }
 	vector<vector<double>> getRegionData() const { return regionData; }
@@ -72,9 +74,9 @@ private:
 	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsList)
 		: etype(et), sessionID(sID), numCata(nC), list(vsList) {}
 
-	// Constructor for eType Connect.
-	DataEvent(eType et, const string& sID, const int& nC) 
-		: etype(et), sessionID(sID), numCata(nC) {}
+	// Constructor for eType Connection.
+	DataEvent(eType et, const string& sID)
+		: etype(et), sessionID(sID), numCata(1) {}
 
 	// Constructor for eType Demographic.
 	DataEvent(eType et, const string& sID, const int& nC, const vector<vector<string>>& vvs)
@@ -93,8 +95,8 @@ private:
 		: etype(et), sessionID(sID), numCata(nC), parameter(param), catalogue(cata){}
 
 	// Constructor for eType Table.
-	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<vector<string>>& vvsCol, const vector<vector<string>>& vvsRow, const string& region)
-		: etype(et), sessionID(sID), table(vvsTable), treeCol(vvsCol), treeRow(vvsRow), sRegion(region), numCata(1) {}
+	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<vector<string>>& vvsCol, const vector<vector<string>>& vvsRow, const vector<string>& regionNamePop)
+		: etype(et), sessionID(sID), table(vvsTable), treeCol(vvsCol), treeRow(vvsRow), vsNamePop(regionNamePop), numCata(1) {}
 
 	// Constructor for eType Topic.
 	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsCol, const vector<string>& vsRow)
@@ -160,6 +162,7 @@ public:
 	vector<string> getYear(string sYear);
 	string getYear(string sYear, string sCata);
 	void pullCategory(vector<string> prompt);
+	void pullConnection(string sessionID);
 	void pullDifferentiator(string prompt, vector<vector<string>> vvsCata, vector<vector<string>> vvsDiff);
 	void pullMap(vector<string> prompt, vector<string> vsDIMtitle, vector<int> viMID);
 	void pullTable(vector<string> prompt, vector<string> vsDIMtitle, vector<int> viMID);

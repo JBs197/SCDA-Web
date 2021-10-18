@@ -31,8 +31,14 @@ public:
 
 class WJMAP : public Wt::WContainerWidget
 {
+	unordered_map<string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
 	bool mobile = 0;
 	Wt::Signal<string> tipSignal_;
+	Wt::WColor wcSelectedWeak, wcWhite;
+
+	void init();
+	void initColour();
+	void initMaps();
 
 public:
 	WJMAP() { init(); }
@@ -51,11 +57,11 @@ public:
 	void build();
 	int getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize);
 	int getLegendTickLines(string sUnit);
-	void init();
+	unique_ptr<Wt::WContainerWidget> makeUnitPinBox(Wt::WPopupMenu*& popupUnit, Wt::WText*& textUnit, Wt::WPushButton*& pbUnit, Wt::WPushButton*& pbPin, Wt::WPushButton*& pbPinReset);
 	void removeTipPin(int layoutIndex);
 	void resetMenu();
 	Wt::Signal<string>& tipSignal() { return tipSignal_; }
-	void updateUnit(string sUnit);
+	void updatePinButtons(vector<string> vsTooltip);
 	void widgetMobile(bool mobile);
 };
 

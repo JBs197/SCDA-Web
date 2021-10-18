@@ -1491,6 +1491,10 @@ void SCDAserver::pullCategory(vector<string> prompt)
 	}
 	postDataEvent(DataEvent(DataEvent::Category, prompt[0], numCata, vsTopic), prompt[0]);
 }
+void SCDAserver::pullConnection(string sessionID)
+{
+	postDataEvent(DataEvent(DataEvent::Connection, sessionID), sessionID);
+}
 void SCDAserver::pullDifferentiator(string prompt, vector<vector<string>> vvsCata, vector<vector<string>> vvsDiff)
 {
 	// Creates a "variable" event from the given "ForWhom" description.
@@ -1627,6 +1631,7 @@ void SCDAserver::pullTable(vector<string> prompt, vector<string> vsDIMtitle, vec
 	string tempYear = prompt[1];
 	prompt[1] = getYear(tempYear, prompt[2]);
 
+	// Get the requested table data (core, column, row).
 	vector<vector<string>> vvsTable, vvsCol, vvsRow;
 	vector<string> vsResult, conditions;
 	string tnameDIM, tnameDim, tnameData;
@@ -1681,7 +1686,12 @@ void SCDAserver::pullTable(vector<string> prompt, vector<string> vsDIMtitle, vec
 		vvsRow = getRowTitle(prompt[1], prompt[2]);
 	}
 
-	postDataEvent(DataEvent(DataEvent::Table, prompt[0], vvsTable, vvsCol, vvsRow, prompt[4]), prompt[0]);
+	// Obtain the table region's population for the active year. 
+	vector<string> vsGeoCode = { prompt[3] };
+	vector<double> vPopulation = getPopulationFamily(prompt[1], vsGeoCode);
+	vector<string> vsNamePop = { prompt[4], to_string(vPopulation[0]) };
+
+	postDataEvent(DataEvent(DataEvent::Table, prompt[0], vvsTable, vvsCol, vvsRow, vsNamePop), prompt[0]);
 }
 void SCDAserver::pullTopic(vector<string> prompt)
 {

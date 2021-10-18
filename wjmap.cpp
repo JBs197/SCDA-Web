@@ -149,28 +149,13 @@ void WJMAP::addTipPin(int layoutIndex)
 }
 void WJMAP::build()
 {
-	auto boxOptionUnique = make_unique<Wt::WContainerWidget>();
-	auto textUnitUnique = make_unique<Wt::WText>();
-	auto pbUnitUnique = make_unique<Wt::WPushButton>();
-	auto popupUnitUnique = make_unique<Wt::WPopupMenu>();
-	popupUnit = popupUnitUnique.get();
-	auto pbPinUnique = make_unique<Wt::WPushButton>("Pin Data To Bar Graph");
-	auto pbPinResetUnique = make_unique<Wt::WPushButton>("Reset Bar Graph");
+	auto boxUnitPin = makeUnitPinBox(popupUnit, textUnit, pbUnit, pbPin, pbPinReset);
 	auto boxMapUnique = make_unique<Wt::WContainerWidget>();
 	boxMapUnique->setContentAlignment(Wt::AlignmentFlag::Center);
 	auto wjLegend = make_unique<WJLEGEND>();
 
-	auto layoutOption = make_unique<Wt::WHBoxLayout>();
-	textUnit = layoutOption->addWidget(move(textUnitUnique));
-	pbUnitUnique->setMenu(move(popupUnitUnique));
-	pbUnit = layoutOption->addWidget(move(pbUnitUnique));
-	layoutOption->addStretch(1);
-	pbPin = layoutOption->addWidget(move(pbPinUnique));
-	pbPinReset = layoutOption->addWidget(move(pbPinResetUnique));
-	boxOptionUnique->setLayout(move(layoutOption));
-
 	auto vLayout = make_unique<Wt::WVBoxLayout>();
-	boxOption = vLayout->addWidget(move(boxOptionUnique));
+	boxOption = vLayout->addWidget(move(boxUnitPin));
 	boxMap = vLayout->addWidget(move(boxMapUnique));
 	wjlMap = vLayout->addWidget(move(wjLegend));
 	vLayout->addStretch(1);
@@ -190,13 +175,62 @@ int WJMAP::getLegendTickLines(string sUnit)
 void WJMAP::init()
 {
 	build();
+	initColour();
+	initMaps();
 
 	wlAuto = Wt::WLength::Auto;
 
 	textUnit->setText("");
 	textUnit->decorationStyle().font().setSize(Wt::FontSize::Large);
 	textUnit->setTextAlignment(Wt::AlignmentFlag::Middle);
+}
+void WJMAP::initColour()
+{
+	wcSelectedWeak = Wt::WColor(200, 200, 255);
+	wcWhite = Wt::WColor(255, 255, 255);
+}
+void WJMAP::initMaps()
+{
+	Wt::WString wsTooltip = "Click on a table cell to load a new map using that column and row.";
+	mapTooltip.emplace("table", wsTooltip);
+	wsTooltip = "Displayed region does not match the pinned region.";
+	mapTooltip.emplace("pinRegion", wsTooltip);
+	wsTooltip = "Displayed data unit does not match the pinned data unit.";
+	mapTooltip.emplace("pinUnit", wsTooltip);
+	wsTooltip = "Displayed region and data unit do not match the\npinned region and data unit.";
+	mapTooltip.emplace("pinRegionUnit", wsTooltip);
+	wsTooltip = "There are no currently-pinned data series\non the bar graph which can be reset.";
+	mapTooltip.emplace("pinEmpty", wsTooltip);
+	wsTooltip = "The existing bar graph has table row data pinned to it.\nReset the bar graph before pinning column or map data.";
+	mapTooltip.emplace("pinRow", wsTooltip);
+	wsTooltip = "The existing bar graph has table column data pinned to it.\nReset the bar graph before pinning row or map data.";
+	mapTooltip.emplace("pinCol", wsTooltip);
+	wsTooltip = "The existing bar graph has map data pinned to it.\nReset the bar graph before pinning table data.";
+	mapTooltip.emplace("pinMap", wsTooltip);
+	wsTooltip = "The existing bar graph has different x-axis names\ncompared to the current selection.";
+	mapTooltip.emplace("pinChecksum", wsTooltip);
+}
+unique_ptr<Wt::WContainerWidget> WJMAP::makeUnitPinBox(Wt::WPopupMenu*& popupUnit, Wt::WText*& textUnit, Wt::WPushButton*& pbUnit, Wt::WPushButton*& pbPin, Wt::WPushButton*& pbPinReset)
+{
+	auto boxOptionUnique = make_unique<Wt::WContainerWidget>();
+	auto textUnitUnique = make_unique<Wt::WText>();
+	textUnitUnique->setTextFormat(Wt::TextFormat::Plain);
+	auto pbUnitUnique = make_unique<Wt::WPushButton>();
+	auto popupUnitUnique = make_unique<Wt::WPopupMenu>();
+	popupUnit = popupUnitUnique.get();
+	auto pbPinUnique = make_unique<Wt::WPushButton>("Pin Data To Bar Graph");
+	auto pbPinResetUnique = make_unique<Wt::WPushButton>("Reset Bar Graph");
 
+	auto layoutOption = make_unique<Wt::WHBoxLayout>();
+	textUnit = layoutOption->addWidget(move(textUnitUnique));
+	pbUnitUnique->setMenu(move(popupUnitUnique));
+	pbUnit = layoutOption->addWidget(move(pbUnitUnique));
+	layoutOption->addStretch(1);
+	pbPin = layoutOption->addWidget(move(pbPinUnique));
+	pbPinReset = layoutOption->addWidget(move(pbPinResetUnique));
+	boxOptionUnique->setLayout(move(layoutOption));
+
+	return boxOptionUnique;
 }
 void WJMAP::removeTipPin(int layoutIndex)
 {
@@ -213,9 +247,36 @@ void WJMAP::resetMenu()
 		popupUnit->removeItem(popupItems[ii]);
 	}
 }
-void WJMAP::updateUnit(string sUnit)
+void WJMAP::updatePinButtons(vector<string> vsTooltip)
 {
-
+	if (vsTooltip.size() != 2) { jf.err("Invalid input-wjmap.updatePinButtons"); }
+	Wt::WPushButton* wpb = nullptr;
+	Wt::WString wsTemp;
+	for (int ii = 0; ii < vsTooltip.size(); ii++)
+	{
+		switch (ii)
+		{
+		case 0:
+			wpb = pbPin;
+			break;
+		case 1:
+			wpb = pbPinReset;
+			break;
+		}
+		if (vsTooltip[ii].size() < 1) {
+			wsTemp = "";
+			wpb->setToolTip(wsTemp);
+			wpb->decorationStyle().setBackgroundColor(wcSelectedWeak);
+			wpb->setEnabled(1);
+		}
+		else if (mapTooltip.count(vsTooltip[ii])) {
+			wsTemp = mapTooltip.at(vsTooltip[ii]);
+			wpb->setToolTip(wsTemp);
+			wpb->decorationStyle().setBackgroundColor(wcWhite);
+			wpb->setEnabled(0);
+		}
+		else { jf.err("Tooltip not found-wjmap.updatePinButtons"); }
+	}
 }
 void WJMAP::widgetMobile(bool Mobile)
 {
