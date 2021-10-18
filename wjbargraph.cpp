@@ -133,6 +133,7 @@ void WJPARAMPANEL::removeParameter(const string& sID)
 void WJBARGRAPH::addDataset(vector<vector<string>>& vvsData, vector<vector<string>>& vvsParameter)
 {
 	// vvsData has form [x-axis category][category label, bar value0, bar value1, ...].	
+	// vvsParameter has form [parameter index][sTitle, 
 	WJDATASET wjds;
 	int numRegion = vvsData.size();
 	wjds.vsData.resize(numRegion);

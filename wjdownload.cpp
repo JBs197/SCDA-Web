@@ -35,6 +35,24 @@ void WJDOWNLOAD::adjustLineEditWidth()
 	double dMax = min(700.0, dWidth);
 	leFileName->setMaximumSize(dMax, wlAuto);
 }
+void WJDOWNLOAD::clear()
+{
+	displayData.clear();
+	legendBarDouble = -1;
+	legendFontSize = 12;
+	legendTickLines = -1;
+	mapBorderKM.clear();
+	mapFrameKM.clear();
+	mapData.clear();
+	mapRegion.clear();
+	selectedMode = -1;
+	wjrCSV.reset();
+	wjrPDFbargraph.reset();
+	wmrPNGbargraph.reset();
+	wjrPDFmap.reset();
+	wmrPNGmap.reset();
+	wpPreview = nullptr; 
+}
 void WJDOWNLOAD::displayCSV(string& csv)
 {
 	if (wjrCSV != nullptr) { wjrCSV.reset(); }
@@ -345,6 +363,7 @@ void WJDOWNLOAD::downloadSettings(int mode)
 		wsTemp = Wt::WString::fromUTF8(fileName);
 		leFileName->setText(wsTemp);
 	}
+	adjustLineEditWidth();
 
 	// Update the file extension.
 	if (selectedMode == 2) { wsTemp = ".csv"; }
@@ -353,7 +372,6 @@ void WJDOWNLOAD::downloadSettings(int mode)
 
 	// Send out a signal to fetch the requested data.
 	previewSignal_.emit(selectedMode);
-
 }
 int WJDOWNLOAD::getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize)
 {

@@ -340,7 +340,6 @@ void SCDAwidget::initUI()
 	// Initial values for the region tree widget.
 	auto fnTree = std::bind(static_cast<void(SCDAwidget::*)(void)>(&SCDAwidget::treeClicked), this);
 	treeRegion->itemSelectionChanged().connect(fnTree);
-
 }
 
 string SCDAwidget::jsMakeFunctionTableScrollTo(WJTABLE*& boxTable)
@@ -807,9 +806,6 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<vect
 	wjConfig->wjpTopicRow->panelClicked();
 	wjConfig->wjpTopicCol->panelClicked();
 	wjConfig->topicSelChanged();  // Triggers table current selection. 
-
-	// Update the download tab.
-	updateDownloadTab();
 }
 void SCDAwidget::processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic)
 {
@@ -904,7 +900,7 @@ void SCDAwidget::resetBarGraph()
 }
 void SCDAwidget::resetDownload()
 {
-	//if (wjDownload != nullptr) { wjDownload->clear(); }
+	if (wjDownload != nullptr) { wjDownload->clear(); }
 	tabData->setTabEnabled(4, 0);
 }
 void SCDAwidget::resetMap()
@@ -1073,6 +1069,7 @@ void SCDAwidget::tabChanged(const int& tabIndex)
 	{
 	case 4:
 	{
+		if (wjDownload->wbGroup == nullptr) { break; }
 		Wt::WRadioButton* wrb = wjDownload->wbGroup->button(0);
 		if (tabData->isTabEnabled(3)) {
 			wrb->setEnabled(1);
@@ -1159,12 +1156,6 @@ void SCDAwidget::updateDownloadTab()
 	if (tabData->isTabEnabled(1) || tabData->isTabEnabled(2) || tabData->isTabEnabled(3))
 	{
 		tabData->setTabEnabled(4, 1);
-		if (tabData->isTabEnabled(3) && wjBarGraph->model != nullptr)
-		{
-			//numDataset = wjBarGraph->model->columnCount() - 1;
-			//if (numDataset > 0) { wjDownload->pbPdfBarGraph->setEnabled(1); }
-			//else { wjDownload->pbPdfBarGraph->setEnabled(0); }
-		}
 	}
 	else { tabData->setTabEnabled(4, 0); }
 }

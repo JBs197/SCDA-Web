@@ -234,7 +234,7 @@ string WJTABLE::getUnit(string header)
 		pos2 = header.size() - 1;
 		pos1 = header.rfind('(', pos2 - 1) + 1;
 		unit = header.substr(pos1, pos2 - pos1);
-		if (!setUnitBreaker.count(unit)) { return unit; }
+		if (pos2 - pos1 == 1) { return unit; }
 	}
 	unit = getUnitParser(header);
 	return unit;
