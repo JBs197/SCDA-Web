@@ -71,7 +71,6 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	Wt::WText *textExt;
 	Wt::WToolBar *toolButtons;
 	string sCSV, sUnit;
-	//vector<Wt::WLink> vLink;
 	vector<Wt::WColor> vToolColour;
 	WINFUNC wf;
 	shared_ptr<WJRCSV> wjrCSV = nullptr;

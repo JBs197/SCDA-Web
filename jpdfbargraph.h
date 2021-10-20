@@ -28,14 +28,20 @@ public:
     double lineThickness = 2.0;
     double padding = 2.0;
     double tickLength = 7.0;
+    double xMaxHeightPercentage = 1.0 / 3.0;  // Maximum ratio of vertical space accorded to the angled x-axis names.
 
     void addRegionData(int indexRegion, vector<double>& regionData);
-    void addValuesX(vector<string> vsValue, double rotationDeg);
+    vector<double> angledTRtoBL(double xTR, double yTR, double textLength, double textHeight, double thetaRad);
     void drawAxis(vector<vector<double>> startStop, vector<double> vTick, vector<double> colour, double thickness);
-    void drawAxisX(double rotationDeg);
+    void drawAxisX(vector<string> vsValue, double rotationDeg);
     void drawAxisY(vector<double>& minMax, string unit);
     void drawData(vector<vector<double>>& seriesColour);
     void drawLine(vector<vector<double>> startStop, vector<double> colour, double thickness);
-    void textBox(vector<vector<double>> boxBLTR, string sText, string alignment, int fontsize);
+    void initAxisX(vector<string> vsValue, double rotationDeg);
+    void initAxisY(vector<double>& minMax, string unit);
+    vector<string> splitAtSpaceBox(string tooLong, vector<vector<double>>& boxBLTR, double& fontHeight, double thetaRad, double textPadding, double topXMinTR);
+    vector<string> splitAtSpaceEven(string tooLong, int pieces);
+    void textBox(vector<vector<double>> boxBLTR, string sText, string alignment, double fontsize);
+    void textBoxAngled(string sText, vector<double> corner, string sCorner, double fontsize, double thetaRad);
 };
 

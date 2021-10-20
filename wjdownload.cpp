@@ -148,13 +148,12 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 	int indexBarGraph = wjrPDFbargraph->jpdf.addBargraph(bargraphBLTR);
 	int numRegion = modelData.size();
 	vector<string> xValues(numRegion);
-	for (int ii = 0; ii < numRegion; ii++)
-	{
+	for (int ii = 0; ii < numRegion; ii++) {
 		xValues[ii] = modelData[ii][0];
 	}
-	wjrPDFbargraph->jpdf.vSection[indexBarGraph]->jpBargraph->addValuesX(xValues, xLabelRotation);
+	wjrPDFbargraph->jpdf.vSection[indexBarGraph]->jpBargraph->initAxisY(minMaxY, unit);
+	wjrPDFbargraph->jpdf.vSection[indexBarGraph]->jpBargraph->drawAxisX(xValues, xLabelRotation);
 	wjrPDFbargraph->jpdf.vSection[indexBarGraph]->jpBargraph->drawAxisY(minMaxY, unit);
-	wjrPDFbargraph->jpdf.vSection[indexBarGraph]->jpBargraph->drawAxisX(xLabelRotation);
 	int numSeries = modelData[0].size() - 1;
 	vector<double> regionData(numSeries);
 	for (int ii = 0; ii < numRegion; ii++)

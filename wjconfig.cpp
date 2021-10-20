@@ -19,6 +19,10 @@ void WJPANEL::clear()
 	boxMID->setHidden(1);
 	MIDchanged = -1;
 }
+void WJPANEL::closeDialogs()
+{
+	dialogOpenSignal_.emit("-1");
+}
 void WJPANEL::dialogMID()
 {
 	// Close all other open dialogs. They keep their existing item selections.
@@ -119,7 +123,12 @@ void WJPANEL::dialogMIDEnd()
 	jtMID.selectedIndex = selTreeIndex;
 
 	setTextMID(selMID);
-	wdTree->accept();
+	if (wdTree != nullptr) { 
+		auto ptr = wdTree.get();
+		if (ptr != nullptr && !wdTree->isHidden()) {
+			wdTree->accept();
+		}
+	}
 	unique_ptr<Wt::WDialog> wdDummy = nullptr;
 	swap(wdTree, wdDummy);
 	stackedPB->setCurrentIndex(0);
@@ -236,6 +245,7 @@ void WJPANEL::init()
 	wcSelectedWeak.setRgb(200, 200, 255);
 	wcWhite.setRgb(255, 255, 255);
 	wbDefaultCB = Wt::WBorder(Wt::BorderStyle::Solid, 1.0, wcBorder);
+	wbThick = Wt::WBorder(Wt::BorderStyle::Solid, Wt::BorderWidth::Thick, Wt::StandardColor::Black);
 
 	auto wBox = make_unique<Wt::WContainerWidget>();
 	auto layout = make_unique<Wt::WVBoxLayout>();
@@ -293,6 +303,8 @@ void WJPANEL::initStackedPB(Wt::WLink wlClosed, Wt::WLink wlOpened)
 	pbMIDclosed->clicked().connect(this, std::bind(&WJPANEL::dialogMIDToggle, this, 0));
 
 	Wt::WCssDecorationStyle& styleOpened = pbMIDopened->decorationStyle();
+	styleOpened.setBorder(wbThick);
+	styleOpened.setBackgroundColor(wcSelectedWeak);
 	styleOpened.setBackgroundImage(wlOpened, flags, Wt::Side::CenterX | Wt::Side::CenterY);
 	pbMIDopened->clicked().connect(this, std::bind(&WJPANEL::dialogMIDToggle, this, 1));
 }

@@ -41,12 +41,13 @@ struct WJPANEL : public Wt::WPanel
 	vector<int> viFilter;                   // JTREE indices of permitted items.
 	vector<string> vsTitle, vsMID;
 	Wt::WColor wcBorder, wcGrey, wcOffWhite, wcSelectedWeak, wcWhite;
-	Wt::WBorder wbDefaultCB;
+	Wt::WBorder wbDefaultCB, wbThick;
 	unique_ptr<Wt::WDialog> wdTree = nullptr;
 	Wt::WLength wlAuto = Wt::WLength::Auto;
 
 	void appendSelf(vector<string>& vsDIMtitle, vector<int>& viMID);
 	void clear();
+	void closeDialogs();
 	void dialogMID();
 	void dialogMIDEnd();
 	void dialogMIDToggle(int stackedIndex);

@@ -685,7 +685,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	tabData->setTabEnabled(2, 1);
 	updateDownloadTab();
 	if (first) { tabData->setCurrentIndex(2); }	
-	else if (tabData->currentIndex() >= 3) { tabData->setCurrentIndex(2); }
+	else { tabData->setCurrentIndex(tabRecent); }
 	first = 0;
 }
 void SCDAwidget::processEventParameter(vector<vector<vector<string>>> vvvsParameter, vector<vector<string>> vvsCata)
@@ -944,7 +944,7 @@ void SCDAwidget::resetTable()
 	Wt::WString wTemp("Data Table");
 	auto tab = tabData->itemAt(1);
 	tab->setText(wTemp);
-	updateDownloadTab();
+	//updateDownloadTab();
 	tabData->setTabEnabled(1, 0);
 	tabData->setCurrentIndex(0);
 }
@@ -1122,6 +1122,12 @@ void SCDAwidget::tabChanged(const int& tabIndex)
 {
 	switch (tabIndex)
 	{
+	case 1:
+		tabRecent = 1;
+		break;
+	case 2:
+		tabRecent = 2;
+		break;
 	case 4:
 	{
 		if (wjDownload->wbGroup == nullptr) { break; }
