@@ -79,6 +79,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WText *textTable;
 	Wt::WTree *treeDialog, *treeRegion;
 	Wt::WTreeNode *treeNodeSel;
+	unique_ptr<Wt::WDialog> wdBlock = nullptr;
 
 	vector<Wt::WPushButton*> allPB;
 

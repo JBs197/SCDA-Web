@@ -78,14 +78,15 @@ void JPDFBARGRAPH::drawAxisX(vector<string> vsValue, double rotationDeg)
 	xAxisBLTR[1][1] = xAxisBLTR[0][1] + vHeight[heightMinMax[1]] + tickLength;
 
 	// Paint the x-axis angled names, with the text aligned to TR corner.
-	double lineHeight, lineLength, xEnd;
+	double lineHeight, lineLength, subspace, xBegin;
 	vector<double> textTR = { 0.0, xAxisBLTR[1][1] - tickLength };
 	for (int ii = 0; ii < numXVal; ii++) {
 		numLine = vvsLine[ii].size();
-		xEnd = yAxisBLTR[1][0] + ((double)(ii + 1) * space);
+		subspace = space / (double)(numLine + 1);
+		xBegin = yAxisBLTR[1][0] + ((double)ii * space);
 		lineHeight = vFontHeight[ii] + padding;
 		for (int jj = 0; jj < numLine; jj++) {
-			textTR[0] = xEnd - ((double)(numLine - jj) * (lineHeight / sin(thetaRad)));
+			textTR[0] = xBegin + ((double)(jj + 1) * subspace);
 			textBoxAngled(vvsLine[ii][jj], textTR, "TR", vFontHeight[ii], thetaRad);
 		}
 	}

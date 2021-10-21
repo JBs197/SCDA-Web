@@ -40,6 +40,8 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	scdaWidget->iconClose = scdaWidget->loadIcon(binIconClose);
 	scdaWidget->iconTrash = scdaWidget->loadIcon(binIconTrash);
 	this->globalKeyWentUp().connect(scdaWidget, &SCDAwidget::displayCata);
+
+	this->setLoadingIndicator(make_unique<Wt::WOverlayLoadingIndicator>());
 }
 
 string getDocPath(const string& execPath)

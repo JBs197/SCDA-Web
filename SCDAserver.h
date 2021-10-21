@@ -1,5 +1,6 @@
 #pragma once
 #include <Wt/WServer.h>
+#include <Wt/WOverlayLoadingIndicator.h>
 #include <Wt/WCanvasPaintDevice.h>
 #include <Wt/WMeasurePaintDevice.h>
 #include <Wt/WMemoryResource.h>
