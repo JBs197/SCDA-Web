@@ -52,7 +52,7 @@ public:
     void drawRectRounded(vector<vector<double>> rectBLTR, vector<vector<double>> vColour, double thickness, double radius);
     vector<vector<double>> drawTable();
     void drawText(int index);
-    void drawTextListItalic(int italicFreq);
+    void drawTextList(int italicFreq, string separator);
     void drawTitle();
     void initColour();
     void setColourBackground(vector<int> vColourIndex);

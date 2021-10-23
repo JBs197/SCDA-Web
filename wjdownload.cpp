@@ -76,6 +76,7 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 	int indexTable, maxBar, numRow, spaceUsed;
 	vector<int> vNumLine;
 	string sTitle;
+	string separator = "|";
 	double textWidth;
 	vector<double> vRowHeight;
 	vector<vector<double>> panelBLTR, vColourBar;
@@ -134,7 +135,7 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 		{
 			wjrPDFbargraph->jpdf.vSection[indexTable]->jpTable->addTextList(panelText[ii][jj], jj, 0);
 		}
-		wjrPDFbargraph->jpdf.vSection[indexTable]->jpTable->drawTextListItalic(2);
+		wjrPDFbargraph->jpdf.vSection[indexTable]->jpTable->drawTextList(2, separator);
 
 		wjrPDFbargraph->jpdf.cursor[1] += (panelBLTR[1][1] - panelBLTR[0][1]) + (4.0 * (double)cellPadding);
 	}
@@ -190,6 +191,7 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	int numCol = 2;
 
 	// Firstly, render the parameter section at the bottom.
+	string separator = "|";
 	vector<int> vColour(vChanged.size());
 	for (int ii = 0; ii < vColour.size(); ii++)
 	{
@@ -224,7 +226,7 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	{
 		wjrPDFmap->jpdf.vSection[indexParameter]->jpTable->addTextList(vvsParameter[ii], ii, 0);
 	}
-	wjrPDFmap->jpdf.vSection[indexParameter]->jpTable->drawTextListItalic(2);
+	wjrPDFmap->jpdf.vSection[indexParameter]->jpTable->drawTextList(2, separator);
 	wjrPDFmap->jpdf.cursor[0] = parameterBLTR[0][0];
 	wjrPDFmap->jpdf.cursor[1] = parameterBLTR[1][1] + (double)sectionPadding;
 
@@ -281,6 +283,19 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
 			vsValue[ii + 1] = jf.doubleToCommaString(dVal, 0) + suffix;
+		}
+	}
+	else if (sUnit[sUnit.size() - 1] == '$') {
+		dVal = mapRegionData.at(mapRegion[0]);
+		if (dVal < 10.0) { vsValue[0] = jf.doubleToCommaString(dVal, decimalPlaces); }
+		else if (dVal < 100.0) { vsValue[0] = jf.doubleToCommaString(dVal, decimalPlaces - 1); }
+		else { vsValue[0] = jf.doubleToCommaString(dVal, decimalPlaces - 2); }
+		for (int ii = 0; ii < vsRegion.size(); ii++)
+		{
+			dVal = mapRegionData.at(vsRegion[ii]);
+			if (dVal < 10.0) { vsValue[ii + 1] = jf.doubleToCommaString(dVal, decimalPlaces); }
+			else if (dVal < 100.0) { vsValue[ii + 1] = jf.doubleToCommaString(dVal, decimalPlaces - 1); }
+			else { vsValue[ii + 1] = jf.doubleToCommaString(dVal, decimalPlaces - 2); }
 		}
 	}
 	else 

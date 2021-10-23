@@ -59,7 +59,7 @@ void JPDFTABLE::drawColourBars(int barWidth)
 	{
 		for (int jj = 0; jj < numRow; jj++)
 		{
-			vvCell[jj][ii].drawCellBar(page, dWidth, jf);
+			vvCell[jj][ii].drawCellBar(page, jf, dWidth);
 		}
 	}
 }
@@ -257,36 +257,28 @@ void JPDFTABLE::drawText(int index)
 {
 	// Index refers to each cell's vsText index.
 	HPDF_STATUS error = HPDF_Page_SetRGBFill(page, 0.0, 0.0, 0.0);  // Black.
-	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawValues"); }
+	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawText"); }
+	string text;
 	for (int ii = 0; ii < numCol; ii++)
 	{
 		for (int jj = 0; jj < numRow; jj++)
 		{
-			vvCell[jj][ii].drawCellTextPlain(page, index, jf);
+			text = vvCell[jj][ii].vsText[index];
+			vvCell[jj][ii].drawCellTextPlain(page, jf, text);
 		}
 	}
 }
-void JPDFTABLE::drawTextListItalic(int italicFreq)
+void JPDFTABLE::drawTextList(int italicFreq, string separator)
 {
-	// Draws the prepared string list for every cell, using an italic font once per intalicFreq.
-	int indexSegment, numSegment;
+	// Draws the prepared string list for every cell. If italicFreq > 0, then the
+	// text is rendered using an italic font once per intalicFreq.
 	HPDF_STATUS error = HPDF_Page_SetRGBFill(page, 0.0, 0.0, 0.0);
-	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawTextListItalic"); }
+	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdftable.drawTextList"); }
 	for (int ii = 0; ii < numRow; ii++)
 	{
 		for (int jj = 0; jj < numCol; jj++)
 		{
-			indexSegment = 0;
-			numSegment = vvCell[ii][jj].vsText.size();
-			for (int kk = 0; kk < numSegment; kk++)
-			{
-				if (kk > 0) { vvCell[ii][jj].drawCellTextPlain(page, " | ", jf); }
-				if (kk % italicFreq == italicFreq - 1)
-				{
-					vvCell[ii][jj].drawCellTextItalic(page, kk, jf);
-				}
-				else { vvCell[ii][jj].drawCellTextPlain(page, kk, jf); }
-			}
+			vvCell[ii][jj].drawCellTextList(page, jf, italicFreq, separator);
 		}
 	}
 }

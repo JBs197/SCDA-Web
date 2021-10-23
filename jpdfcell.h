@@ -22,12 +22,12 @@ struct JPDFCELL
     JPDFCELL(vector<vector<double>> cBLTR) : cellBLTR(cBLTR) {}
     ~JPDFCELL() {}
 
-    void drawCellBar(HPDF_Page& page, double barWidth, JFUNC& jf);
-    void drawCellText(HPDF_Page& page, string text, JFUNC& jf);
-    void drawCellTextItalic(HPDF_Page& page, int indexText, JFUNC& jf);
-    void drawCellTextItalic(HPDF_Page& page, string text, JFUNC& jf);
-    void drawCellTextPlain(HPDF_Page& page, int indexText, JFUNC& jf);
-    void drawCellTextPlain(HPDF_Page& page, string text, JFUNC& jf);
+    void drawCellBar(HPDF_Page& page, JFUNC& jf, double barWidth);
+    void drawCellText(HPDF_Page& page, JFUNC& jf, string text, HPDF_Font& Font);
+    void drawCellTextItalic(HPDF_Page& page, JFUNC& jf, string text);
+    void drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, string separator);
+    void drawCellTextPlain(HPDF_Page& page, JFUNC& jf, string text);
+    void drawText(HPDF_Page& page, JFUNC& jf, string text);
     double getMaxFontHeight();
 };
 

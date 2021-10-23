@@ -275,7 +275,7 @@ void JPDFBARGRAPH::initAxisY(vector<double>& minMax, string unit)
 	double textWidthTop = (double)HPDF_Page_TextWidth(page, sTop.c_str());
 	if (textWidthTop == 0.0) { jf.err("TextWidth-jpdfbargraph.initAxisY"); }
 	if (unit.size() > 1) {
-		textWidthTop += (1.5 * fontSize);  // For the vertically-aligned unit.
+		textWidthTop += (2.0 * fontSize);  // For the vertically-aligned unit.
 	}
 	yAxisBLTR.resize(2, vector<double>(2));
 	yAxisBLTR[0][0] = bargraphBLTR[0][0];
