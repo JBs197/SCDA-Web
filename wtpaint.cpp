@@ -888,8 +888,12 @@ void WTPAINT::makeAreas()
 		if (legendTickLines == 1) { suffix = " (" + sUnit + ")"; }
 		else
 		{
-			if (index >= 2) { suffix = "\n(" + sUnit + ")"; }  // # of persons
-			else { suffix = " %\n(of population)"; }
+			if (sUnit == "% of population") { 
+				suffix = " %\n(of population)";
+			}
+			else { 
+				suffix = "\n(" + sUnit + ")";
+			}
 		}
 		wTemp = Wt::WString::fromUTF8(value + suffix);
 

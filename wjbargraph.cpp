@@ -226,7 +226,7 @@ void WJBARGRAPH::configureChart()
 	chart->setWheelActions(mapWheel);
 
 	Wt::Chart::WAxis& yAxis = chart->axis(Wt::Chart::Axis::Y);
-	yAxis.setLabelFormat("%.8g");
+	yAxis.setLabelFormat("%.10g");
 	yAxis.setTitle(unit);
 
 	Wt::Chart::WAxis& xAxis = chart->axis(Wt::Chart::Axis::X);

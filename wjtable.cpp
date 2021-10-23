@@ -156,6 +156,107 @@ void WJTABLE::cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol)
 	selectedIndex = wmIndex;
 	scrollTo(wmIndex);
 }
+void WJTABLE::compressUnitCell(string& sUnit, string& sCell)
+{
+	// Change a unit prefix (thousand, kilo, etc) into something more practical.
+	int length;
+	unsigned long long iPower = 1;
+	double dNum, power = 1.0;
+	vector<string> dirt = { "," }, soap = { "" };
+	string cell = sCell;
+	size_t pos1 = sUnit.find('$');
+	if (pos1 < sUnit.size()) {
+		jf.clean(cell, dirt, soap);
+		length = cell.size();
+		while (length > 3) {
+			power *= 1000.0;
+			length -= 3;
+		}
+		dNum = stod(cell);
+		dNum /= power;
+		sCell = to_string(dNum);
+
+		while (power >= 1000.0) {
+			iPower *= 1000;
+			power /= 1000.0;
+		}
+		sUnit = mapPrefixNumber.at(iPower) + " $";
+	}
+	else { jf.err("Unknown unit-wjtable.compressUnitCell"); }
+}
+void WJTABLE::compressUnitCol(int iCol, vector<vector<string>>& vvsCore)
+{
+	// Change a unit prefix (thousand, kilo, etc) into something more practical.
+	int iNum, maxLength = 0;
+	unsigned long long iPower = 1;
+	double dNum, power = 1.0;
+	size_t pos1;
+	string sUnit = mapColUnit.at(iCol), temp;
+	if (sUnit == "$") {
+		for (int ii = 0; ii < vvsCore.size(); ii++) {
+			pos1 = vvsCore[ii][iCol - 1].find('.');
+			if (pos1 > vvsCore[ii][iCol - 1].size()) {
+				pos1 = vvsCore[ii][iCol - 1].size();
+			}
+			if (pos1 > maxLength) {
+				maxLength = pos1;
+			}
+		}
+		while (maxLength > 3) {
+			power *= 1000.0;
+			maxLength -= 3;
+		}
+		for (int ii = 0; ii < vvsCore.size(); ii++) {
+			dNum = stod(vvsCore[ii][iCol - 1]);
+			dNum /= power;
+			vvsCore[ii][iCol - 1] = to_string(dNum);
+		}
+
+		while (power >= 1000.0) {
+			iPower *= 1000;
+			power /= 1000.0;
+		}
+		sUnit = mapPrefixNumber.at(iPower) + " $";
+		mapColUnit.erase(iCol);
+		mapColUnit.emplace(iCol, sUnit);
+	}
+	else { jf.err("Unknown unit-wjtable.compressUnitCol"); }
+}
+void WJTABLE::compressUnitRow(int iRow, vector<vector<string>>& vvsCore)
+{
+	// Change a unit prefix (thousand, kilo, etc) into something more practical.
+	int maxLength = 0;
+	unsigned long long iPower;
+	double dNum, power = 1.0;
+	size_t pos1;
+	string sUnit = mapRowUnit.at(iRow), temp;
+	if (sUnit == "$") {
+		for (int ii = 1; ii < vvsCore[iRow].size(); ii++) {
+			pos1 = vvsCore[iRow][ii].find('.');
+			if (pos1 > vvsCore[iRow][ii].size()) {
+				pos1 = vvsCore[iRow][ii].size();
+			}
+			if (pos1 > maxLength) {
+				maxLength = pos1;
+			}
+		}
+		while (maxLength > 3) {
+			power *= 1000.0;
+			maxLength -= 3;
+		}
+		for (int ii = 0; ii < vvsCore[iRow].size(); ii++) {
+			dNum = stod(vvsCore[iRow][ii]);
+			dNum /= power;
+			vvsCore[iRow][ii] = to_string(dNum);
+		}
+
+		iPower = int(power);
+		sUnit = mapPrefixNumber.at(iPower) + " $";
+		mapRowUnit.erase(iRow);
+		mapRowUnit.emplace(iRow, sUnit);
+	}
+	else { jf.err("Unknown unit-wjtable.compressUnitRow"); }
+}
 string WJTABLE::getCell(int iRow, int iCol)
 {
 	// For ease of access, an iRow value of "-1" will be interpreted as being the header's index.
@@ -371,6 +472,7 @@ void WJTABLE::init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsC
 	}
 	catch (invalid_argument) { jf.err("stod-wjtable.init"); }
 	sUnitPreference = vsNamePop[2];
+
 	initModel(vvsCore.size(), vvsCore[0].size() + 1);
 	modelSetTopLeft(vsNamePop[0]);
 	modelSetTop(vvsCol);
@@ -439,16 +541,26 @@ void WJTABLE::initValues()
 	// Populate string list sets.
 	setUnitBreaker.emplace(" ");
 	setUnitBreaker.emplace("GIS");  // Guaranteed Income Supplement
+	setUnitBreaker.emplace("TFSAs");
+	setUnitBreaker.emplace("RRSPs");
+	setUnitBreaker.emplace("RPPs");  // Registered Pension Plans
 	setUnitPercent.emplace("Percentage ");
 	setUnitPercent.emplace(" percentage");
 	setUnitPercent.emplace("Rate ");
 	setUnitPercent.emplace(" rate");
+	mapPrefixNumber.emplace(1, "");
+	mapPrefixNumber.emplace(1000, "Thousand");
+	mapPrefixNumber.emplace(1000000, "Million");
+	mapPrefixNumber.emplace(1000000000, "Billion");
+	mapPrefixNumber.emplace(1000000000000, "Trillion");
+	mapPrefixNumber.emplace(1000000000000000, "Quadrillion");  // Just in case...
 }
 void WJTABLE::modelSetCore(vector<vector<string>>& vvsCore)
 {
-	bool rowUnit;
+	bool colUnit, rowUnit;
 	double dNum;
 	string unit, temp;
+	set<int> setUnitCol, setUnitRow;  // Indices of headers with already-modified units.
 	for (int ii = 0; ii < vvsCore.size(); ii++)
 	{
 		unit.clear();
@@ -460,22 +572,53 @@ void WJTABLE::modelSetCore(vector<vector<string>>& vvsCore)
 		else { rowUnit = 0; }
 		for (int jj = 0; jj < vvsCore[ii].size(); jj++)
 		{
-			if (!rowUnit && mapColUnit.count(jj + 1)) { unit = mapColUnit.at(jj + 1); }
-			else if (!rowUnit)  { 
-				unit = sUnitPreference; 
+			if (!rowUnit) { 
+				if (mapColUnit.count(jj + 1)) {
+					unit = mapColUnit.at(jj + 1);
+					colUnit = 1;
+				}
+				else {
+					unit = sUnitPreference;
+					colUnit = 0;
+				}
 			}
+			else { colUnit = 0; }
 
 			if (unit == "% of population") {
 				dNum = 100.0 * stod(vvsCore[ii][jj]) / regionPopulation;
-				temp = jf.doubleToCommaString(dNum, 1) + "\n(" + unit + ")";
+				temp = jf.doubleToCommaString(dNum, 2) + "\n(" + unit + ")";
 			}
 			else if (unit[0] == '%') { 
 				temp = jf.numericToCommaString(vvsCore[ii][jj], 1) + "\n(" + unit + ")";
 			}
-			else {
-				temp = jf.numericToCommaString(vvsCore[ii][jj], 0) + "\n(" + unit + ")";
+			else if (setUnitCol.count(jj + 1) || setUnitRow.count(ii)) {
+				dNum = stod(vvsCore[ii][jj]);
+				temp = jf.doubleToCommaString(dNum, 3);
+				temp += "\n(" + unit + ")";
 			}
-
+			else {
+				temp = jf.numericToCommaString(vvsCore[ii][jj], 0);
+				if (temp.size() >= 12) {  // Very large number, needs to be compressed.
+					if (rowUnit) {
+						compressUnitRow(ii, vvsCore);
+						unit = mapRowUnit.at(ii);
+						dNum = stod(vvsCore[ii][jj]);
+						temp = jf.doubleToCommaString(dNum, 3);
+						setUnitRow.emplace(ii);
+					}
+					else if (colUnit) {
+						compressUnitCol(jj + 1, vvsCore);
+						unit = mapColUnit.at(jj + 1);
+						dNum = stod(vvsCore[ii][jj]);
+						temp = jf.doubleToCommaString(dNum, 3);
+						setUnitCol.emplace(jj + 1);
+					}
+					else {
+						compressUnitCell(unit, temp);
+					}
+				}
+				temp += "\n(" + unit + ")";
+			}
 			model->setData(ii, jj + 1, temp, Wt::ItemDataRole::Display);
 		}
 	}
@@ -521,16 +664,17 @@ void WJTABLE::saveHeader(const int& iCol, const string& sID)
 void WJTABLE::setColUnit(string& colHeader, int index)
 {
 	// Map non-default units by index. 
-	string unit;
+	string unit, temp;
 	size_t pos1, pos2;
 	if (colHeader.back() == ')')
 	{
 		pos2 = colHeader.size() - 1;
 		pos1 = colHeader.rfind('(') + 1;
-		if (pos2 - pos1 == 1) {
-			unit = colHeader.substr(pos1, pos2 - pos1);
-			mapColUnit.emplace(index, unit);
-		}
+		unit = colHeader.substr(pos1, pos2 - pos1);
+		pos1 = unit.find(' ');
+		if (pos1 < unit.size()) { return; }
+		if (setUnitBreaker.count(unit)) { return; }
+		else { mapColUnit.emplace(index, unit); }
 	}
 	else
 	{
@@ -545,6 +689,7 @@ void WJTABLE::setColUnit(string& colHeader, int index)
 			setItemDelegateForColumn(index, wjDel);
 		}
 	}
+	return;
 }
 void WJTABLE::setProperty(Wt::WWidget* widget, string property, string value)
 {
@@ -593,7 +738,7 @@ void WJTABLE::setProperty(Wt::WWidget* widget, vector<string> vsProperty, vector
 void WJTABLE::setRowUnit(string& rowHeader, int index)
 {
 	// Map non-default units by index. 
-	string unit;
+	string unit, temp;
 	size_t pos1, pos2;
 	if (rowHeader.back() == ')')
 	{
@@ -602,13 +747,15 @@ void WJTABLE::setRowUnit(string& rowHeader, int index)
 		unit = rowHeader.substr(pos1, pos2 - pos1);
 		pos1 = unit.find(' ');
 		if (pos1 < unit.size()) { return; }
-		if (!setUnitBreaker.count(unit)) { mapRowUnit.emplace(index, unit); }
+		if (setUnitBreaker.count(unit)) { return; }
+		else { mapRowUnit.emplace(index, unit); }
 	}
 	else
 	{
 		unit = getUnitParser(rowHeader);
 		if (unit.size() > 0) { mapRowUnit.emplace(index, unit); }
 	}
+	return;
 }
 void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent)
 {

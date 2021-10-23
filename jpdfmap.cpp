@@ -335,7 +335,7 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>& t
 	if (legendTickLines == 1) { suffix = " (" + sUnit + ")"; }
 	else
 	{
-		if (displayData.size() == 1) { displayUnit = "(" + sUnit + ")"; }  // # of persons
+		if (displayData.size() == 1) { displayUnit = "(" + sUnit + ")"; }
 		else
 		{
 			suffix = " %";
@@ -391,7 +391,7 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>& t
 void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<double>>& tickValues, double tickThickness)
 {
 	// This variant is for the parent bar.
-	double dPercent, dTemp, length;
+	double dPercent, dPrevious, length;
 	string displayUnit, suffix, temp;
 	vector<vector<double>> startStop(2, vector<double>(2));
 	vector<vector<double>> textBLTR(2, vector<double>(2));
@@ -412,11 +412,12 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 	if (legendTickLines == 1) { suffix = " (" + sUnit + ")"; }
 	else
 	{
-		if (displayData.size() == 1) { displayUnit = "(" + sUnit + ")"; }  // # of persons
-		else
-		{
+		if (sUnit == "% of population") { 
 			suffix = " %";
 			displayUnit = "(of population)";
+		} 
+		else {
+			displayUnit = "(" + sUnit + ")";
 		}
 	}
 	for (int ii = 0; ii < 4; ii++)
@@ -447,14 +448,13 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 		{
 			if (orientation)
 			{
-				if (dPercent * length > barNumberHeight * 2.0)
-				{
-					startStop[0][0] = rectBLTR[1][0];
-					startStop[1][0] = startStop[0][0] + (0.75 * barThickness);
-					startStop[0][1] = rectBLTR[0][1] + (dPercent * length);
-					startStop[1][1] = startStop[0][1];
-				}
-				else
+				startStop[0][0] = rectBLTR[0][0];
+				startStop[1][0] = rectBLTR[1][0];
+				startStop[0][1] = rectBLTR[0][1] + (dPercent * length);
+				startStop[1][1] = startStop[0][1];
+				drawLine(startStop, black, tickThickness);
+
+				if (dPercent * length < barNumberHeight * 3.0)
 				{
 					skew = 1;
 					startStop[0][0] = rectBLTR[1][0];
@@ -466,7 +466,7 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 					startStop[0][0] = startStop[1][0];
 					startStop[0][1] = startStop[1][1];
 					startStop[1][0] = startStop[0][0];
-					startStop[1][1] = rectBLTR[0][1] + (barNumberHeight * 2.0);
+					startStop[1][1] = rectBLTR[0][1] + (barNumberHeight * 3.0);
 					drawLine(startStop, black, tickThickness);
 
 					startStop[0][0] = startStop[1][0];
@@ -475,18 +475,43 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 					startStop[1][1] = startStop[0][1];
 					drawLine(startStop, black, tickThickness);
 				}
+				else if ((1.0 - dPercent) * length < 6.0 * barNumberHeight) {
+					skew = 1;
+					startStop[0][0] = rectBLTR[1][0];
+					startStop[1][0] = startStop[0][0] + (0.4 * barThickness);
+					startStop[0][1] = rectBLTR[0][1] + (dPercent * length);
+					startStop[1][1] = startStop[0][1];
+					drawLine(startStop, black, tickThickness);
+
+					startStop[0][0] = startStop[1][0];
+					startStop[0][1] = startStop[1][1];
+					startStop[1][0] = startStop[0][0];
+					startStop[1][1] = rectBLTR[1][1] - (6.0 * barNumberHeight);
+					drawLine(startStop, black, tickThickness);
+
+					startStop[0][0] = startStop[1][0];
+					startStop[0][1] = startStop[1][1];
+					startStop[1][0] = startStop[0][0] + (0.4 * barThickness);
+					startStop[1][1] = startStop[0][1];
+					drawLine(startStop, black, tickThickness);
+				}
+				else {
+					startStop[0][0] = rectBLTR[1][0];
+					startStop[1][0] = startStop[0][0] + (0.75 * barThickness);
+					startStop[0][1] = rectBLTR[0][1] + (dPercent * length);
+					startStop[1][1] = startStop[0][1];
+				}
+				dPrevious = startStop[1][1];
 			}
 			else
 			{
-				if (dPercent * length > barNumberWidth)
-				{
-					startStop[0][0] = rectBLTR[0][0] + (dPercent * length);
-					startStop[1][0] = startStop[0][0];
-					startStop[0][1] = rectBLTR[0][1];
-					startStop[1][1] = startStop[0][1] - (0.75 * barThickness);
-				}
-				else
-				{
+				startStop[0][0] = rectBLTR[0][0] + (dPercent * length);
+				startStop[1][0] = startStop[0][0];
+				startStop[0][1] = rectBLTR[0][1];
+				startStop[1][1] = startStop[0][1] + (1.0 * barThickness);
+				drawLine(startStop, black, tickThickness);
+				
+				if (dPercent * length < barNumberWidth) {
 					skew = 1;
 					startStop[0][0] = rectBLTR[0][0] + (dPercent * length);
 					startStop[1][0] = startStop[0][0];
@@ -506,6 +531,33 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 					startStop[1][1] = startStop[0][1] - (0.4 * barThickness);
 					drawLine(startStop, black, tickThickness);
 				}
+				else if ((1.0 - dPercent) * length < (2.0 * barNumberWidth)) {
+					skew = 1;
+					startStop[0][0] = rectBLTR[0][0] + (dPercent * length);
+					startStop[1][0] = startStop[0][0];
+					startStop[0][1] = rectBLTR[0][1];
+					startStop[1][1] = startStop[0][1] - (0.4 * barThickness);
+					drawLine(startStop, black, tickThickness);
+
+					startStop[0][0] = startStop[1][0];
+					startStop[0][1] = startStop[1][1];
+					startStop[1][0] = rectBLTR[1][0] - (2.0 * barNumberWidth);
+					startStop[1][1] = startStop[0][1];
+					drawLine(startStop, black, tickThickness);
+
+					startStop[0][0] = startStop[1][0];
+					startStop[0][1] = startStop[1][1];
+					startStop[1][0] = startStop[0][0];
+					startStop[1][1] = startStop[0][1] - (0.4 * barThickness);
+					drawLine(startStop, black, tickThickness);
+				}
+				else {
+					startStop[0][0] = rectBLTR[0][0] + (dPercent * length);
+					startStop[1][0] = startStop[0][0];
+					startStop[0][1] = rectBLTR[0][1];
+					startStop[1][1] = startStop[0][1] - (0.75 * barThickness);
+				}
+				dPrevious = startStop[1][0];
 			}
 			break;
 		}
@@ -517,14 +569,27 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 				dot[0] = rectBLTR[0][0] + (0.5 * barThickness);
 				dot[1] = rectBLTR[0][1] + (dPercent * length);
 				drawCircle(dot, dRadius, { black, black }, 2.0);
-				if ((1.0 - dPercent) * length > barNumberHeight * 2.0)
-				{
+				if ((dPercent * length) + rectBLTR[0][1] < dPrevious + (3.0 * barNumberHeight)) {
+					skew = 1;
 					startStop[0][0] = rectBLTR[1][0];
-					startStop[1][0] = startStop[0][0] + (0.75 * barThickness);
+					startStop[1][0] = startStop[0][0] + (0.4 * barThickness);
 					startStop[0][1] = rectBLTR[0][1] + (dPercent * length);
 					startStop[1][1] = startStop[0][1];
+					drawLine(startStop, black, tickThickness);
+
+					startStop[0][0] = startStop[1][0];
+					startStop[0][1] = startStop[1][1];
+					startStop[1][0] = startStop[0][0];
+					startStop[1][1] = dPrevious + (3.0 * barNumberHeight);
+					drawLine(startStop, black, tickThickness);
+
+					startStop[0][0] = startStop[1][0];
+					startStop[0][1] = startStop[1][1];
+					startStop[1][0] = startStop[0][0] + (0.4 * barThickness);
+					startStop[1][1] = startStop[0][1];
+					drawLine(startStop, black, tickThickness);
 				}
-				else
+				else if ((1.0 - dPercent) * length < 3.0 * barNumberHeight)
 				{
 					skew = 1;
 					startStop[0][0] = rectBLTR[1][0];
@@ -536,7 +601,7 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 					startStop[0][0] = startStop[1][0];
 					startStop[0][1] = startStop[1][1];
 					startStop[1][0] = startStop[0][0];
-					startStop[1][1] = rectBLTR[1][1] - (barNumberHeight * 2.0);
+					startStop[1][1] = rectBLTR[1][1] - (3.0 * barNumberHeight);
 					drawLine(startStop, black, tickThickness);
 
 					startStop[0][0] = startStop[1][0];
@@ -545,20 +610,40 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 					startStop[1][1] = startStop[0][1];
 					drawLine(startStop, black, tickThickness);
 				}
+				else
+				{
+					startStop[0][0] = rectBLTR[1][0];
+					startStop[1][0] = startStop[0][0] + (0.75 * barThickness);
+					startStop[0][1] = rectBLTR[0][1] + (dPercent * length);
+					startStop[1][1] = startStop[0][1];
+				}
 			}
 			else
 			{
 				dot[0] = rectBLTR[0][0] + (dPercent * length);
 				dot[1] = rectBLTR[0][1] + (0.5 * barThickness);
 				drawCircle(dot, dRadius, { black, black }, 2.0);
-				if ((1.0 - dPercent) * length > barNumberWidth)
-				{
+				if ((dPercent * length) + rectBLTR[0][0] < dPrevious + barNumberWidth) {
+					skew = 1;
 					startStop[0][0] = rectBLTR[0][0] + (dPercent * length);
 					startStop[1][0] = startStop[0][0];
 					startStop[0][1] = rectBLTR[0][1];
-					startStop[1][1] = startStop[0][1] - (0.75 * barThickness);
+					startStop[1][1] = startStop[0][1] - (0.4 * barThickness);
+					drawLine(startStop, black, tickThickness);
+
+					startStop[0][0] = startStop[1][0];
+					startStop[0][1] = startStop[1][1];
+					startStop[1][0] = dPrevious + barNumberWidth;
+					startStop[1][1] = startStop[0][1];
+					drawLine(startStop, black, tickThickness);
+
+					startStop[0][0] = startStop[1][0];
+					startStop[0][1] = startStop[1][1];
+					startStop[1][0] = startStop[0][0];
+					startStop[1][1] = startStop[0][1] - (0.4 * barThickness);
+					drawLine(startStop, black, tickThickness);
 				}
-				else
+				else if ((1.0 - dPercent) * length < barNumberWidth)
 				{
 					skew = 1;
 					startStop[0][0] = rectBLTR[0][0] + (dPercent * length);
@@ -578,6 +663,13 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 					startStop[1][0] = startStop[0][0];
 					startStop[1][1] = startStop[0][1] - (0.4 * barThickness);
 					drawLine(startStop, black, tickThickness);
+				}
+				else
+				{
+					startStop[0][0] = rectBLTR[0][0] + (dPercent * length);
+					startStop[1][0] = startStop[0][0];
+					startStop[0][1] = rectBLTR[0][1];
+					startStop[1][1] = startStop[0][1] - (0.75 * barThickness);
 				}
 			}
 			break;
@@ -795,10 +887,11 @@ vector<double> JPDFMAP::getChildTL(vector<vector<double>>& vvdBorder, vector<vec
 	vdTL[1] *= PPKM;
 	return vdTL;
 }
-unordered_map<string, double> JPDFMAP::getMapRegionData()
+unordered_map<string, double> JPDFMAP::getMapRegionData(int& decimalPlaces)
 {
 	int indexDataset = jsb.getActiveIndex();
 	if (indexDataset < 0) { jf.err("jScaleBar missing initialization-jpdfmap.getMapRegionData"); }
+	decimalPlaces = jsb.vDecimalPlaces[indexDataset];
 	unordered_map<string, double> mapRegionData = jsb.getMapDatasetLabel(mapRegion, indexDataset);
 	return mapRegionData;
 }
@@ -855,24 +948,21 @@ void JPDFMAP::initColour()
 }
 void JPDFMAP::initScaleBar(string unit, vector<int> viIndex, int barDouble, int tickLines)
 {
-	jsb.addDataset(mapData);
+	int index;
+	double power;
+	vector<vector<double>> mapDataTemp;
 	sUnit = unit;
+	jsb.addDataset(mapData);
 	displayData = viIndex;
 	legendBarDouble = barDouble;
 	legendTickLines = tickLines;
-	int index;
 	if (displayData.size() > 1) {
 		index = jsb.makeDataset(displayData, '/');
 	}
 	else {
 		index = displayData[0];
 	}
-	if (sUnit[0] == '%') {
-		jsb.setUnit(index, sUnit, 1);
-	}
-	else {
-		jsb.setUnit(index, sUnit, 0);
-	}
+	jsb.setUnit(index, sUnit);
 }
 void JPDFMAP::initImgBar(vector<vector<double>>& parentFrameKM)
 {

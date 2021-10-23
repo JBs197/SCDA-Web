@@ -233,7 +233,7 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	if (mapRegion.size() % numCol > 0) { numRow++; }
 	vRowHeight.assign(numRow, (double)(tableFontSize + (2 * cellPadding)));
 	vNumLine.assign(numRow, 1);
-	int indexTable = wjrPDFmap->jpdf.addTable(numCol, vNumLine, vRowHeight, "Geographic Regions", (double)(tableFontSize + 2));
+	int indexTable = wjrPDFmap->jpdf.addTable(numCol, vNumLine, vRowHeight, "Geographic Region Data", (double)(tableFontSize + 2));
 	vColour = { 1, 2 };  // Alternating white and weak selection.
 	wjrPDFmap->jpdf.vSection[indexTable]->jpTable->setColourBackground(vColour);
 	vector<vector<double>> regionBLTR = wjrPDFmap->jpdf.vSection[indexTable]->jpTable->drawTable();
@@ -250,8 +250,9 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	wjrPDFmap->jpdf.vSection[indexMap]->jpMap->initScaleBar(sUnit, displayData, legendBarDouble, legendTickLines);
 
 	// Convert the raw coordinate data into an HPDF-friendly format.
+	int decimalPlaces = -1;
 	wjrPDFmap->jpdf.vSection[indexMap]->jpMap->kmToPixel(mapFrameKM, mapBorderKM);
-	unordered_map<string, double> mapRegionData = wjrPDFmap->jpdf.vSection[indexMap]->jpMap->getMapRegionData();
+	unordered_map<string, double> mapRegionData = wjrPDFmap->jpdf.vSection[indexMap]->jpMap->getMapRegionData(decimalPlaces);
 
 	// Insert data and region names into the region section.
 	vector<string> vsValue(mapRegion.size());
@@ -285,11 +286,11 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	else 
 	{ 
 		dVal = mapRegionData.at(mapRegion[0]);
-		vsValue[0] = jf.doubleToCommaString(dVal, 0) + suffix;
+		vsValue[0] = jf.doubleToCommaString(dVal, decimalPlaces) + suffix;
 		for (int ii = 0; ii < vsRegion.size(); ii++)
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
-			vsValue[ii + 1] = jf.doubleToCommaString(dVal, 0);
+			vsValue[ii + 1] = jf.doubleToCommaString(dVal, decimalPlaces);
 		}
 	}
 	vsRegion.insert(vsRegion.begin(), mapRegion[0]);

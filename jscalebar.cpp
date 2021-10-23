@@ -16,6 +16,20 @@ vector<int> JSCALEBAR::addDataset(vector<vector<double>>& datasetList)
 	}
 	return vIndex;
 }
+double JSCALEBAR::checkForCompressedUnit(string unit)
+{
+	// Look for "magnitude" prefixes in the unit. Return the denominator, if found.
+	if (unit.size() == 1) { return 0.0; }
+	if (unit[0] == '$' || unit[0] == '%' || unit[0] == '#') { return 0.0; }
+	size_t pos1 = unit.find(' ');
+	if (pos1 > unit.size()) { return 0.0; }
+	double power = 0.0;
+	string prefix = unit.substr(0, pos1);
+	if (setPrefix.count(prefix)) {
+		power = mapPrefix.at(prefix);
+	}
+	return power;
+}
 void JSCALEBAR::clear()
 {
 	activeIndex = -1;
@@ -140,6 +154,21 @@ vector<double> JSCALEBAR::getTickValues(int index, int numTicks, vector<int> vEx
 	}
 	return vTick;
 }
+void JSCALEBAR::initMaps()
+{
+	setPrefix.emplace("Thousand");
+	setPrefix.emplace("Million");
+	setPrefix.emplace("Billion");
+	setPrefix.emplace("Trillion");
+	setPrefix.emplace("Quadrillion");
+
+	mapPrefix.emplace("", 1.0);
+	mapPrefix.emplace("Thousand", 1000.0);
+	mapPrefix.emplace("Million", 1000000.0);
+	mapPrefix.emplace("Billion", 1000000000.0);
+	mapPrefix.emplace("Trillion", 1000000000000.0);
+	mapPrefix.emplace("Quadrillion", 1000000000000000.0);  // Just in case...
+}
 int JSCALEBAR::makeDataset(vector<int> vIndex, char operation)
 {
 	// Returns the index of the newly-made dataset.
@@ -167,18 +196,35 @@ string JSCALEBAR::getUnit(int index)
 	else if (index >= vUnit.size()) { jf.err("Invalid index-jscalebar.getUnit"); }
 	return vUnit[index];
 }
-void JSCALEBAR::setUnit(int index, string unit, int decimalPlaces)
+void JSCALEBAR::setUnit(int index, string unit)
 {
 	if (index >= vUnit.size()) { vUnit.resize(index + 1); }
+	if (index >= vDecimalPlaces.size()) { vDecimalPlaces.resize(index + 1); }
 	vUnit[index] = unit;
-	if (unit[0] == '%')
-	{
+	activeIndex = index;
+
+	// Make adjustments to the dataset if necessary.
+	double power = checkForCompressedUnit(unit);
+	if (power > 0.0) {
+		for (int ii = 0; ii < vDataset[index].size(); ii++)
+		{
+			vDataset[index][ii] /= power;
+		}
+	}
+	else if (unit == "% of population") {
 		for (int ii = 0; ii < vDataset[index].size(); ii++)
 		{
 			vDataset[index][ii] *= 100.0;
 		}
 	}
-	if (index >= vDecimalPlaces.size()) { vDecimalPlaces.resize(index + 1); }
-	vDecimalPlaces[index] = decimalPlaces;
-	activeIndex = index;
+
+	if (power > 0.0) {
+		vDecimalPlaces[index] = 3;
+	}
+	else if (unit[0] == '%') {
+		vDecimalPlaces[index] = 1;
+	}
+	else {
+		vDecimalPlaces[index] = 0;
+	}
 }

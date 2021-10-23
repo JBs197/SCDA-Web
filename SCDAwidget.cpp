@@ -635,19 +635,19 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 	wjDownload->initMap(vsRegion, vvvdFrame, vvvdArea, vvdData);  
 
 	// Determine the active unit.
+	string unit0 = "# of persons";
+	string unit1 = "% of population";
 	string sUnitTable = getUnit();
 	updateUnit(sUnitTable);
 	int legendBarDouble, legendTickLines;
 	Wt::WString wsUnit;
 	Wt::WString wsUnitOld = wjMap->textUnit->text();
-	if (sUnitTable.size() > 1)
+	if (sUnitTable == unit0 || sUnitTable == unit1)
 	{
-		string unit0 = "# of persons";
-		string unit1 = "% of population";
-		wtMap->jsb.setUnit(0, unit0, 0);
-		wtMap->jsb.setUnit(1, "population", 0);
+		wtMap->jsb.setUnit(0, unit0);
+		wtMap->jsb.setUnit(1, "population");
 		int indexJsb = wtMap->jsb.makeDataset({ 0, 1 }, '/');
-		wtMap->jsb.setUnit(indexJsb, unit1, 1);
+		wtMap->jsb.setUnit(indexJsb, unit1);
 		if (sUnitTable == unit0)
 		{
 			wjDownload->setUnit(unit0, { 0 });
@@ -662,14 +662,13 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 		}
 		else { jf.err("sUnitTable not recognized-SCDAwidget.processEventMap"); }
 	}
-	else if (sUnitTable.size() == 1)
+	else
 	{ 
 		wjDownload->setUnit(sUnitTable, { 0 });
-		wtMap->jsb.setUnit(0, sUnitTable, 0);
+		wtMap->jsb.setUnit(0, sUnitTable);
 		wtMap->jsb.activeIndex = 0; 
 		legendBarDouble = wjMap->getLegendBarDouble(vsRegion, sUnitTable, 1);
 	}
-	else { jf.err("sUnitTable not recognized-SCDAwidget.processEventMap"); }
 	legendTickLines = wjMap->getLegendTickLines(sUnitTable);
 
 	// Paint the map widget.
@@ -701,18 +700,6 @@ void SCDAwidget::processEventParameter(vector<vector<vector<string>>> vvvsParame
 	int sizeVar = wjConfig->varWJP.size();
 	activeCata = vvsCata[0][1];
 	jf.removeBlanks(vvvsParameter);
-
-	/*
-	if (mapNumVar.count(vvsCata[0][1]))
-	{
-		numVar = mapNumVar.at(vvsCata[0][1]);
-	}
-	else
-	{
-		numVar = vsDIMIndex.size() - 2;
-		mapNumVar.emplace(vvsCata[0][1], numVar);
-	}
-	*/
 
 	Wt::WString wsTemp;
 	WJPANEL* wjp = nullptr;
@@ -1370,8 +1357,8 @@ void SCDAwidget::updateUnit(string sUnit)
 	Wt::WString wsTemp = Wt::WString::fromUTF8("Unit: " + sUnit);
 	wjTableBox->textUnit->setText(wsTemp);
 	wjMap->textUnit->setText(wsTemp);
-	if (sUnit.size() > 1) {
-		if (wjUnitPin.activeUnit.size() > 1) {
+	if (sUnit == unit0 || sUnit == unit1) {
+		if (wjUnitPin.activeUnit == unit0 || wjUnitPin.activeUnit == unit1) {
 			int index;
 			vector<string> vsNamePop = { wjUnitPin.activeRegion, wjUnitPin.sRegionPopulation };
 			wjUnitPin.activeUnit = sUnit;
@@ -1395,7 +1382,7 @@ void SCDAwidget::updateUnit(string sUnit)
 			wjMap->popupUnit->select(index);
 			return;
 		}
-		else if (wjUnitPin.activeUnit.size() == 1) {
+		else {
 			wjTableBox->resetMenu();
 			wjMap->resetMenu();
 		}
@@ -1407,7 +1394,7 @@ void SCDAwidget::updateUnit(string sUnit)
 		wjMap->popupUnit->addItem(unit0)->triggered().connect(fnUnit0);
 		wjMap->popupUnit->addItem(unit1)->triggered().connect(fnUnit1);
 	}
-	else if (sUnit.size() == 1) {
+	else {
 		wjUnitPin.activeUnit = sUnit;
 		wjTableBox->resetMenu();
 		wjMap->resetMenu();
@@ -1415,7 +1402,6 @@ void SCDAwidget::updateUnit(string sUnit)
 		wjTableBox->popupUnit->addItem(sUnit)->triggered().connect(fnUnit);
 		wjMap->popupUnit->addItem(sUnit)->triggered().connect(fnUnit);
 	}
-	else { jf.err("Unknown unit-SCDAwidget.updateUnit"); }
 
 	// Update the pin buttons.
 	updatePinButtons();

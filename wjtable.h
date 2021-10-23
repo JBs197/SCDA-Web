@@ -157,7 +157,8 @@ public:
 	unordered_map<int, string> mapColValue;  // colIndex -> sHeader
 	unordered_map<int, string> mapHeaderID;  // colIndex -> headerID
 	unordered_map<int, int> mapIndentCol, mapIndentRow;  // col/row index -> header indentation.
-	
+	unordered_map<unsigned long long, string> mapPrefixNumber;  // multiple of thousand -> (Thousand, Million, etc).
+
 	shared_ptr<Wt::WStandardItemModel> model = nullptr;
 	shared_ptr<WJDELEGATE> wjDel = nullptr;
 	shared_ptr<WJSDELEGATE> wjsDel = nullptr;
@@ -168,6 +169,9 @@ public:
 	void cellSelect(int iRow, int iCol);
 	void cellSelect(Wt::WModelIndex wmIndex);
 	void cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol);
+	void compressUnitCell(string& sUnit, string& sCell);
+	void compressUnitCol(int iCol, vector<vector<string>>& vvsCore);
+	void compressUnitRow(int iRow, vector<vector<string>>& vvsCore);
 	string getCell(int iRow, int iCol);
 	string getCellValue(int iRow, int iCol);
 	int getColIndex(string sHeader);

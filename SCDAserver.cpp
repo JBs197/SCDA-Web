@@ -730,9 +730,18 @@ vector<string> SCDAserver::getDataIndex(string sYear, string sCata, vector<strin
 	if (vsDIMtitle.size() != viMID.size()) { jf.err("Parameter mismatch-SCDAserver.getDataIndex"); }
 	int numVar = viMID.size(), iDIM;
 	vector<string> vsMID(numVar);
-	string result, temp;
+	string result, temp, tname;
 	vector<string> vsResult, conditions, search = { "DIMIndex" };
-	string tname = "Census$" + sYear + "$" + sCata + "$DIMIndex";
+	if (!numVar) {
+		tname = "DataIndex$" + sYear + "$" + sCata;
+		search = { "DataIndex" };
+		string orderby = "DataIndex ASC";
+		int numResult = sf.selectOrderBy(search, tname, vsResult, orderby);
+		if (!numResult) { jf.err("No results found-SCDAserver.getDataIndex"); }
+		return vsResult;
+	}
+
+	tname = "Census$" + sYear + "$" + sCata + "$DIMIndex";
 	for (int ii = 0; ii < numVar; ii++)
 	{
 		conditions = { "DIM LIKE " + vsDIMtitle[ii] };
