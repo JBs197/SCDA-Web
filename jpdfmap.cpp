@@ -908,7 +908,7 @@ void JPDFMAP::kmToPixel(vector<vector<vector<double>>> frame, vector<vector<vect
 		if (mapRegion[ii].back() == '!')
 		{
 			selIndex = ii;
-			mapRegion.pop_back();
+			mapRegion[ii].pop_back();
 		}
 		dispParentTL = getChildTL(mapBorder[ii], frame[ii], frame[0]);
 		scaleChildToPage(mapBorder[ii], frame[ii]);
