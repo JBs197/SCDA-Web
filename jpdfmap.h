@@ -55,7 +55,7 @@ public:
 	void drawMap();
 	void drawRect(vector<vector<double>> rectBLTR, vector<double> colour, double thickness);
 	void drawRect(vector<vector<double>> rectBLTR, vector<vector<double>> vColour, double thickness);
-	void drawRegion(vector<vector<double>>& vvdPath, vector<double> colour);
+	void drawRegion(vector<vector<double>>& vvdPath, vector<double> colour, bool dotted = 0);
 	vector<double> getChildTL(vector<vector<double>>& vpfBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM);
 	unordered_map<string, double> getMapRegionData(int& decimalPlaces);
 	void kmToPixel(vector<vector<vector<double>>> frame, vector<vector<vector<double>>>& border);

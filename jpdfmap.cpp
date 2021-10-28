@@ -821,15 +821,15 @@ void JPDFMAP::drawMap()
 	if (mapColour.size() != numRegion) { jf.err("Size mismatch-jpdfmap.drawMap"); }
 	for (int ii = 0; ii < numRegion; ii++)
 	{
-		if (mapRegion[ii] == "Canada")  // Special case wherein parent is completely obscured.
-		{
-			mapColour[ii] = { 0.0, 0.0, 0.0 };
+		// Special case wherein parent is completely obscured.
+		if (mapRegion[ii] == "Canada") { mapColour[ii] = { 0.0, 0.0, 0.0 }; }
+		
+		if (ii == selIndex) {  // This non-parent region was selected by the user. Draw dotted.
+			drawRegion(mapBorder[ii], mapColour[ii], 1);
 		}
-		if (ii == selIndex)  // This non-parent region was selected by the user. 
-		{
-			// DOTLINE
+		else {  // Standard solid border.
+			drawRegion(mapBorder[ii], mapColour[ii]);
 		}
-		drawRegion(mapBorder[ii], mapColour[ii]);
 	}
 }
 void JPDFMAP::drawRect(vector<vector<double>> rectBLTR, vector<double> colour, double thickness)
@@ -859,22 +859,30 @@ void JPDFMAP::drawRect(vector<vector<double>> rectBLTR, vector<vector<double>> v
 	error = HPDF_Page_FillStroke(page);
 	if (error != HPDF_OK) { jf.err("FillStroke-jpdfmap.drawRect"); }
 }
-void JPDFMAP::drawRegion(vector<vector<double>>& vvdPath, vector<double> colour)
+void JPDFMAP::drawRegion(vector<vector<double>>& vvdPath, vector<double> colour, bool dotted)
 {
-	// This variant will fill the inside of the path without drawing a border.
 	HPDF_STATUS error = HPDF_Page_SetRGBFill(page, colour[0], colour[1], colour[2]);
-	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdf.drawRegion"); }
-	error = HPDF_Page_SetLineWidth(page, 0.0);
-	if (error != HPDF_OK) { jf.err("SetLineWidth-jpdf.drawRegion"); }
+	if (error != HPDF_OK) { jf.err("SetRGBFill-jpdfmap.drawRegion"); }
+	error = HPDF_Page_SetLineWidth(page, 1.0);
+	if (error != HPDF_OK) { jf.err("SetLineWidth-jpdfmap.drawRegion"); }
+	if (dotted) {
+		HPDF_UINT16 dash[1] = { 3 };
+		error = HPDF_Page_SetDash(page, dash, 1, 1);
+		if (error != HPDF_OK) { jf.err("SetDash-jpdfmap.drawRegion"); }
+	}
 	error = HPDF_Page_MoveTo(page, vvdPath[0][0], vvdPath[0][1]);
-	if (error != HPDF_OK) { jf.err("MoveTo-jpdf.drawRegion"); }
+	if (error != HPDF_OK) { jf.err("MoveTo-jpdfmap.drawRegion"); }
 	for (int ii = 1; ii < vvdPath.size(); ii++)
 	{
 		error = HPDF_Page_LineTo(page, vvdPath[ii][0], vvdPath[ii][1]);
 		if (error != HPDF_OK) { jf.err("LineTo-jpdf.drawRegion"); }
 	}
 	error = HPDF_Page_ClosePathFillStroke(page);
-	if (error != HPDF_OK) { jf.err("ClosePath-jpdf.drawRegion"); }
+	if (error != HPDF_OK) { jf.err("ClosePath-jpdfmap.drawRegion"); }
+	if (dotted) {
+		error = HPDF_Page_SetDash(page, nullptr, 0, 0);
+		if (error != HPDF_OK) { jf.err("SetDash-jpdfmap.drawRegion"); }
+	}
 }
 vector<double> JPDFMAP::getChildTL(vector<vector<double>>& vvdBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM)
 {
@@ -1088,8 +1096,15 @@ void JPDFMAP::scaleParentToPage(vector<vector<double>>& parentBorder, vector<vec
 }
 void JPDFMAP::setValues(vector<string>& region, vector<vector<double>>& data)
 {
-	mapRegion = region;
+	for (int ii = 0; ii < region.size(); ii++) {
+		if (region[ii].back() == '!') {
+			selIndex = ii;
+			region[ii].pop_back();
+			break;
+		}
+	}
 	mapData = data;
+	mapRegion = region;
 }
 void JPDFMAP::textBox(vector<vector<double>> boxBLTR, string sText, string alignment)
 {

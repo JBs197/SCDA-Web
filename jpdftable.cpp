@@ -90,6 +90,7 @@ void JPDFTABLE::drawColSplit()
 		drawLine(startStop, colourListDouble[0], 1.0);
 		for (int jj = 0; jj < numRow; jj++)
 		{
+			index = vvCell[jj][ii].vBLTR.size() - 1;
 			vvCell[jj][ii].splitPos.push_back(xMax);
 			vvCell[jj][ii].vBLTR[index][0][0] = xMax + vvCell[jj][ii].padding;
 		}
@@ -263,8 +264,10 @@ void JPDFTABLE::drawText(int index)
 	{
 		for (int jj = 0; jj < numRow; jj++)
 		{
-			text = vvCell[jj][ii].vsText[index];
-			vvCell[jj][ii].drawCellTextPlain(page, jf, text);
+			if (vvCell[jj][ii].vsText.size() > index) {
+				text = vvCell[jj][ii].vsText[index];
+				vvCell[jj][ii].drawCellTextPlain(page, jf, text);
+			}
 		}
 	}
 }
