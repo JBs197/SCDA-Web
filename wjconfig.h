@@ -31,6 +31,7 @@ struct WJPANEL : public Wt::WPanel
 	Wt::WContainerWidget *boxMID = nullptr;
 	Wt::WComboBox *cbTitle = nullptr;
 	unordered_map<int, int> mapFilterMID;  // JTREE index -> index within viFilter
+	bool mobile = 0;
 	unordered_map<string, int> mapIndexTitle;  // sTitle -> index within cbTitle 
 	Wt::WPushButton *pbMIDclosed = nullptr, *pbMIDopened = nullptr, *pbMID;
 	string selMID = "";

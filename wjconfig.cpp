@@ -35,7 +35,8 @@ void WJPANEL::dialogMID()
 	wDialog->setModal(0);
 	wDialog->setMovable(0);
 	wDialog->setClosable(0);
-	wDialog->positionAt(this, Wt::Orientation::Horizontal);
+	if (!mobile) { wDialog->positionAt(this, Wt::Orientation::Horizontal); }
+	else { wDialog->positionAt(this, Wt::Orientation::Vertical); }
 
 	jtMID.setExpandGeneration(16);  // Expand generations without displaying more items than this.
 	string sRoot = jtMID.treePL[0];
@@ -45,7 +46,8 @@ void WJPANEL::dialogMID()
 	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
 	treeRootUnique->setObjectName(siRoot);
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
-	treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::Large);
+	if (!mobile) { treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::Large); }
+	else { treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge); }
 
 	Wt::WTreeNode* treeRoot = nullptr;
 	if (viFilter.size() < 1) { treeRoot = treeRootUnique.get(); }
@@ -509,8 +511,10 @@ void WJPANEL::setTree(vector<vector<string>>& vvsMID)
 
 	boxMID->setHidden(0);
 }
-void WJPANEL::toggleMobile(bool mobile)
+void WJPANEL::toggleMobile(bool Mobile)
 {
+	if (mobile == Mobile) { return; }
+	mobile = Mobile;
 	if (mobile)
 	{
 		Wt::WPanel::decorationStyle().font().setSize(Wt::FontSize::XXLarge);

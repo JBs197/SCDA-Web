@@ -60,12 +60,8 @@ int SCDAserver::applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<s
 			{
 				if (vvsDIM[kk][1] == "*") { continue; }
 
-				if (kk < vvsResult[index].size() - 1)
-				{
-					tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIM$" + vvsResult[index][kk];
-				}
-				else
-				{
+				tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIM$" + vvsResult[index][kk];
+				if (!sf.table_exist(tname)) {
 					tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$Dim";
 				}
 				conditions = { "DIM LIKE " + vvsDIM[kk][1] };
@@ -1075,22 +1071,19 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 			conditions = { "DIM LIKE " + vsDIM[ii] };
 			result.clear();
 			sf.select(search, tname, result, conditions);
-			if (result.size() < 1) { jf.err("No DIMIndex found-SCDAserver.getMIDDifferentiator"); }
+			if (result.size() < 1) { jf.err("No DIMIndex found-SCDAserver.getDifferentiatorMID"); }
 			
 			vvsMID[jj].clear();
-			iNum = stoi(result);
-			if (iNum < vsDIM.size() - 1) 
-			{ 
-				tname = "Census$" + vsYearCata[jj] + "$DIM$" + result; 
-				search = { "DIM" };
-			}
+			tname = "Census$" + vsYearCata[jj] + "$DIM$" + result;		
+			if (sf.table_exist(tname)) { search = { "DIM" }; }
 			else 
 			{ 
 				tname = "Census$" + vsYearCata[jj] + "$Dim"; 
 				search = { "Dim" };
+				if (!sf.table_exist(tname)) { jf.err("DIM title not found-SCDAserver.getDifferentiatorMID"); }
 			}
 			sf.selectOrderBy(search, tname, vvsMID[jj], orderby);
-			if (vvsMID[jj].size() < 1) { jf.err("No MIDs found-SCDAserver.getMIDDifferentiator"); }
+			if (vvsMID[jj].size() < 1) { jf.err("No MIDs found-SCDAserver.getDifferentiatorMID"); }
 		}
 		vvsHaveNotHave.clear();  // Populate this in the form [candidate index][MID, sYear$sCataHave, sYear$sCataNotHave]
 		for (int jj = 0; jj < vsYearCata.size(); jj++)
@@ -1802,7 +1795,7 @@ void SCDAserver::pullVariable(vector<string> prompt, vector<vector<string>> vvsF
 	string sID = prompt[0];
 	prompt.erase(prompt.begin());
 	if (prompt[2] == "*" || prompt[3] == "*") { jf.err("No wildcards allowed-SCDAserver.pullVariable"); }
-	vector<vector<string>> vvsCata, vvsVariable;
+	vector<vector<string>> vvsBlank, vvsCata, vvsVariable;
 	if (prompt.size() > 4)
 	{
 		vvsCata = { {prompt[0], prompt[4]} };  // sYear, sCata given.
@@ -1821,7 +1814,8 @@ void SCDAserver::pullVariable(vector<string> prompt, vector<vector<string>> vvsF
 	if (numCata == 0) { jf.err("Zero catalogues were found-SCDAserver.pullVariable"); }
 	else if (numCata == 1)
 	{
-		vvvsParameter = getParameter(vvsCata, vvsFixed);
+		vvvsParameter = getParameter(vvsCata, vvsBlank);
+
 		vector<string> DIMIndex = getDIMIndex(vvsCata);
 		postDataEvent(DataEvent(DataEvent::Parameter, sID, numCata, vvvsParameter, vvsCata), sID);
 		return;

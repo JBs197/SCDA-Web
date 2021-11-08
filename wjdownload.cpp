@@ -31,9 +31,11 @@ void WJDOWNLOAD::adjustLineEditWidth()
 {
 	Wt::WString wsTemp = leFileName->text();
 	string temp = wsTemp.toUTF8();
-	double dWidth = temp.size() * 10.0;
+	int numChar = temp.size();
+	double dWidth = numChar * 10.0;
 	double dMax = min(700.0, dWidth);
 	leFileName->setMaximumSize(dMax, wlAuto);
+	leFileName->setTextSize(max(numChar - 4, 0));
 }
 void WJDOWNLOAD::clear()
 {
@@ -433,8 +435,8 @@ void WJDOWNLOAD::init()
 	vLayout->addWidget(move(fileNameBox));
 
 	auto hLayout = make_unique<Wt::WHBoxLayout>();
-	auto downloadBox = makeDownloadBox();
-	hLayout->addWidget(move(downloadBox));
+	auto downloadBox = makeDownloadBox(0);
+	boxDownload = hLayout->addWidget(move(downloadBox));
 
 	auto stackedPreviewUnique = make_unique<Wt::WStackedWidget>();
 	stackedPreview = stackedPreviewUnique.get();
@@ -484,57 +486,74 @@ Wt::WString WJDOWNLOAD::initStyleCSS(shared_ptr<Wt::WMemoryResource>& wmrCSS)
 	Wt::WString wsStyle = Wt::WString::fromUTF8(sStyle);
 	return wsStyle;
 }
-unique_ptr<Wt::WContainerWidget> WJDOWNLOAD::makeDownloadBox()
+unique_ptr<Wt::WContainerWidget> WJDOWNLOAD::makeDownloadBox(bool horizontal)
 {
 	auto box = make_unique<Wt::WContainerWidget>();
-	box->setMaximumSize(120.0, wlAuto);
 	auto layoutUnique = make_unique<Wt::WVBoxLayout>();
-	auto layout = box->setLayout(move(layoutUnique));
-
+	auto vLayout = box->setLayout(move(layoutUnique));
 	auto group = make_shared<Wt::WButtonGroup>();
 	swap(group, wbGroup);
-
 	Wt::WRadioButton* wrb = nullptr;
-	//wrb = layout->addWidget(make_unique<Wt::WRadioButton>("All (PDF)"));
-	//wrb->setInline(0);
-	//wbGroup->addButton(wrb);
-	wrb = layout->addWidget(make_unique<Wt::WRadioButton>("Bar Graph (PDF)"));
-	wrb->setInline(0);
-	wbGroup->addButton(wrb);
-	wrb = layout->addWidget(make_unique<Wt::WRadioButton>("Data Map (PDF)"));
-	wrb->setInline(0);
-	wbGroup->addButton(wrb);
-	//wrb = layout->addWidget(make_unique<Wt::WRadioButton>("Data Table (PDF)"));
-	//wrb->setInline(0);
-	//wbGroup->addButton(wrb);
-	wrb = layout->addWidget(make_unique<Wt::WRadioButton>("Data Table (CSV)"));
-	wrb->setInline(0);
-	wbGroup->addButton(wrb);
-	wbGroup->checkedChanged().connect([=](Wt::WRadioButton* wrb)
-		{
+
+	auto boxDummy = make_unique<Wt::WContainerWidget>();
+	boxDummy->setMinimumSize(wlAuto, 20.0);
+	boxDummy->setMaximumSize(wlAuto, 20.0);
+
+	if (horizontal) {
+		auto hLayout = make_unique<Wt::WHBoxLayout>();
+		wrb = hLayout->addWidget(make_unique<Wt::WRadioButton>("Bar Graph (PDF)"));
+		wrb->setInline(horizontal);
+		wbGroup->addButton(wrb);
+		wrb = hLayout->addWidget(make_unique<Wt::WRadioButton>("Data Map (PDF)"));
+		wrb->setInline(horizontal);
+		wbGroup->addButton(wrb);
+		wrb = hLayout->addWidget(make_unique<Wt::WRadioButton>("Data Table (CSV)"));
+		wrb->setInline(horizontal);
+		wbGroup->addButton(wrb);		
+		vLayout->addLayout(move(hLayout));
+	}
+	else {
+		box->setMaximumSize(120.0, wlAuto);
+		wrb = vLayout->addWidget(make_unique<Wt::WRadioButton>("Bar Graph (PDF)"));
+		wrb->setInline(horizontal);
+		wbGroup->addButton(wrb);
+		wrb = vLayout->addWidget(make_unique<Wt::WRadioButton>("Data Map (PDF)"));
+		wrb->setInline(horizontal);
+		wbGroup->addButton(wrb);
+		wrb = vLayout->addWidget(make_unique<Wt::WRadioButton>("Data Table (CSV)"));
+		wrb->setInline(horizontal);
+		wbGroup->addButton(wrb);
+
+		vLayout->addWidget(move(boxDummy));
+	}
+
+	wbGroup->checkedChanged().connect([=](Wt::WRadioButton* wrb) {
 			Wt::WButtonGroup* wbg = wrb->group();
 			int index = wbg->id(wrb);
 			downloadSettings(index);
 		});
 
-	auto boxDummy = make_unique<Wt::WContainerWidget>();
-	boxDummy->setMinimumSize(wlAuto, 20.0);
-	boxDummy->setMaximumSize(wlAuto, 20.0);
-	layout->addWidget(move(boxDummy));
-
-	auto dlUnique = make_unique<Wt::WStackedWidget>();
-	dlUnique->setMinimumSize(wlAuto, 42.0);
-	for (int ii = 0; ii < numDLtypes; ii++)
-	{
-		auto pbUnique = make_unique<Wt::WPushButton>("Download");
-		pbUnique->decorationStyle().setBackgroundColor(wcSelected);
-		dlUnique->addWidget(move(pbUnique));
+	if (!stackedPB) {
+		auto dlUnique = make_unique<Wt::WStackedWidget>();
+		dlUnique->setMinimumSize(wlAuto, 42.0);
+		for (int ii = 0; ii < numDLtypes; ii++)
+		{
+			auto pbUnique = make_unique<Wt::WPushButton>("Download");
+			pbUnique->decorationStyle().setBackgroundColor(wcSelected);
+			dlUnique->addWidget(move(pbUnique));
+		}
+		dlUnique->setCurrentIndex(0);
+		dlUnique->setDisabled(1);
+		stackedPB = vLayout->addWidget(move(dlUnique), 0, Wt::AlignmentFlag::Center);
 	}
-	dlUnique->setCurrentIndex(0);
-	dlUnique->setDisabled(1);
-	stackedPB = layout->addWidget(move(dlUnique), 0, Wt::AlignmentFlag::Center);
+	else {
+		auto boxLayout = (Wt::WVBoxLayout*)boxDownload->layout();
+		auto unique = boxLayout->removeWidget(stackedPB);
+		stackedPB = (Wt::WStackedWidget*)unique.get();
+		vLayout->addWidget(move(unique), 0, Wt::AlignmentFlag::Center);
+	}
 
-	layout->addStretch(1);
+	vLayout->addStretch(1);
 	return box;
 }
 unique_ptr<Wt::WContainerWidget> WJDOWNLOAD::makeFileNameBox()
@@ -545,9 +564,10 @@ unique_ptr<Wt::WContainerWidget> WJDOWNLOAD::makeFileNameBox()
 	fileNameLayout->addWidget(move(fileName), 0, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Middle);
 	auto lineEditUnique = make_unique<Wt::WLineEdit>();
 	lineEditUnique->setText("SCDA Default");
-	lineEditUnique->setMaximumSize(120.0, wlAuto);
+	lineEditUnique->setMaximumSize(700.0, wlAuto);
+	lineEditUnique->setMinimumSize(120.0, 46.0);
 	lineEditUnique->textInput().connect(this, &WJDOWNLOAD::adjustLineEditWidth);
-	leFileName = fileNameLayout->addWidget(move(lineEditUnique));
+	leFileName = fileNameLayout->addWidget(move(lineEditUnique), 0, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Middle);
 	auto fileExtension = make_unique<Wt::WText>(".pdf");
 	textExt = fileNameLayout->addWidget(move(fileExtension), 0, Wt::AlignmentFlag::Left | Wt::AlignmentFlag::Middle);
 	fileNameLayout->addStretch(1);
@@ -578,6 +598,14 @@ shared_ptr<WJRPDF> WJDOWNLOAD::makeWJRPDF(string& sName)
 	auto pdfTemp = make_shared<WJRPDF>(wsFileName);
 	initJPDF(pdfTemp->jpdf);  // Font.
 	return pdfTemp;
+}
+void WJDOWNLOAD::setRadioEnabled(vector<int> vEnabled)
+{
+	auto vButton = wbGroup->buttons();
+	if (vButton.size() != vEnabled.size()) { jf.err("Size mismatch-wjdownload.setRadioEnabled"); }
+	for (int ii = 0; ii < vButton.size(); ii++) {
+		vButton[ii]->setEnabled(vEnabled[ii]);
+	}
 }
 void WJDOWNLOAD::setUnit(string unit, vector<int> viIndex)
 {
@@ -665,10 +693,50 @@ void WJDOWNLOAD::updateStackedPreview(int index)
 		Wt::WString wsTemp = Wt::WString::fromUTF8(sCSV);
 		wTextArea->setText(wsTemp);
 		wTextArea->setDecorationStyle(style);
+		
+		int numLine = jf.countChar(sCSV, '\n');
+		auto minHeight = Wt::WLength((20 * numLine) + 40);
+		auto minWidth = Wt::WLength::Auto;
+		wTextArea->setMinimumSize(minWidth, minHeight);
+
 		stackedPreview->insertWidget(index, move(wTextArea));
 		break;
 	}
 	}
 	stackedPreview->setCurrentIndex(index);
 	stackedPreview->setDisabled(0);
+}
+void WJDOWNLOAD::widgetMobile(bool Mobile)
+{
+	if (Mobile == mobile) { return; }
+	mobile = Mobile;
+	Wt::WVBoxLayout* vLayout = (Wt::WVBoxLayout*)this->layout();
+	Wt::WLayoutItem* wlItem = nullptr;
+	if (mobile) {
+		wlItem = vLayout->itemAt(1);
+		auto hLayout = (Wt::WBoxLayout*)wlItem->layout();
+		auto stackedPreviewUnique = hLayout->removeWidget(stackedPreview);
+
+		auto downloadBox = makeDownloadBox(1);
+		boxDownload = downloadBox.get();
+
+		auto itemUniqueOld = vLayout->removeItem(wlItem);
+		vLayout->insertWidget(1, move(downloadBox));
+		vLayout->insertWidget(2, move(stackedPreviewUnique));
+	}
+	else
+	{
+		auto downloadBox = makeDownloadBox(0);
+
+		auto stackedPreviewUnique = vLayout->removeWidget(stackedPreview);
+		wlItem = vLayout->itemAt(2);
+		vLayout->removeItem(wlItem);
+		wlItem = vLayout->itemAt(1);
+		vLayout->removeItem(wlItem);
+
+		auto hLayout = make_unique<Wt::WHBoxLayout>();
+		boxDownload = hLayout->addWidget(move(downloadBox));
+		hLayout->addWidget(move(stackedPreviewUnique));
+		vLayout->insertLayout(1, move(hLayout));
+	}
 }

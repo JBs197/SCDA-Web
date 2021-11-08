@@ -51,6 +51,7 @@ struct WJRPDF : public Wt::WMemoryResource
 
 class WJDOWNLOAD : public Wt::WContainerWidget
 {
+	Wt::WContainerWidget* boxDownload;
 	vector<int> displayData;
 	GSFUNC gs;
 	Wt::WLineEdit *leFileName;
@@ -63,6 +64,7 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	vector<vector<double>> mapData;
 	vector<string> mapRegion;
 	MATHFUNC mf;
+	bool mobile = 0;
 	const int numDLtypes = 3;
 	Wt::Signal<int> previewSignal_;
 	int selectedMode = -1;
@@ -82,7 +84,7 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 
 public:
 	WJDOWNLOAD(Wt::WLength width, Wt::WLength height) 
-		: Wt::WContainerWidget(), maxWidth(width), maxHeight(height) { init(); }
+		: Wt::WContainerWidget(), maxWidth(width), maxHeight(Wt::WLength::Auto) { init(); }
 	~WJDOWNLOAD() {}
 
 	JFUNC jf;
@@ -106,15 +108,17 @@ public:
 	void initJPDF(JPDF& jpdf);
 	void initMap(vector<string>& region, vector<vector<vector<double>>>& frame, vector<vector<vector<double>>>& border, vector<vector<double>>& data);
 	Wt::WString initStyleCSS(shared_ptr<Wt::WMemoryResource>& wmrCSS);
-	unique_ptr<Wt::WContainerWidget> makeDownloadBox();
+	unique_ptr<Wt::WContainerWidget> makeDownloadBox(bool horizontal);
 	unique_ptr<Wt::WContainerWidget> makeFileNameBox();
 	shared_ptr<WJRCSV> makeWJRCSV(string& sCSV);
 	shared_ptr<WJRPDF> makeWJRPDF();
 	shared_ptr<WJRPDF> makeWJRPDF(string& sName);
 	Wt::Signal<int>& previewSignal() { return previewSignal_; }
+	void setRadioEnabled(vector<int> vEnabled);
 	void setUnit(string unit, vector<int> viIndex);
 	Wt::WString stringToHTML(string& sLine);
 	void updateStackedPB(int index);
 	void updateStackedPreview(int index);
+	void widgetMobile(bool mobile);
 };
 

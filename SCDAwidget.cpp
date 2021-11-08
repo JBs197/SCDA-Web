@@ -784,7 +784,8 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<vect
 		vsNamePop.push_back("% of population");
 	}
 	tableData = wjTableBox->setTable(vvsTable, vvsCol, vvsRow, vsNamePop);
-	wjTableBox->setTableSize(wlTableWidth, wlTableHeight);
+	if (mobile) { wjTableBox->setTableSize(wlAuto, wlAuto); }
+	else { wjTableBox->setTableSize(wlTableWidth, wlTableHeight); }
 	tableData->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
 
 	// Add a helper tip, if necessary.
@@ -1432,7 +1433,8 @@ void SCDAwidget::widgetMobile()
 		if (tabData != nullptr)
 		{
 			tabData->decorationStyle().font().setSize(Wt::FontSize::XLarge);
-			tabData->setMinimumSize(wlAuto, 50.0);
+			tabData->setMinimumSize(wlAuto, 1400.0);
+			tabData->setOverflow(Wt::Overflow::Auto);
 		}
 	}
 	else
@@ -1449,10 +1451,21 @@ void SCDAwidget::widgetMobile()
 		{
 			tabData->decorationStyle().font().setSize(Wt::FontSize::Medium);
 			tabData->setMinimumSize(wlAuto, wlAuto);
+			tabData->setOverflow(Wt::Overflow::Hidden);
 		}
+		wlTableWidth = Wt::WLength(screenWidth - 515);
 	}
 	wjConfig->widgetMobile(mobile);
 	wjTableBox->widgetMobile(mobile);
 	wjMap->widgetMobile(mobile);
 	wjBarGraph->widgetMobile(mobile);
+	wjDownload->widgetMobile(mobile);
+	vector<int> vTabEnabled;
+	vTabEnabled.assign(3, 0);
+	if (tabData->isTabEnabled(2)) { 
+		vTabEnabled[1] = 1; 
+		vTabEnabled[2] = 1;
+	}
+	if (tabData->isTabEnabled(3)) { vTabEnabled[0] = 1; }
+	wjDownload->setRadioEnabled(vTabEnabled);
 }

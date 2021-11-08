@@ -57,7 +57,7 @@ public:
 	void build();
 	int getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize);
 	int getLegendTickLines(string sUnit);
-	unique_ptr<Wt::WContainerWidget> makeUnitPinBox(Wt::WPopupMenu*& popupUnit, Wt::WText*& textUnit, Wt::WPushButton*& pbUnit, Wt::WPushButton*& pbPin, Wt::WPushButton*& pbPinReset);
+	unique_ptr<Wt::WContainerWidget> makeUnitPinBox();
 	void removeTipPin(int layoutIndex);
 	void resetMenu();
 	Wt::Signal<string>& tipSignal() { return tipSignal_; }

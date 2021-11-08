@@ -149,7 +149,7 @@ void WJMAP::addTipPin(int layoutIndex)
 }
 void WJMAP::build()
 {
-	auto boxUnitPin = makeUnitPinBox(popupUnit, textUnit, pbUnit, pbPin, pbPinReset);
+	auto boxUnitPin = makeUnitPinBox();
 	auto boxMapUnique = make_unique<Wt::WContainerWidget>();
 	boxMapUnique->setContentAlignment(Wt::AlignmentFlag::Center);
 	auto wjLegend = make_unique<WJLEGEND>();
@@ -210,7 +210,7 @@ void WJMAP::initMaps()
 	wsTooltip = "The existing bar graph has different x-axis names\ncompared to the current selection.";
 	mapTooltip.emplace("pinChecksum", wsTooltip);
 }
-unique_ptr<Wt::WContainerWidget> WJMAP::makeUnitPinBox(Wt::WPopupMenu*& popupUnit, Wt::WText*& textUnit, Wt::WPushButton*& pbUnit, Wt::WPushButton*& pbPin, Wt::WPushButton*& pbPinReset)
+unique_ptr<Wt::WContainerWidget> WJMAP::makeUnitPinBox()
 {
 	auto boxOptionUnique = make_unique<Wt::WContainerWidget>();
 	auto textUnitUnique = make_unique<Wt::WText>();
@@ -254,8 +254,7 @@ void WJMAP::updatePinButtons(vector<string> vsTooltip)
 	Wt::WString wsTemp;
 	for (int ii = 0; ii < vsTooltip.size(); ii++)
 	{
-		switch (ii)
-		{
+		switch (ii) {
 		case 0:
 			wpb = pbPin;
 			break;
@@ -282,46 +281,68 @@ void WJMAP::widgetMobile(bool Mobile)
 {
 	if (Mobile == mobile) { return; }
 	mobile = Mobile;
+	Wt::WVBoxLayout* vLayout = (Wt::WVBoxLayout*)this->layout();
 	Wt::WLayoutItem* wlItem = nullptr;
-	Wt::WBoxLayout* layoutOld = (Wt::WBoxLayout*)boxOption->layout();
-	int direction = (int)layoutOld->direction();  // 0 or 1 = horizontal,  2 or 3 = vertical
-	int numItem = layoutOld->count();
-	vector<unique_ptr<Wt::WLayoutItem>> vItem(numItem);
-	for (int ii = numItem - 1; ii >= 0; ii--)
-	{
-		wlItem = layoutOld->itemAt(ii);
-		vItem[ii] = move(layoutOld->removeItem(wlItem));
-	}
-	if (mobile)
-	{
-		auto vLayout = make_unique<Wt::WVBoxLayout>();
-		for (int ii = 0; ii < numItem; ii++)
-		{
-			vLayout->addItem(move(vItem[ii]));
-		}
-		pbUnit->setMinimumSize(wlAuto, 50.0);
-		pbUnit->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-		pbPin->setMinimumSize(wlAuto, 50.0);
-		pbPin->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-		pbPinReset->setMinimumSize(wlAuto, 50.0);
-		pbPinReset->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-		textUnit->setMinimumSize(wlAuto, 100.0);
-		textUnit->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+	Wt::WBoxLayout* boxLayoutOld = (Wt::WBoxLayout*)boxOption->layout();
+	unique_ptr<Wt::WBoxLayout> boxLayout = nullptr;
+
+	if (mobile) {
+		boxLayout = make_unique<Wt::WBoxLayout>(Wt::LayoutDirection::TopToBottom);
+
+		auto pbPinResetUnique = boxLayoutOld->removeWidget(pbPinReset);
+		pbPinResetUnique->setMinimumSize(wlAuto, 50.0);
+		pbPinResetUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+
+		auto pbPinUnique = boxLayoutOld->removeWidget(pbPin);
+		pbPinUnique->setMinimumSize(wlAuto, 50.0);
+		pbPinUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+
+		auto pbUnitUnique = boxLayoutOld->removeWidget(pbUnit);
+		pbUnitUnique->setMinimumSize(wlAuto, 50.0);
+		pbUnitUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+
+		auto textUnique = boxLayoutOld->removeWidget(textUnit);
+		textUnique->setMinimumSize(wlAuto, 50.0);
+		textUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+		textUnit = (Wt::WText*)textUnique.get();
+
+		auto unitLayout = make_unique<Wt::WHBoxLayout>();
+		unitLayout->addWidget(move(textUnique), 0, Wt::AlignmentFlag::Middle);
+		pbUnit = (Wt::WPushButton*)unitLayout->addWidget(move(pbUnitUnique), 1);
+		boxLayout->addLayout(move(unitLayout));
+
+		pbPin = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinUnique));
+		pbPinReset = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinResetUnique));
 	}
 	else
 	{
-		auto hLayout = make_unique<Wt::WHBoxLayout>();
-		for (int ii = 0; ii < numItem; ii++)
-		{
-			hLayout->addItem(move(vItem[ii]));
-		}
-		pbUnit->setMinimumSize(wlAuto, wlAuto);
-		pbUnit->decorationStyle().font().setSize(Wt::FontSize::Medium);
-		pbPin->setMinimumSize(wlAuto, wlAuto);
-		pbPin->decorationStyle().font().setSize(Wt::FontSize::Medium);
-		pbPinReset->setMinimumSize(wlAuto, wlAuto);
-		pbPinReset->decorationStyle().font().setSize(Wt::FontSize::Medium);
-		textUnit->setMinimumSize(wlAuto, wlAuto);
-		textUnit->decorationStyle().font().setSize(Wt::FontSize::Large);
+		boxLayout = make_unique<Wt::WBoxLayout>(Wt::LayoutDirection::LeftToRight);
+
+		auto pbPinResetUnique = boxLayoutOld->removeWidget(pbPinReset);
+		pbPinResetUnique->setMinimumSize(wlAuto, wlAuto);
+		pbPinResetUnique->decorationStyle().font().setSize(Wt::FontSize::Medium);
+
+		auto pbPinUnique = boxLayoutOld->removeWidget(pbPin);
+		pbPinUnique->setMinimumSize(wlAuto, wlAuto);
+		pbPinUnique->decorationStyle().font().setSize(Wt::FontSize::Medium);
+
+		wlItem = boxLayoutOld->itemAt(0);
+		auto unitLayout = (Wt::WBoxLayout*)wlItem->layout();
+
+		auto pbUnitUnique = unitLayout->removeWidget(pbUnit);
+		pbUnitUnique->setMinimumSize(wlAuto, wlAuto);
+		pbUnitUnique->decorationStyle().font().setSize(Wt::FontSize::Medium);
+
+		auto textUnique = unitLayout->removeWidget(textUnit);
+		textUnique->setMinimumSize(wlAuto, wlAuto);
+		textUnique->decorationStyle().font().setSize(Wt::FontSize::Large);
+
+		textUnit = (Wt::WText*)boxLayout->addWidget(move(textUnique), 0);
+		pbUnit = (Wt::WPushButton*)boxLayout->addWidget(move(pbUnitUnique), 0);
+		boxLayout->addStretch(1);
+		pbPin = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinUnique), 0);
+		pbPinReset = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinResetUnique), 0);
 	}
+
+	boxOption->setLayout(move(boxLayout));
 }

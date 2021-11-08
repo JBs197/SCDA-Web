@@ -204,6 +204,7 @@ class WJTABLEBOX : public Wt::WContainerWidget
 {
 	Wt::WContainerWidget *boxOption, *boxTable, *boxTip;
 	unordered_map<string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
+	bool mobile = 0;
 	string sRegion;
 	Wt::Signal<string> tipSignal_;
 	vector<vector<int>> vviFilter;

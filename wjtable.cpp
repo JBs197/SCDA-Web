@@ -903,6 +903,7 @@ void WJTABLEBOX::init()
 	auto vLayout = make_unique<Wt::WVBoxLayout>();
 	auto boxUnitPin = makeUnitPinBox(popupUnit, textUnit, pbUnit, pbPinRow, pbPinCol, pbPinReset);
 	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
+	boxTableUnique->setContentAlignment(Wt::AlignmentFlag::Center);
 	boxOption = vLayout->addWidget(move(boxUnitPin));
 	boxTable = vLayout->addWidget(move(boxTableUnique));
 
@@ -1085,33 +1086,82 @@ WJTABLE* WJTABLEBOX::updateTable(vector<string>& vsNamePop, vector<int>& rowColS
 	app->processEvents();
 	return wjTable;
 }
-void WJTABLEBOX::widgetMobile(bool mobile)
+void WJTABLEBOX::widgetMobile(bool Mobile)
 {
-	if (mobile)
-	{
-		if (pbFilterRow != nullptr)
-		{
-			pbFilterRow->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-			pbFilterRow->setMinimumSize(wlAuto, 50.0);
-		}
-		if (pbFilterCol != nullptr)
-		{
-			pbFilterCol->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-			pbFilterCol->setMinimumSize(wlAuto, 50.0);
-		}
+	if (Mobile == mobile) { return; }
+	mobile = Mobile;
+	Wt::WVBoxLayout* vLayout = (Wt::WVBoxLayout*)this->layout();
+	Wt::WLayoutItem* wlItem = nullptr;
+	Wt::WBoxLayout* boxLayoutOld = (Wt::WBoxLayout*)boxOption->layout();
+	unique_ptr<Wt::WBoxLayout> boxLayout = nullptr;
+
+	if (mobile) {
+		boxLayout = make_unique<Wt::WBoxLayout>(Wt::LayoutDirection::TopToBottom);
+
+		auto pbPinResetUnique = boxLayoutOld->removeWidget(pbPinReset);
+		pbPinResetUnique->setMinimumSize(wlAuto, 50.0);
+		pbPinResetUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+
+		auto pbPinColUnique = boxLayoutOld->removeWidget(pbPinCol);
+		pbPinColUnique->setMinimumSize(wlAuto, 50.0);
+		pbPinColUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+
+		auto pbPinRowUnique = boxLayoutOld->removeWidget(pbPinRow);
+		pbPinRowUnique->setMinimumSize(wlAuto, 50.0);
+		pbPinRowUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+
+		auto pbUnitUnique = boxLayoutOld->removeWidget(pbUnit);
+		pbUnitUnique->setMinimumSize(wlAuto, 50.0);
+		pbUnitUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+
+		auto textUnique = boxLayoutOld->removeWidget(textUnit);
+		textUnique->setMinimumSize(wlAuto, 50.0);
+		textUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
+		textUnit = (Wt::WText*)textUnique.get();
+
+		auto unitLayout = make_unique<Wt::WHBoxLayout>();
+		unitLayout->addWidget(move(textUnique), 0, Wt::AlignmentFlag::Middle);
+		pbUnit = (Wt::WPushButton*)unitLayout->addWidget(move(pbUnitUnique), 1);
+		boxLayout->addLayout(move(unitLayout));
+
+		pbPinRow = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinRowUnique));
+		pbPinCol = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinColUnique));
+		pbPinReset = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinResetUnique));
 	}
 	else
 	{
-		if (pbFilterRow != nullptr)
-		{
-			pbFilterRow->decorationStyle().font().setSize(Wt::FontSize::Medium);
-			pbFilterRow->setMinimumSize(wlAuto, wlAuto);
-		}
-		if (pbFilterCol != nullptr)
-		{
-			pbFilterCol->decorationStyle().font().setSize(Wt::FontSize::Medium);
-			pbFilterCol->setMinimumSize(wlAuto, wlAuto);
-		}
+		boxLayout = make_unique<Wt::WBoxLayout>(Wt::LayoutDirection::LeftToRight);
+
+		auto pbPinResetUnique = boxLayoutOld->removeWidget(pbPinReset);
+		pbPinResetUnique->setMinimumSize(wlAuto, wlAuto);
+		pbPinResetUnique->decorationStyle().font().setSize(Wt::FontSize::Medium);
+
+		auto pbPinColUnique = boxLayoutOld->removeWidget(pbPinCol);
+		pbPinColUnique->setMinimumSize(wlAuto, wlAuto);
+		pbPinColUnique->decorationStyle().font().setSize(Wt::FontSize::Medium);
+
+		auto pbPinRowUnique = boxLayoutOld->removeWidget(pbPinRow);
+		pbPinRowUnique->setMinimumSize(wlAuto, wlAuto);
+		pbPinRowUnique->decorationStyle().font().setSize(Wt::FontSize::Medium);
+
+		wlItem = boxLayoutOld->itemAt(0);
+		auto unitLayout = (Wt::WBoxLayout*)wlItem->layout();
+
+		auto pbUnitUnique = unitLayout->removeWidget(pbUnit);
+		pbUnitUnique->setMinimumSize(wlAuto, wlAuto);
+		pbUnitUnique->decorationStyle().font().setSize(Wt::FontSize::Medium);
+
+		auto textUnique = unitLayout->removeWidget(textUnit);
+		textUnique->setMinimumSize(wlAuto, wlAuto);
+		textUnique->decorationStyle().font().setSize(Wt::FontSize::Large);
+
+		textUnit = (Wt::WText*)boxLayout->addWidget(move(textUnique), 0);
+		pbUnit = (Wt::WPushButton*)boxLayout->addWidget(move(pbUnitUnique), 0);
+		boxLayout->addStretch(1);
+		pbPinRow = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinRowUnique), 0);
+		pbPinCol = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinColUnique), 0);
+		pbPinReset = (Wt::WPushButton*)boxLayout->addWidget(move(pbPinResetUnique), 0);
 	}
 
+	boxOption->setLayout(move(boxLayout));
 }
