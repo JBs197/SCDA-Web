@@ -652,6 +652,7 @@ void WJBARGRAPH::parameterSorting()
 }
 int WJBARGRAPH::removeDataset(int seriesIndex)
 {
+
 	vDataset.erase(vDataset.begin() + seriesIndex);
 	return vDataset.size();
 }
@@ -667,7 +668,8 @@ void WJBARGRAPH::reset()
 	unit = "";
 	region = "";
 	activeCata = "";
-	setParameter.clear();
+	mapChecksumIndex.clear();
+	vChecksum.clear();
 	vDataset.clear();
 	bgMode = -1;
 	xChecksum = 0;

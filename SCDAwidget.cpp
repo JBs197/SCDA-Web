@@ -459,6 +459,18 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 	boxDataUnique->setLayout(move(layout));
 	return boxDataUnique;
 }
+unsigned SCDAwidget::makeParamChecksum(vector<vector<string>>& vvsParameter)
+{
+	// vvsParameter has form [parameter index][DIM title, MID ancestor0, ..., MID selected]
+	string params;
+	for (int ii = 0; ii < vvsParameter.size(); ii++) {
+		for (int jj = 0; jj < vvsParameter[ii].size(); jj++) {
+			params += vvsParameter[ii][jj];
+		}
+	}
+	unsigned paramChecksum = jcrc.getChecksum(params);
+	return paramChecksum;
+}
 
 void SCDAwidget::mapAreaClicked(int areaIndex)
 {
@@ -967,6 +979,7 @@ void SCDAwidget::seriesAddToGraph(int mode)
 	}
 
 	vector<int> rowColSel;
+	int numSeries = wjBarGraph->getNumSeries();
 	vector<vector<string>> vvsData, vvsParameter = wjConfig->getTextLegend();
 	if (mode == 0) {
 		vvsParameter.erase(vvsParameter.begin() + 2);  // Column parameters ARE the x-axis.
@@ -974,15 +987,11 @@ void SCDAwidget::seriesAddToGraph(int mode)
 	else if (mode == 1) {
 		vvsParameter.erase(vvsParameter.begin() + 3);  // Row parameters ARE the x-axis.
 	}
-	for (int ii = 0; ii < vvsParameter.size(); ii++) {
-		for (int jj = 0; jj < vvsParameter[ii].size(); jj++) {
-			params += vvsParameter[ii][jj];
-		}
-	}
-	unsigned paramChecksum = jcrc.getChecksum(params);
-	if (wjBarGraph->setParameter.count(paramChecksum)) { return; }
+	unsigned paramChecksum = makeParamChecksum(vvsParameter);
+	if (wjBarGraph->mapChecksumIndex.count(paramChecksum)) { return; }
 	else {
-		wjBarGraph->setParameter.emplace(paramChecksum);
+		wjBarGraph->mapChecksumIndex.emplace(paramChecksum, numSeries);
+		wjBarGraph->vChecksum.push_back(paramChecksum);
 	}
 
 	switch (mode)
@@ -998,7 +1007,6 @@ void SCDAwidget::seriesAddToGraph(int mode)
 		break;
 	}
 
-	int numSeries = wjBarGraph->getNumSeries();
 	if (numSeries == 0)
 	{
 		switch (mode)
@@ -1050,6 +1058,18 @@ void SCDAwidget::seriesAddToGraph(int mode)
 }
 void SCDAwidget::seriesRemoveFromGraph(const int& seriesIndex)
 {
+	if (seriesIndex >= wjBarGraph->mapChecksumIndex.size()) { jf.err("Bar graph parameter index not found-SCDAwidget.seriesRemoveFromGraph"); }
+	unsigned checksum = wjBarGraph->vChecksum[seriesIndex];
+	wjBarGraph->vChecksum.erase(wjBarGraph->vChecksum.begin() + seriesIndex);
+	auto it = wjBarGraph->mapChecksumIndex.find(checksum);
+	wjBarGraph->mapChecksumIndex.erase(it);
+	int index;
+	for (int ii = seriesIndex; ii < wjBarGraph->vChecksum.size(); ii++) {
+		checksum = wjBarGraph->vChecksum[seriesIndex];
+		index = wjBarGraph->mapChecksumIndex.at(checksum);
+		index--;
+	}
+
 	int numSeries = wjBarGraph->removeDataset(seriesIndex);
 	if (numSeries > 0)
 	{
@@ -1119,12 +1139,22 @@ void SCDAwidget::tabChanged(const int& tabIndex)
 	case 4:
 	{
 		if (wjDownload->wbGroup == nullptr) { break; }
-		Wt::WRadioButton* wrb = wjDownload->wbGroup->button(0);
+		Wt::WRadioButton* wrb0 = wjDownload->wbGroup->button(0);
 		if (tabData->isTabEnabled(3)) {
-			wrb->setEnabled(1);
+			wrb0->setEnabled(1);
 		}
 		else {
-			wrb->setEnabled(0);
+			wrb0->setEnabled(0);
+		}
+		Wt::WRadioButton* wrb1 = wjDownload->wbGroup->button(1);
+		Wt::WRadioButton* wrb2 = wjDownload->wbGroup->button(2);
+		if (tabData->isTabEnabled(2)) {
+			wrb1->setEnabled(1);
+			wrb2->setEnabled(1);
+		}
+		else {
+			wrb1->setEnabled(0);
+			wrb2->setEnabled(0);
 		}
 		int selIndex = wjDownload->getRadioIndex();
 		incomingPreviewSignal(selIndex);

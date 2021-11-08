@@ -2,8 +2,11 @@
 #include <Wt/WServer.h>
 #include <Wt/WOverlayLoadingIndicator.h>
 #include <Wt/WCanvasPaintDevice.h>
+#include <Wt/WDateTime.h>
+#include <Wt/WDate.h>
 #include <Wt/WMeasurePaintDevice.h>
 #include <Wt/WMemoryResource.h>
+#include <Wt/WTime.h>
 #include <Wt/WTree.h>
 #include <Wt/WTreeNode.h>
 #include <functional>
@@ -120,6 +123,7 @@ public:
 	SCDAserver(Wt::WServer& wtServer, string& dbPath) 
 		: serverRef(wtServer), db_path(dbPath) {
 		sf.init(db_path);
+		initLog();
 	}
 	SCDAserver(const SCDAserver&) = delete;
 	SCDAserver& operator=(const SCDAserver&) = delete;
@@ -162,6 +166,7 @@ public:
 	string getUnit(int clientIndex, string sYear, string sCata, string sDimMID);
 	vector<string> getYear(string sYear);
 	string getYear(string sYear, string sCata);
+	void log(vector<string> vsColumn);
 	void pullCategory(vector<string> prompt);
 	void pullConnection(string sessionID);
 	void pullDifferentiator(string prompt, vector<vector<string>> vvsCata, vector<vector<string>> vvsDiff);
@@ -173,7 +178,7 @@ public:
 
 private:
 	JTREE jt;
-	SQLFUNC sf;
+	SQLFUNC sf, sfLog;
 	vector<shared_ptr<WJTABLE>> wjTable;
 	vector<shared_ptr<WTPAINT>> wtPaint;
 	struct UserInfo
@@ -184,6 +189,7 @@ private:
 
 	unordered_map<string, int> cataMap;  // Cata desc -> gidTree index.
 	const string db_path;
+	string dbLogPath;
 	unordered_map<string, string> mapPopCata;  // externalYear -> internalYear$sCata (general population)
 	unordered_map<string, string> mapPopDI;  // sCata -> dataIndex$dimIndex (general population)
 	Wt::WServer& serverRef;
@@ -192,6 +198,7 @@ private:
 	Wt::WFont wFont;
 
 	void err(string);
+	void initLog();
 	void postDataEvent(const DataEvent& event, string sID);
 };
 

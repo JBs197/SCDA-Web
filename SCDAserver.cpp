@@ -227,6 +227,13 @@ int SCDAserver::init(string sessionID)
 	mapClientIndex.emplace(sessionID, index);
 	return index;
 }
+void SCDAserver::initLog()
+{
+	size_t pos1 = db_path.find_last_of("\\/") + 1;
+	dbLogPath = db_path.substr(0, pos1);
+	dbLogPath += "SCDAlog.db";
+	sfLog.init(dbLogPath);
+}
 void SCDAserver::initPopulation()
 {
 	// Populate the object's map connecting sYear to its general population catalogue.
@@ -357,6 +364,7 @@ void SCDAserver::initPopulation()
 	}
 	int bbq = 1;
 }
+
 vector<vector<vector<double>>> SCDAserver::getBorderKM(vector<string>& vsGeoCode, string sYear)
 {
 	// Return form [region index][border point index][xCoord, yCoord].
@@ -1464,6 +1472,67 @@ string SCDAserver::getYear(string extYear, string sCata)
 	return intYear;
 }
 
+void SCDAserver::log(vector<string> vsColumn)
+{
+	// vsColumn has form [sessionID, Mobile, Function, Year, Category, Column_DIM,
+	// Column_MID, Row_DIM, Row_MID, Catalogue, Region, Param0_DIM, Param0_MID, ...]
+	auto dateTime = Wt::WDateTime::currentDateTime();
+	auto date = dateTime.date();
+	int year = date.year();
+	int month = date.month();
+	int day = date.day();
+	string tname = "Log$" + to_string(year) + to_string(month) + to_string(day);
+	vector<vector<string>> vvsColTitle;
+	if (!sfLog.table_exist(tname)) {
+		vvsColTitle = { {"LogID", "INTEGER PRIMARY KEY"}, {"sessionID", "TEXT"} };
+		sfLog.createTable(tname, vvsColTitle);
+	}
+	int inum;
+	vector<string> search = { "LogID" };
+	vector<string> conditions = { "sessionID LIKE " + vsColumn[0] };
+	string sLogID, stmt;
+	sfLog.select(search, tname, sLogID, conditions);
+	if (sLogID.size() == 0) { 
+		string maxLogID;
+		stmt = "SELECT MAX(LogID) FROM " + tname;
+		sfLog.executor(stmt, maxLogID);
+		if (maxLogID.size() == 0) { sLogID = "0"; }
+		else {
+			try { inum = stoi(maxLogID); }
+			catch (invalid_argument) { jf.err("stoi-SCDAserver.log"); }
+			inum++;
+			sLogID = to_string(inum);
+		}
+	}
+
+	tname += "$" + sLogID;
+	if (!sfLog.table_exist(tname)) { 
+		vvsColTitle = { {"Time", "INTEGER PRIMARY KEY"},
+			{"Mobile", "INT"},
+			{"Function", "TEXT"},
+			{"Year", "INT"},
+			{"Category", "TEXT"},
+			{"Column_DIM", "TEXT"},
+			{"Column_MID", "TEXT"},
+			{"Row_DIM", "TEXT"},
+			{"Row_MID", "TEXT"},
+			{"Catalogue", "TEXT"},
+			{"Region", "TEXT"} };
+		sfLog.createTable(tname, vvsColTitle); 
+	}
+	else { vvsColTitle = sfLog.getColTitles(tname); }
+
+	auto time = dateTime.time();
+	int hour = time.hour();
+	int minute = time.minute();
+	int second = time.second();
+	int milliSec = time.msec();
+	string sTime = to_string(hour) + to_string(minute) + to_string(second);
+	sTime += to_string(milliSec);
+	vector<vector<string>> vvsData = { {sTime} };
+	// NOTE: UNFINISHED !
+
+}
 void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 {
 	string temp;

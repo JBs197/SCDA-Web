@@ -99,6 +99,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	string jsMakeFunctionTableScrollTo(WJTABLE*& boxTable);
 	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
 	unique_ptr<Wt::WContainerWidget> makeBoxData();
+	unsigned makeParamChecksum(vector<vector<string>>& vvsParameter);
 	void mapAreaClicked(int areaIndex);
 	void populateTextLegend(WJLEGEND*& wjLegend);
 	void populateTree(JTREE& jt, Wt::WTreeNode*& node);

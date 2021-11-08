@@ -73,10 +73,11 @@ public:
 	int bgMode = -1;  // 0 = table row, 1 = table col, 2 = map.
 	JFUNC jf;
 	Wt::WLink linkIconClose = Wt::WLink(), linkIconTrash = Wt::WLink();
+	map<unsigned, int> mapChecksumIndex;  // checksum -> dataset index
 	shared_ptr<Wt::WStandardItemModel> model = nullptr;
 	WJPARAMPANEL *ppCommon = nullptr, *ppDiff = nullptr, *ppUnique = nullptr;
 	string region = "", unit = "";
-	set<unsigned> setParameter;
+	vector<unsigned> vChecksum;
 	unsigned xChecksum = 0;
 
 	void addDataset(vector<vector<string>>& vvsData, vector<vector<string>>& vvsParameter);
