@@ -24,7 +24,6 @@
 #include "wtpaint.h"
 
 using namespace std;
-extern const string sroot;
 extern mutex m_server;
 
 class DataEvent
@@ -123,7 +122,7 @@ public:
 	SCDAserver(Wt::WServer& wtServer, string& dbPath) 
 		: serverRef(wtServer), db_path(dbPath) {
 		sf.init(db_path);
-		initLog();
+		//initLog();
 	}
 	SCDAserver(const SCDAserver&) = delete;
 	SCDAserver& operator=(const SCDAserver&) = delete;
@@ -177,6 +176,7 @@ public:
 	void pullVariable(vector<string> prompt, vector<vector<string>> variable);
 
 private:
+	JSTRING jstr;
 	JTREE jt;
 	SQLFUNC sf, sfLog;
 	vector<shared_ptr<WJTABLE>> wjTable;

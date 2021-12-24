@@ -166,7 +166,7 @@ void WJTABLE::compressUnitCell(string& sUnit, string& sCell)
 	string cell = sCell;
 	size_t pos1 = sUnit.find('$');
 	if (pos1 < sUnit.size()) {
-		jf.clean(cell, dirt, soap);
+		jstr.clean(cell, dirt, soap);
 		length = cell.size();
 		while (length > 3) {
 			power *= 1000.0;
@@ -364,6 +364,17 @@ string WJTABLE::getUnitParser(string header)
 		pos1 = header.find(*it);
 		if (pos1 < header.size()) { return "%"; }
 	}
+	for (auto it = setUnitDollar1.begin(); it != setUnitDollar1.end(); it++)
+	{
+		pos1 = header.find(*it);
+		if (pos1 < header.size()) { 
+			for (auto it = setUnitDollar2.begin(); it != setUnitDollar2.end(); it++)
+			{
+				pos1 = header.find(*it);
+				if (pos1 < header.size()) { return "$"; }
+			}
+		}
+	}
 	return "";
 }
 void WJTABLE::headerSelect(int iCol)
@@ -544,10 +555,20 @@ void WJTABLE::initValues()
 	setUnitBreaker.emplace("TFSAs");
 	setUnitBreaker.emplace("RRSPs");
 	setUnitBreaker.emplace("RPPs");  // Registered Pension Plans
+
 	setUnitPercent.emplace("Percentage ");
 	setUnitPercent.emplace(" percentage");
 	setUnitPercent.emplace("Rate ");
 	setUnitPercent.emplace(" rate");
+
+	setUnitDollar1.emplace("Income ");
+	setUnitDollar1.emplace(" income");
+
+	setUnitDollar2.emplace("Median ");
+	setUnitDollar2.emplace(" median");
+	setUnitDollar2.emplace("Average ");
+	setUnitDollar2.emplace(" average");
+
 	mapPrefixNumber.emplace(1, "");
 	mapPrefixNumber.emplace(1000, "Thousand");
 	mapPrefixNumber.emplace(1000000, "Million");
@@ -954,7 +975,7 @@ string WJTABLEBOX::makeCSV()
 	for (int ii = 0; ii < numCol; ii++)
 	{
 		temp = vvsCol[ii][1];
-		jf.clean(temp, dirt, soap);
+		jstr.clean(temp, dirt, soap);
 		sCSV += ",\"" + temp + "\"";
 	}
 	sCSV += "\n";
@@ -965,7 +986,7 @@ string WJTABLEBOX::makeCSV()
 	for (int ii = 0; ii < numRow; ii++)
 	{
 		temp = vvsRow[ii][1];
-		jf.clean(temp, dirt, soap);
+		jstr.clean(temp, dirt, soap);
 		sCSV += "\"" + temp + "\"";
 		for (int jj = 0; jj < numCol; jj++)
 		{

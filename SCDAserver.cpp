@@ -61,7 +61,7 @@ int SCDAserver::applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<s
 				if (vvsDIM[kk][1] == "*") { continue; }
 
 				tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$DIM$" + vvsResult[index][kk];
-				if (!sf.table_exist(tname)) {
+				if (!sf.tableExist(tname)) {
 					tname = "Census$" + vvsCata[ii][0] + "$" + vvsCata[ii][jj] + "$Dim";
 				}
 				conditions = { "DIM LIKE " + vvsDIM[kk][1] };
@@ -444,7 +444,7 @@ vector<vector<string>> SCDAserver::getCatalogue(vector<string>& vsPrompt, vector
 	{
 		// Establish which years contain this category.
 		search = { "Topic Index" };
-		jf.clean(vsPrompt[1], dirt, soap);
+		jstr.clean(vsPrompt[1], dirt, soap);
 		conditions = { "Topic LIKE " + vsPrompt[1] };
 		for (int ii = 0; ii < vsYear.size(); ii++)
 		{
@@ -914,9 +914,9 @@ string SCDAserver::getLinearizedColTitle(string& sCata, string& rowTitle, string
 	size_t pos1 = rowTitle.find_first_not_of('+');
 	string rowStub = rowTitle.substr(pos1), temp = "'", LCT, param;
 	vector<string> vsTemp, search = {"*"}, params;
-	jf.clean(rowStub, vsTemp, temp);
+	sf.sclean(rowStub, 1);
 	string tname = "TG_Row$" + sCata;
-	vector<string> conditions = { "\"Row Title\" LIKE " + rowStub };
+	vector<string> conditions = { "\"Row Title\" LIKE '" + rowStub + "'" };
 	sf.select(search, tname, vsTemp, conditions);
 	while (vsTemp.back() == "") { vsTemp.pop_back(); }
 	search = { "Row Title" };
@@ -1083,12 +1083,12 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 			
 			vvsMID[jj].clear();
 			tname = "Census$" + vsYearCata[jj] + "$DIM$" + result;		
-			if (sf.table_exist(tname)) { search = { "DIM" }; }
+			if (sf.tableExist(tname)) { search = { "DIM" }; }
 			else 
 			{ 
 				tname = "Census$" + vsYearCata[jj] + "$Dim"; 
 				search = { "Dim" };
-				if (!sf.table_exist(tname)) { jf.err("DIM title not found-SCDAserver.getDifferentiatorMID"); }
+				if (!sf.tableExist(tname)) { jf.err("DIM title not found-SCDAserver.getDifferentiatorMID"); }
 			}
 			sf.selectOrderBy(search, tname, vvsMID[jj], orderby);
 			if (vvsMID[jj].size() < 1) { jf.err("No MIDs found-SCDAserver.getDifferentiatorMID"); }
@@ -1462,7 +1462,7 @@ string SCDAserver::getYear(string extYear, string sCata)
 	for (int ii = 0; ii < vsYear.size(); ii++)
 	{
 		tname = "Census$" + vsYear[ii] + "$" + sCata + "$DIMIndex";
-		if (sf.table_exist(tname)) 
+		if (sf.tableExist(tname)) 
 		{ 
 			intYear = vsYear[ii];
 			break; 
@@ -1483,7 +1483,7 @@ void SCDAserver::log(vector<string> vsColumn)
 	int day = date.day();
 	string tname = "Log$" + to_string(year) + to_string(month) + to_string(day);
 	vector<vector<string>> vvsColTitle;
-	if (!sfLog.table_exist(tname)) {
+	if (!sfLog.tableExist(tname)) {
 		vvsColTitle = { {"LogID", "INTEGER PRIMARY KEY"}, {"sessionID", "TEXT"} };
 		sfLog.createTable(tname, vvsColTitle);
 	}
@@ -1506,7 +1506,7 @@ void SCDAserver::log(vector<string> vsColumn)
 	}
 
 	tname += "$" + sLogID;
-	if (!sfLog.table_exist(tname)) { 
+	if (!sfLog.tableExist(tname)) { 
 		vvsColTitle = { {"Time", "INTEGER PRIMARY KEY"},
 			{"Mobile", "INT"},
 			{"Function", "TEXT"},
@@ -1746,7 +1746,7 @@ void SCDAserver::pullTable(vector<string> prompt, vector<string> vsDIMtitle, vec
 			iSize = sf.select(search, tname, vsResult, conditions);
 			if (iSize < 2) 
 			{ 
-				if (numCol < 0) { numCol = sf.get_num_col(tname); }
+				if (numCol < 0) { numCol = sf.getNumCol(tname); }
 				vsResult.assign(numCol, "-1.0");  // No source data !
 			}
 			index = vvsTable.size();

@@ -128,11 +128,14 @@ class WJTABLE : public Wt::WTableView
 	Wt::Signal<int, int> headerSignal_;
 	const double heightCell = 68.0;
 	const double heightHeader = 68.0;
+	JSTRING jstr;
 	mutex m_time;
 	double regionPopulation;
 	string scSelectedWeak, scSelectedStrong, scWhite;
 	Wt::WModelIndex selectedIndex = Wt::WModelIndex();
 	set<string> setUnitBreaker;          // List of strings which disqualify a unit candidate.
+	set<string> setUnitDollar1;          // List of strings which may indicate a unit of "$".
+	set<string> setUnitDollar2;          // List of strings which confirm a unit of "$".
 	set<string> setUnitPercent;          // List of strings which indicate a unit of "%".
 	string sUnitPreference;
 	Wt::WBorder wbNone, wbSelected;
@@ -203,6 +206,7 @@ public:
 class WJTABLEBOX : public Wt::WContainerWidget
 {
 	Wt::WContainerWidget *boxOption, *boxTable, *boxTip;
+	JSTRING jstr;
 	unordered_map<string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
 	bool mobile = 0;
 	string sRegion;

@@ -21,7 +21,6 @@
 #include "SCDAserver.h"
 
 using namespace std;
-extern const string sroot;
 
 struct WJUNITPIN
 {
@@ -34,7 +33,6 @@ struct WJUNITPIN
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
 	string activeCata;
-	string db_path = sroot + "\\SCDA.db";
 	bool filtersEnabled = 0;
 	bool first = 1;
 	JCRC32 jcrc;

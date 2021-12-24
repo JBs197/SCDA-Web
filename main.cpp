@@ -3,7 +3,6 @@
 
 using namespace std;
 mutex m_config, m_err, m_server;
-const string sroot = "E:";
 
 class SCDAapp : public Wt::WApplication
 {
@@ -44,7 +43,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	this->setLoadingIndicator(make_unique<Wt::WOverlayLoadingIndicator>());
 }
 
-string getDocPath(const string& execPath)
+string getSrcPath(const string& execPath)
 {
 	size_t pos1 = execPath.rfind('\\');  // Deployment folder.
 	pos1 = execPath.rfind('\\', pos1 - 1); // Debug or release.
@@ -56,8 +55,7 @@ string getDocPath(const string& execPath)
 		projDir[pos1] = '/';
 		pos1 = projDir.find('\\', pos1 + 1);
 	}
-	string docPath = projDir + "/html";
-	return docPath;
+	return projDir;
 }
 unique_ptr<Wt::WApplication> makeApp(const Wt::WEnvironment& env, SCDAserver& myServer)
 {
@@ -92,9 +90,10 @@ int main()
 	WINFUNC wf;
 	int signal;
 	const string execPath = wf.get_exec_path(), wtAppPath = "";
-	string dbPath = sroot + "\\SCDA.db";
+	string srcFolder = getSrcPath(execPath);
+	string dbPath = srcFolder + "/SCDA.db";
 	const vector<string> args = make_wrun_args(execPath);
-	string tempFolder = getDocPath(execPath) + "/temp";
+	string tempFolder = srcFolder + "/html/temp";
 	vector<string> tempList = wf.getFileList(tempFolder, "*");
 	string tempFile;
 	for (int ii = 0; ii < tempList.size(); ii++)
