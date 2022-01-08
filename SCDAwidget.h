@@ -83,6 +83,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 
 	void cleanUnit(string& unit);
 	void connect();
+	void err(string message);
 	int getHeight();
 	string getUnit();
 	int getWidth();
@@ -94,8 +95,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void init();
 	void initMaps();
 	void initUI();
-	string jsMakeFunctionTableScrollTo(WJTABLE*& boxTable);
-	string jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID);
 	unique_ptr<Wt::WContainerWidget> makeBoxData();
 	unsigned makeParamChecksum(vector<vector<string>>& vvsParameter);
 	void mapAreaClicked(int areaIndex);
@@ -111,7 +110,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventParameter(vector<vector<vector<string>>> vvvsParameter, vector<vector<string>> vvsCata);
 	void processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
-	void processEventTree(JTREE jt);
+	void processEventTree();
 	void resetBarGraph();
 	void resetDownload();
 	void resetMap();

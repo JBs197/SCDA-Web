@@ -34,6 +34,8 @@ class WJPARAMPANEL : public Wt::WPanel
 	Wt::WColor wcGrey;
 	Wt::WLength wlWidthColour, wlHeightColour;
 
+	void err(string message);
+
 public:
 	WJPARAMPANEL(string sTitle, Wt::WLink linkTrash, vector<Wt::WColor> vColour) : Wt::WPanel(), seriesColour(vColour)
 	{ 
@@ -63,6 +65,8 @@ class WJBARGRAPH : public Wt::WContainerWidget
 	vector<string> vXName; // List of x-axis bar groupings (region names, or table headers).
 	vector<vector<int>> vviParameter;  // Form [indexParameter][count in Dataset0, count in Dataset1, ...]
 	Wt::WLength wlChartHeight;
+
+	void err(string message);
 
 public:
 	WJBARGRAPH(Wt::WLength wlHeight) : Wt::WContainerWidget(), wlChartHeight(wlHeight) {}

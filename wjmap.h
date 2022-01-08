@@ -16,6 +16,8 @@ class WJLEGEND : public Wt::WContainerWidget
 	JFUNC jf;
 	vector<int> vColour;
 
+	void err(string message);
+
 public:
 	WJLEGEND() { initColour(); }
 	~WJLEGEND() {}
@@ -36,6 +38,7 @@ class WJMAP : public Wt::WContainerWidget
 	Wt::Signal<string> tipSignal_;
 	Wt::WColor wcSelectedWeak, wcWhite;
 
+	void err(string message);
 	void init();
 	void initColour();
 	void initMaps();

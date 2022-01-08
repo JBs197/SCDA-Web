@@ -63,7 +63,6 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	vector<vector<vector<double>>> mapBorderKM, mapFrameKM;
 	vector<vector<double>> mapData;
 	vector<string> mapRegion;
-	MATHFUNC mf;
 	bool mobile = 0;
 	const int numDLtypes = 3;
 	Wt::Signal<int> previewSignal_;
@@ -81,6 +80,8 @@ class WJDOWNLOAD : public Wt::WContainerWidget
 	shared_ptr<WJRPDF> wjrPDFmap = nullptr;
 	shared_ptr<Wt::WMemoryResource> wmrPNGmap = nullptr;
 	WTPAINT* wpPreview = nullptr;
+
+	void err(string message);
 
 public:
 	WJDOWNLOAD(Wt::WLength width, Wt::WLength height) 

@@ -5,15 +5,18 @@ void WJPANEL::appendSelf(vector<string>& vsDIMtitle, vector<int>& viMID)
 	// Append this panel's selected title and MID to the existing list.
 	Wt::WString wsTemp = cbTitle->currentText();
 	vsDIMtitle.push_back(wsTemp.toUTF8());
-	int treeIndex = jtMID.selectedIndex;
-	viMID.push_back(jtMID.treePLi[treeIndex]);
+	int treeIndex = jtMID.selectedID;
+	JNODE jn = jtMID.getNode(treeIndex);
+	if (jn.vsData.size() < 2) { err("jtMID selected node is missing data-appendSelf"); }
+	int iMID = stoi(jn.vsData[1]);
+	viMID.push_back(iMID);
 }
 void WJPANEL::clear()
 {
 	mapFilterMID.clear();
 	mapIndexTitle.clear();
 	cbTitle->clear();
-	jtMID.clear();
+	jtMID.reset();
 	textMID->setText("");
 	viFilter.clear();
 	boxMID->setHidden(1);
@@ -39,34 +42,30 @@ void WJPANEL::dialogMID()
 	else { wDialog->positionAt(this, Wt::Orientation::Vertical); }
 
 	jtMID.setExpandGeneration(16);  // Expand generations without displaying more items than this.
-	string sRoot = jtMID.treePL[0];
-	int iRoot = jtMID.treePLi[0];
-	string siRoot = to_string(iRoot);
-	Wt::WString wsTemp = Wt::WString::fromUTF8(sRoot);
+	Wt::WString wsTemp(" ");
 	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
-	treeRootUnique->setObjectName(siRoot);
+	treeRootUnique->setObjectName("Root");
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
 	if (!mobile) { treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::Large); }
 	else { treeRootUnique->decorationStyle().font().setSize(Wt::FontSize::XXLarge); }
 
 	Wt::WTreeNode* treeRoot = nullptr;
 	if (viFilter.size() < 1) { treeRoot = treeRootUnique.get(); }
-	else
-	{  // THIS NEEDS FIXING.
-		sRoot = jtMID.treePL[viFilter[0] + 1];
-		wsTemp = Wt::WString::fromUTF8(sRoot);
-		auto childUnique = make_unique<Wt::WTreeNode>(wsTemp);
-		treeRoot = treeRootUnique->addChildNode(move(childUnique));
+	else {
+		err("Nonzero viFilter-dialogMID");
+		//sRoot = jtMID.treePL[viFilter[0] + 1];
+		//wsTemp = Wt::WString::fromUTF8(sRoot);
+		//auto childUnique = make_unique<Wt::WTreeNode>(wsTemp);
+		//treeRoot = treeRootUnique->addChildNode(move(childUnique));
 	}
 
 	treeNodeSel = nullptr;
-	if (jtMID.selectedIndex < 0)
-	{
-		jtMID.selectedIndex = 1;
+	if (jtMID.selectedID < 0) {
+		jtMID.selectedID = jtMID.getID(1);
 	}
-	int selTreeIndex = jtMID.selectedIndex;
+	int selTreeIndex = jtMID.selectedID;
 	populateTree(jtMID, treeRoot, selTreeIndex);
-	if (treeNodeSel == nullptr) { jf.err("Failed to locate previous tree node-wjpanel.dialogMID"); }
+	if (treeNodeSel == nullptr) { err("Failed to locate previous tree node-wjpanel.dialogMID"); }
 	treeRootUnique->setNodeVisible(0);
 
 	auto tree = make_unique<Wt::WTree>();
@@ -80,7 +79,8 @@ void WJPANEL::dialogMID()
 	tree->itemSelectionChanged().connect(this, &WJPANEL::dialogMIDEnd);
 	treeDialog = tree.get();
 
-	double dGuess = (double)jtMID.maxLength * 10.0;
+	int maxLength = jtMID.maxLength(0);
+	double dGuess = (double)maxLength * 10.0;
 	tree->setMinimumSize(dGuess, wlAuto);
 
 	auto wBox = wDialog->contents();
@@ -97,32 +97,15 @@ void WJPANEL::dialogMIDEnd()
 	if (wdTree == nullptr) { return; }
 	auto selSet = treeDialog->selectedNodes();
 	if (selSet.size() < 1) { return; }
-	if (selSet.size() > 1) { jf.err("Invalid selection-wjpanel.dialogMIDEnd"); }
+	if (selSet.size() > 1) { err("Invalid selection-wjpanel.dialogMIDEnd"); }
 	auto selIt = selSet.begin();
 	auto selNode = *selIt;
 	auto wTemp = selNode->label()->text();
 	selMID = wTemp.toUTF8();
-	string temp = selNode->objectName();
-	int iName = stoi(temp);
-
-	int selTreeIndex = jtMID.getIndex(iName);
-	if (selTreeIndex < 0)
-	{
-		Wt::WTreeNode* parentNode = selNode->parentNode();
-		vector<string> vsGenealogy = { selMID };
-		string temp;
-		while (parentNode != nullptr)
-		{
-			wTemp = parentNode->label()->text();
-			temp = wTemp.toUTF8();
-			if (temp.size() < 1) { break; }
-			vsGenealogy.push_back(temp);
-			selNode = parentNode;
-			parentNode = selNode->parentNode();
-		}
-		selTreeIndex = jtMID.getIndex(vsGenealogy);
-	}
-	jtMID.selectedIndex = selTreeIndex;
+	string sMID = selNode->objectName();
+	vector<int> vID = jtMID.searchData(sMID, 1);
+	if (vID.size() != 1) { err("Failed to locate selected node-dialogMIDEnd"); }
+	jtMID.selectedID = vID[0];
 
 	setTextMID(selMID);
 	if (wdTree != nullptr) { 
@@ -160,6 +143,11 @@ void WJPANEL::dialogMIDToggle(int stackedIndex)
 	}
 	}
 }
+void WJPANEL::err(string message)
+{
+	string errorMessage = "WJPANEL error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
 void WJPANEL::highlight(int widgetIndex)
 {
 	// The chosen widget has its borders become dotted, and the title gains a coloured background.
@@ -168,8 +156,7 @@ void WJPANEL::highlight(int widgetIndex)
 	Wt::WContainerWidget* cwTitle = titleBarWidget();
 	Wt::WCssDecorationStyle& stylePanel = cwTitle->decorationStyle();
 	stylePanel.setBackgroundColor(wcSelectedWeak);
-	switch (widgetIndex)
-	{
+	switch (widgetIndex) {
 	case 0:
 		numItem = cbTitle->count();
 		if (numItem > 0)
@@ -180,9 +167,8 @@ void WJPANEL::highlight(int widgetIndex)
 		}
 		break;
 	case 1:
-		numItem = jtMID.getCount();
-		if (numItem > 0)
-		{
+		numItem = jtMID.numNode();
+		if (numItem > 0) {
 			Wt::WCssDecorationStyle& style = textMID->decorationStyle();
 			style.setBorder(Wt::WBorder(Wt::BorderStyle::Dotted));
 			textMID->setHidden(0);
@@ -194,11 +180,13 @@ int WJPANEL::getIndexMID(int mode)
 {
 	// Returns the (header/CB) index for the current MID text.
 	// mode  0 = true index, 1 = filtered index.
-	int index = jtMID.getIndex(selMID) - 1;
-	if (mode == 1 && viFilter.size() > 0)
-	{
-		index = mapFilterMID.at(index);
+	int index;
+	if (mode != 1 || viFilter.size() == 0) {
+		JNODE jn = jtMID.getNode(jtMID.selectedID);
+		string sMID = jn.vsData[1];
+		index = stoi(sMID);
 	}
+	else { index = mapFilterMID.at(index); }
 	return index;
 }
 vector<string> WJPANEL::getTextLegend()
@@ -207,8 +195,7 @@ vector<string> WJPANEL::getTextLegend()
 	vector<string> vsLegend(1);
 	string temp;
 	Wt::WString wsTemp;
-	if (boxMID->isHidden())
-	{
+	if (boxMID->isHidden()) {
 		vsLegend.resize(2);
 		wsTemp = title();
 		vsLegend[0] = wsTemp.toUTF8();
@@ -217,24 +204,21 @@ vector<string> WJPANEL::getTextLegend()
 		return vsLegend;
 	}
 	
-	size_t pos1;
+	vector<string> vsLegend = jtMID.getGenealogy(jtMID.selectedID, 0);
 	wsTemp = cbTitle->currentText();
-	vsLegend[0] = wsTemp.toUTF8();
-	int path, index = jtMID.selectedIndex;  // JTREE index.
-	vector<int> viAncestry = jtMID.treeSTanc[index];
-	viAncestry.push_back(index);
-	for (int ii = 0; ii < viAncestry.size(); ii++)
-	{
-		temp = jtMID.treePL[viAncestry[ii]];
-		if (temp == "") { continue; }
-		while (temp[0] == '+') { temp.erase(temp.begin()); }
-		pos1 = temp.find("Total -");
-		if (pos1 > temp.size()) { vsLegend.push_back(temp); }
-		else
-		{
-			pos1 = temp.find(vsLegend[0]);
-			if (pos1 > temp.size()) { vsLegend.push_back(temp); }
-			else { vsLegend.push_back("Total"); }
+	vsLegend.insert(vsLegend.begin(), wsTemp.toUTF8());
+	JNODE jn = jtMID.getNode(jtMID.selectedID);
+	vsLegend.push_back(jn.vsData[0]);
+	int numLegend = (int)vsLegend.size();
+	size_t pos1;
+	for (int ii = 0; ii < numLegend; ii++) {
+		while (vsLegend[ii][0] == '+') {
+			vsLegend[ii].erase(vsLegend[ii].begin());
+		}
+		pos1 = vsLegend[ii].find("Total -");
+		if (pos1 < vsLegend[ii].size()) { 
+			pos1 = vsLegend[ii].find(vsLegend[0]);
+			if (pos1 < vsLegend[ii].size()) { vsLegend[ii] = "Total"; }
 		}
 	}
 	return vsLegend;
@@ -310,21 +294,36 @@ void WJPANEL::initStackedPB(Wt::WLink wlClosed, Wt::WLink wlOpened)
 	styleOpened.setBackgroundImage(wlOpened, flags, Wt::Side::CenterX | Wt::Side::CenterY);
 	pbMIDopened->clicked().connect(this, std::bind(&WJPANEL::dialogMIDToggle, this, 1));
 }
-void WJPANEL::populateTree(JTREE& jt, Wt::WTreeNode*& node)
+void WJPANEL::populateTree(JTREE& jt, int parentID, Wt::WTreeNode*& parentNode, int selectedID)
 {
-	// Recursive function that takes an existing node and makes its children.
-	int selTreeIndex = -1;
-	populateTree(jt, node, selTreeIndex);
-}
-void WJPANEL::populateTree(JTREE& jt, Wt::WTreeNode*& node, int selTreeIndex)
-{
-	// Recursive function that takes an existing node and makes its children. If selTreeIndex 
-	// is specified, then a pointer to the node with that treeIndex will be saved.
+	// Recursive function that takes an existing node and makes its children. If selectedID 
+	// is specified, then a pointer to the node with that ID will be saved.
+	Wt::WString wsTemp;
+	vector<int> childrenID = jt.getChildrenID(parentID);
+	int numChildren = (int)childrenID.size();
+	for (int ii = 0; ii < numChildren; ii++) {
+		JNODE jn = jt.getNode(childrenID[ii]);
+		wsTemp = Wt::WString::fromUTF8(jn.vsData[0]);
+		auto childUnique = make_unique<Wt::WTreeNode>(wsTemp);
+		if (jn.vsData.size() > 1) {
+			childUnique->setObjectName(jn.vsData[1]);
+		}		
+		parentNode->addChildNode(move(childUnique));
+	}
+	
+	vector<Wt::WTreeNode*> vwNode = parentNode->childNodes();
+	for (int ii = 0; ii < numChildren; ii++) {
+		//
+	}
+
 	vector<string> vsChildren;
 	vector<int> viChildren;
 	int treeIndex;
 	Wt::WString wsTemp = node->label()->text(); 
 	string sName = wsTemp.toUTF8();
+	vector<int> vID = jt.searchData(sName, 0);
+	if (vID.size() < 1) { err("Failed to locate ") }
+
 	string temp = node->objectName();
 	int iName = stoi(temp);
 	int clone = jt.listChildren(iName, viChildren, vsChildren);
@@ -424,7 +423,7 @@ void WJPANEL::setFilter(vector<int>& filter)
 void WJPANEL::setIndexMID(int indexMID)
 {
 	// Incoming indexMID values are relative to Config widget, not treeIndex.
-	jtMID.selectedIndex = indexMID + 1;
+	jtMID.selectedID = indexMID + 1;
 	selMID = jtMID.treePL[indexMID + 1];
 	setTextMID(selMID);
 }
@@ -439,46 +438,37 @@ void WJPANEL::setTextMID(string sMID)
 void WJPANEL::setTree(vector<string>& vsList)
 {
 	// Populate the panel's JTREE object, and its textMID widget. 
-	int clone, indent;
-	string sParent;
+	// Each JNODE holds its vsList[n] value in column0, while its
+	// cbIndex/vsListIndex is held in column1.
+	int indent, parentID;
 	vector<string> vsGenealogy;
 	vector<int> indentHistory;
-	jtMID.init("", -1);
-	for (int ii = 0; ii < vsList.size(); ii++)
-	{
+	jtMID.reset();
+	JNODE jnRoot = jtMID.getRoot();
+	for (int ii = 0; ii < vsList.size(); ii++) {
+		JNODE jn(2);
+		jn.vsData[0] = vsList[ii];
+		jn.vsData[1] = to_string(ii);
+
 		indent = 0;
 		while (vsList[ii][indent] == '+') { indent++; }
 
-		if (indentHistory.size() <= indent) { indentHistory.push_back(ii); }
-		else
-		{
-			indentHistory[indent] = ii;
+		if (indentHistory.size() <= indent) { indentHistory.push_back(jn.ID); }
+		else {
+			indentHistory[indent] = jn.ID;
 			indentHistory.resize(indent + 1);
 		}
 
-		if (indent == 0) { clone = jtMID.addChild(vsList[ii], -2, -1); }
-		else
-		{
-			sParent = vsList[indentHistory[indentHistory.size() - 2]];
-			clone = jtMID.addChild(vsList[ii], -2, sParent);
+		if (indent == 0) { jtMID.addChild(jnRoot.ID, jn); }
+		else {
+			parentID = indentHistory[indentHistory.size() - 2];
+			jtMID.addChild(parentID, jn);
 		}
 
-		if (clone)
-		{
-			vsGenealogy.clear();
-			for (int jj = indentHistory.size() - 2; jj >= 0; jj--)
-			{
-				vsGenealogy.push_back(vsList[indentHistory[jj]]);
-			}
-			int indexParent = jtMID.getIndex(vsGenealogy);
-			if (indexParent < 0) { jf.err("Failed to determine parent's index-wjconfig.setTree"); }
-			jtMID.addChildWorker(vsList[ii], -2, indexParent);
-		}
+		if (ii == 0) { jtMID.selectedID = jn.ID; }
 	}
 
 	// Display the first MID item as a default setting.
-	int selIndex = jtMID.getIndex(vsList[0]);
-	jtMID.selectedIndex = selIndex;
 	selMID = vsList[0];
 	setTextMID(selMID);
 
@@ -487,25 +477,35 @@ void WJPANEL::setTree(vector<string>& vsList)
 void WJPANEL::setTree(vector<vector<string>>& vvsMID)
 {
 	// vvsMID has form [MID1, MID2, ...][MID, sVal, Ancestor0, ...]
-	int iMID, iParent;
-	jtMID.init("", -1);
-	for (int ii = 0; ii < vvsMID.size(); ii++)
-	{
+	int iParent, iMID, length;
+	vector<int> vParentID;
+	jtMID.reset();
+	JNODE jnRoot = jtMID.getRoot();
+	for (int ii = 0; ii < vvsMID.size(); ii++) {
+		length = (int)vvsMID[ii].size();
+		if (length < 2) { err("Invalid vvsMID-setTree"); }
+
+		JNODE jn(2);
+		jn.vsData[0] = vvsMID[ii][1];
 		iMID = stoi(vvsMID[ii][0]);
-		if (vvsMID[ii].size() <= 2)  // Parent is root.
-		{
-			jtMID.addChild(vvsMID[ii][1], iMID, -1);
+		iMID--;
+		jn.vsData[1] = to_string(iMID);
+
+		if (length == 2) {  // Parent is root.
+			jtMID.addChild(jnRoot.ID, jn);
 		}
-		else
-		{
+		else {
 			iParent = stoi(vvsMID[ii].back());
-			jtMID.addChild(vvsMID[ii][1], iMID, iParent);
+			iParent--;
+			vParentID = jtMID.searchData(to_string(iParent), 1);
+			if (vParentID.size() != 1) { err("Failed to determine parentID-setTree"); }
+			jtMID.addChild(vParentID[0], jn);
 		}
+
+		if (ii == 0) { jtMID.selectedID = jn.ID; }
 	}
 
 	// Display the first MID item as a default setting.
-	int selIndex = jtMID.getIndex(vvsMID[0][1]);
-	jtMID.selectedIndex = selIndex;
 	selMID = vvsMID[0][1];
 	setTextMID(selMID);
 
@@ -871,11 +871,16 @@ void WJCONFIG::diffChanged(string id)
 	setPrompt(prompt, vvsCata, vvsDiff);
 	pullSignal_.emit(1);  // Pull differentiator.
 }
+void WJCONFIG::err(string message)
+{
+	string errorMessage = "WJCONFIG error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
 vector<string> WJCONFIG::getDemo()
 {
 	// Return form [sYear0@sCata0, sYear1@sCata1, ...].
 	vector<string> vsCata;
-	if (vvsDemographic.size() < 1) { jf.err("No Demographic init-SCDAwidget.getDemo"); }
+	if (vvsDemographic.size() < 1) { err("No Demographic init-SCDAwidget.getDemo"); }
 	if (wjpDemo == nullptr)
 	{
 		vsCata.assign(vvsDemographic[0].begin() + 1, vvsDemographic[0].end());
@@ -1050,7 +1055,7 @@ vector<vector<string>> WJCONFIG::getVariable()
 void WJCONFIG::getVariable(vector<string>& vsDIMtitle, vector<int>& viMID)
 {
 	// Checks the active state of each "variable" panel and returns each title and MID.
-	if (diffWP.size() > 0) { jf.err("Multiple catalogues remain-wjconfig.getVariable"); }
+	if (diffWP.size() > 0) { err("Multiple catalogues remain-wjconfig.getVariable"); }
 	Wt::WString wsTemp;
 	int treeIndex;
 	int numVar = varWJP.size();
@@ -1060,7 +1065,7 @@ void WJCONFIG::getVariable(vector<string>& vsDIMtitle, vector<int>& viMID)
 	{
 		wsTemp = varWJP[ii]->cbTitle->currentText();
 		vsDIMtitle[ii] = wsTemp.toUTF8();
-		treeIndex = varWJP[ii]->jtMID.selectedIndex;
+		treeIndex = varWJP[ii]->jtMID.selectedID;
 		viMID[ii] = varWJP[ii]->jtMID.treePLi[treeIndex];
 	}
 }
@@ -1221,13 +1226,13 @@ void WJCONFIG::removeVariable(int varIndex)
 void WJCONFIG::resetTopicMID()
 {
 	wjpTopicCol->mapFilterMID.clear();
-	wjpTopicCol->jtMID.clear();
+	wjpTopicCol->jtMID.reset();
 	wjpTopicCol->textMID->setText("");
 	wjpTopicCol->viFilter.clear();
 	wjpTopicCol->boxMID->setHidden(1);
 	
 	wjpTopicRow->mapFilterMID.clear();
-	wjpTopicRow->jtMID.clear();
+	wjpTopicRow->jtMID.reset();
 	wjpTopicRow->textMID->setText("");
 	wjpTopicRow->viFilter.clear();
 	wjpTopicRow->boxMID->setHidden(1);
@@ -1387,7 +1392,7 @@ void WJCONFIG::topicTitleChanged(string id)
 			}
 		}
 	}
-	else { jf.err("Unknown input id-wjconfig.topicTitleChanged"); }
+	else { err("Unknown input id-wjconfig.topicTitleChanged"); }
 
 	if (prompt[3] == "*")
 	{

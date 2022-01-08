@@ -31,6 +31,11 @@ void WJLEGEND::display(bool oddItalics)
 	}
 	this->setLayout(move(layout));
 }
+void WJLEGEND::err(string message)
+{
+	string errorMessage = "WJLEGEND error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
 void WJLEGEND::initColour()
 {
 	colourList.resize(5);
@@ -94,7 +99,7 @@ string WJLEGEND::italicizeOdd(string& sParameter)
 }
 void WJLEGEND::setColour(vector<int>& viChanged)
 {
-	if (viChanged.size() != vvsParameter.size()) { jf.err("Size mismatch-wjlegend.setColour"); }
+	if (viChanged.size() != vvsParameter.size()) { err("Size mismatch-wjlegend.setColour"); }
 	vColour.resize(viChanged.size());
 	for (int ii = 0; ii < vColour.size(); ii++)
 	{
@@ -160,6 +165,11 @@ void WJMAP::build()
 	wjlMap = vLayout->addWidget(move(wjLegend));
 	vLayout->addStretch(1);
 	this->setLayout(move(vLayout));
+}
+void WJMAP::err(string message)
+{
+	string errorMessage = "WJMAP error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
 }
 int WJMAP::getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize)
 {
@@ -249,7 +259,7 @@ void WJMAP::resetMenu()
 }
 void WJMAP::updatePinButtons(vector<string> vsTooltip)
 {
-	if (vsTooltip.size() != 2) { jf.err("Invalid input-wjmap.updatePinButtons"); }
+	if (vsTooltip.size() != 2) { err("Invalid input-wjmap.updatePinButtons"); }
 	Wt::WPushButton* wpb = nullptr;
 	Wt::WString wsTemp;
 	for (int ii = 0; ii < vsTooltip.size(); ii++)
@@ -274,7 +284,7 @@ void WJMAP::updatePinButtons(vector<string> vsTooltip)
 			wpb->decorationStyle().setBackgroundColor(wcWhite);
 			wpb->setEnabled(0);
 		}
-		else { jf.err("Tooltip not found-wjmap.updatePinButtons"); }
+		else { err("Tooltip not found-wjmap.updatePinButtons"); }
 	}
 }
 void WJMAP::widgetMobile(bool Mobile)

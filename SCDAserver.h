@@ -60,7 +60,7 @@ public:
 	string getSYear() const { return sYear; }
 	vector<vector<string>> getTable() const { return table; }
 	string getTitle() const { return title; }
-	JTREE getTree() const { return tree; }
+	const JTREE getTree() const { return tree; }
 	vector<vector<string>> getVariable() const { return variable; }
 	vector<Wt::WPainterPath> get_wpPaths() const { return wpPaths; }
 	int type() const { return etype; }
@@ -117,6 +117,8 @@ typedef function<void(const DataEvent&)> DataEventCallback;
 class SCDAserver
 {
 	unordered_map<string, int> mapClientIndex;  // sessionID -> shared_ptr index
+
+	void err(string message);
 
 public:
 	SCDAserver(Wt::WServer& wtServer, string& dbPath) 
@@ -197,7 +199,6 @@ private:
 	userMap users;
 	Wt::WFont wFont;
 
-	void err(string);
 	void initLog();
 	void postDataEvent(const DataEvent& event, string sID);
 };

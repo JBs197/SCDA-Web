@@ -35,11 +35,12 @@ class WTPAINT : public Wt::WPaintedWidget
 	double legendMin = -1.0, legendMax = -1.0;
 	unordered_map<string, int> mapArea;  // Form "Region Name"->indexArea.
 	unordered_map<string, Wt::WString> mapTooltip;
-	MATHFUNC mf;
 	const int numColourBands = 5;
 	double parentAspectRatio = -1.0;  // Width divided by height.
 	int selIndex = -1;
 	double widgetPPKM = -1.0;
+
+	void err(string message);
 
 public:
 	WTPAINT() {

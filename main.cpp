@@ -3,6 +3,8 @@
 
 using namespace std;
 mutex m_config, m_err, m_server;
+JLOG* JLOG::instance = 0;
+int JNODE::nextID{ 0 };
 
 class SCDAapp : public Wt::WApplication
 {
@@ -99,7 +101,7 @@ int main()
 	for (int ii = 0; ii < tempList.size(); ii++)
 	{
 		tempFile = tempFolder + "/" + tempList[ii];
-		wf.delete_file(tempFile);
+		wf.deleteFile(tempFile);
 	}
 	Wt::WServer wtServer(execPath, args, wtAppPath);
 	SCDAserver myServer(wtServer, dbPath);

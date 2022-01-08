@@ -14,6 +14,7 @@
 #include <Wt/WDialog.h>
 #include <Wt/WPainter.h>
 #include <Wt/WSvgImage.h>
+#include "jfunc.h"
 #include "jtree.h"
 
 using namespace std;
@@ -60,8 +61,7 @@ struct WJPANEL : public Wt::WPanel
 	void init();
 	void initStackedPB(Wt::WLink wlClosed, Wt::WLink wlOpened);
 	void panelClicked() { jf.timerStart(); }
-	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
-	void populateTree(JTREE& jt, Wt::WTreeNode*& node, int selTreeIndex);
+	void populateTree(JTREE& jt, int parentID, Wt::WTreeNode*& parentNode, int selectedID = -1);
 	void resetMapIndex();
 	void setCB(vector<string>& vsList);
 	void setCB(vector<string>& vsList, int iActive);
@@ -81,6 +81,8 @@ private:
 	Wt::Signal<> filterSignal_;
 	Wt::Signal<> topicSignal_;
 	Wt::Signal<> varSignal_;
+
+	void err(string message);
 };
 
 class WJCONFIG : public Wt::WContainerWidget
@@ -98,6 +100,8 @@ class WJCONFIG : public Wt::WContainerWidget
 	Wt::WColor wcBlack, wcBorder, wcOffWhite, wcSelectedStrong, wcSelectedWeak, wcWhite;
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
 	unique_ptr<Wt::WDialog> wdFilter = nullptr;
+
+	void err(string message);
 
 public:
 	WJCONFIG(vector<string> vsYear) : Wt::WContainerWidget() {

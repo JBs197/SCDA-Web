@@ -59,11 +59,17 @@ void SCDAwidget::displayCata(const Wt::WKeyEvent& wKey)
 	}
 }
 
+void SCDAwidget::err(string message)
+{
+	string errorMessage = "SCDAwidget error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
+
 int SCDAwidget::getHeight()
 {
 	const Wt::WEnvironment& env = Wt::WApplication::instance()->environment();
 	int iHeight = env.screenHeight();
-	if (iHeight < 0) { jf.err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
+	if (iHeight < 0) { err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
 	return iHeight;
 }
 string SCDAwidget::getUnit()
@@ -86,7 +92,7 @@ int SCDAwidget::getWidth()
 {
 	const Wt::WEnvironment& env = Wt::WApplication::instance()->environment();
 	int iWidth = env.screenWidth();
-	if (iWidth < 0) { jf.err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
+	if (iWidth < 0) { err("Failed to obtain widget dimensions-wtpaint.getDimensions"); }
 	return iWidth;
 }
 
@@ -230,7 +236,7 @@ void SCDAwidget::incomingResetSignal(const int& resetType)
 void SCDAwidget::incomingVarSignal()
 {
 	// A Variable WJPANEL has changed its values. Load a new table and map.
-	if (activeCata.size() < 1) { jf.err("No activeCata-SCDAwidget.incomingVarSignal"); }
+	if (activeCata.size() < 1) { err("No activeCata-SCDAwidget.incomingVarSignal"); }
 	auto app = Wt::WApplication::instance();
 	vector<string> vsDIMtitle;
 	vector<int> viMID;
@@ -273,6 +279,8 @@ void SCDAwidget::init()
 	else { widgetMobile(); }
 
 	auto app = Wt::WApplication::instance();
+
+	/*
 	if (jsEnabled)
 	{
 		string getInfoJS = jsMakeFunctionTableWidth(tableData, "tableData");
@@ -280,6 +288,7 @@ void SCDAwidget::init()
 		string scrollToJS = jsMakeFunctionTableScrollTo(tableData);
 		app->declareJavaScriptFunction("scrollTo", scrollToJS);
 	}
+	*/
 
 	jf.timerStart();
 	string sessionID = app->sessionId();
@@ -354,63 +363,6 @@ void SCDAwidget::initUI()
 	treeRegion->itemSelectionChanged().connect(fnTree);
 }
 
-string SCDAwidget::jsMakeFunctionTableScrollTo(WJTABLE*& boxTable)
-{
-	// Given a number of pixels displaced from the left, scroll to that position.
-	string sID = boxTable->id();
-	vector<string> vsID = { sID };
-	int treeIndex = jtWidget.getIndex(sID);
-	vector<int> viAncestor = jtWidget.treeSTanc[treeIndex];
-	for (int ii = viAncestor.size() - 1; ii >= 0; ii--)
-	{
-		sID = jtWidget.treePL[viAncestor[ii]];
-		vsID.push_back(sID);
-	}
-	string sII;
-	int numID = vsID.size();
-	string scrollTo = "function scrollTo(fromLeft) { var start = document.getElementById(\"";
-	scrollTo += vsID.back() + "\"); var coll" + to_string(numID - 1) + " = start.children; ";
-	for (int ii = numID - 2; ii >= 0; ii--)
-	{
-		sII = to_string(ii);
-		scrollTo += "var node" + sII + " = coll" + to_string(ii + 1);
-		scrollTo += ".namedItem(\"" + vsID[ii] + "\"); ";
-		scrollTo += "var coll" + sII + " = node" + sII + ".children; ";
-	}
-	scrollTo += "node0.scrollLeft = fromLeft; }";
-	return scrollTo;
-}
-string SCDAwidget::jsMakeFunctionTableWidth(WJTABLE*& boxTable, string tableID)
-{
-	// Given the sID of a table (and its immediate parent), return a string that 
-	// defines a JavaScript function to return that table's width in pixels. 
-	string sID = boxTable->id();
-	vector<string> vsID = { tableID, sID };
-	int treeIndex = jtWidget.getIndex(sID);
-	vector<int> viAncestor = jtWidget.treeSTanc[treeIndex];
-	for (int ii = viAncestor.size() - 1; ii >= 0; ii--)
-	{
-		sID = jtWidget.treePL[viAncestor[ii]];
-		vsID.push_back(sID);
-	}
-	
-	string sII;
-	int numID = vsID.size();
-	string getInfo = "function getInfo() { var sInfo = \"\"; var start = document.getElementById(\"";
-	getInfo += vsID.back() + "\"); var coll" + to_string(numID - 1) + " = start.children; ";
-	for (int ii = numID - 2; ii >= 0; ii--)
-	{
-		sII = to_string(ii);
-		getInfo += "var node" + sII + " = coll" + to_string(ii + 1);
-		getInfo += ".namedItem(\"" + vsID[ii] + "\"); ";
-		getInfo += "var coll" + sII + " = node" + sII + ".children; ";
-	}	
-	getInfo += "let tableRect = node0.getBoundingClientRect(); ";
-	getInfo += "var tableWidth = tableRect.width; ";
-	getInfo += "Wt.emit('SCDAwidget', 'jsTWidth', tableWidth); }";
-	return getInfo;
-}
-
 shared_ptr<Wt::WMemoryResource> SCDAwidget::loadCSS(vector<unsigned char>& binCSS)
 {
 	auto css = make_shared<Wt::WMemoryResource>("binCSS");
@@ -474,19 +426,29 @@ unsigned SCDAwidget::makeParamChecksum(vector<vector<string>>& vvsParameter)
 
 void SCDAwidget::mapAreaClicked(int areaIndex)
 {
+	string sID;
+	vector<int> vID;
 	string sRegionClicked = wtMap->areaClicked(areaIndex);
-	if (sRegionClicked == "bgArea")
-	{
+	if (sRegionClicked != "bgArea") {
+		vID = jtRegion.searchData(sRegionClicked, 0);
+		if (vID.size() != 1) { err("Failed to determine sRegion ID-mapAreaClicked"); }
+		JNODE jn = jtRegion.getNode(vID[0]);
+		if (jn.vsData.size() < 2) { err("Selected node has no sID-mapAreaClicked"); }
+		sID = jn.vsData[1];
+	}
+	else {
 		auto selSet = treeRegion->selectedNodes();
 		if (selSet.size() < 1) { return; }
 		auto selIt = selSet.begin();
 		auto selNode = *selIt;
 		auto wTemp = selNode->label()->text();
 		string sRegion = wTemp.toUTF8();
-		sRegionClicked = jtRegion.getParent(sRegion);
-		if (sRegionClicked.size() < 1) { return; }
-	}
-	string sID = jtRegion.mapRegion.at(sRegionClicked);
+		vector<int> vID = jtRegion.searchData(sRegion, 0);
+		if (vID.size() != 1) { err("Failed to determine selected ID-mapAreaClicked"); }
+		JNODE jnParent = jtRegion.getParent(vID[0]);
+		if (jnParent.vsData.size() < 2) { err("Parent node has no sID-mapAreaClicked"); }
+		sID = jnParent.vsData[1];
+	}	
 	Wt::WTreeNode* nodeSel = (Wt::WTreeNode*)treeRegion->findById(sID);
 	if (!treeRegion->isSelected(nodeSel)) { treeRegion->select(nodeSel); }
 }
@@ -502,17 +464,18 @@ void SCDAwidget::populateTree(JTREE& jt, Wt::WTreeNode*& node)
 {
 	// Recursive function that takes an existing node and makes its children.
 	// NOTE: This variant is meant for regions with unique names !
-	vector<string> vsChildren;
-	vector<int> viChildren;
+	vector<int> viChildren, viID;
 	Wt::WString wTemp = node->label()->text();
 	string sNode = wTemp.toUTF8();
-	if (jt.isExpanded(sNode)) { node->expand(); }
+	//if (jt.isExpanded(sNode)) { node->expand(); }
 	string sID = node->id();
-	jt.mapRegion.emplace(sNode, sID);
-	jt.listChildren(sNode, viChildren, vsChildren);
-	for (int ii = 0; ii < vsChildren.size(); ii++)
-	{
-		wTemp = Wt::WString::fromUTF8(vsChildren[ii]);
+	viID = jt.searchData(sID, 1);
+	if (viID.size() != 1) { err("Failed to determine node ID-populateTree"); }
+	viChildren = jt.getChildrenID(viID[0]);
+	for (int ii = 0; ii < viChildren.size(); ii++) {
+		JNODE jn = jt.getNode(viChildren[0]);
+		if (jn.vsData.size() < 2) { err("Child node is missing sID-populateTree"); }
+		wTemp = Wt::WString::fromUTF8(jn.vsData[1]);
 		auto childUnique = make_unique<Wt::WTreeNode>(wTemp);
 		auto child = childUnique.get();
 		populateTree(jt, child);
@@ -567,7 +530,8 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		break;
 	case 9:  // Tree: populate the tree tab using the JTREE object.
 		updateTextCata(event.getNumCata());
-		processEventTree(event.getTree());
+		jtRegion = event.getTree();
+		processEventTree();
 		break;
 	}
 }
@@ -620,7 +584,7 @@ void SCDAwidget::processEventDemographic(vector<vector<string>> vvsDemo)
 	wjConfig->vvsDemographic = vvsDemo;
 	wjConfig->resetVariables(1);
 	if (vvsDemo.size() > 0) { wjConfig->addDemographic(vvsDemo); }
-	else { jf.err("Invalid Demographic list-SCDAwidget.processEventDemographic"); }
+	else { err("Invalid Demographic list-SCDAwidget.processEventDemographic"); }
 }
 void SCDAwidget::processEventDifferentiation(vector<string> vsDiff, string sTitle)
 {
@@ -672,7 +636,7 @@ void SCDAwidget::processEventMap(vector<string> vsRegion, vector<vector<vector<d
 			wtMap->jsb.activeIndex = 2;
 			legendBarDouble = wjMap->getLegendBarDouble(vsRegion, unit1, 2);
 		}
-		else { jf.err("sUnitTable not recognized-SCDAwidget.processEventMap"); }
+		else { err("sUnitTable not recognized-SCDAwidget.processEventMap"); }
 	}
 	else
 	{ 
@@ -707,7 +671,7 @@ void SCDAwidget::processEventParameter(vector<vector<vector<string>>> vvvsParame
 	{
 		numCata += vvsCata[ii].size() - 1;
 	}
-	if (numCata != 1) { jf.err("Multiple catalogues remain-SCDAwidget.processEventParameter"); }
+	if (numCata != 1) { err("Multiple catalogues remain-SCDAwidget.processEventParameter"); }
 
 	int sizeVar = wjConfig->varWJP.size();
 	activeCata = vvsCata[0][1];
@@ -758,9 +722,9 @@ void SCDAwidget::processEventParameter(vector<vector<vector<string>>> vvvsParame
 }
 void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow)
 {
-	if (vvsCol.size() < 3 || vvsRow.size() < 3) { jf.err("Missing col/row titles-SCDAwidget.processEventTable"); }
-	if (vvsTable.size() < 1) { jf.err("Missing table data-SCDAwidget.processEventTable"); }
-	if (wjUnitPin.activeRegion.size() < 1) { jf.err("Missing table region-SCDAwidget.processEventTable"); }
+	if (vvsCol.size() < 3 || vvsRow.size() < 3) { err("Missing col/row titles-SCDAwidget.processEventTable"); }
+	if (vvsTable.size() < 1) { err("Missing table data-SCDAwidget.processEventTable"); }
+	if (wjUnitPin.activeRegion.size() < 1) { err("Missing table region-SCDAwidget.processEventTable"); }
 
 	auto app = Wt::WApplication::instance();
 	string sTitleCol = vvsCol[vvsCol.size() - 1][0];  // Currently unused.
@@ -891,11 +855,12 @@ void SCDAwidget::processEventTopic(vector<string> vsRowTopic, vector<string> vsC
 		}
 	}
 }
-void SCDAwidget::processEventTree(JTREE jt)
+void SCDAwidget::processEventTree()
 {
-	jtRegion.clear();
-	jtRegion = jt;
-	string sRoot = jtRegion.getRootName();
+	string sRoot;
+	JNODE jnRoot = jtRegion.getRoot();
+	if (jnRoot.vsData.size() > 0) { sRoot = jnRoot.vsData[0]; }
+	else { sRoot = " "; }
 	Wt::WString wTemp = Wt::WString::fromUTF8(sRoot);
 	auto treeRootUnique = make_unique<Wt::WTreeNode>(wTemp);
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
@@ -950,7 +915,7 @@ void SCDAwidget::resetTable()
 }
 void SCDAwidget::resetTree()
 {
-	jtRegion.clear();
+	jtRegion.reset();
 	treeRegion->setTreeRoot(make_unique<Wt::WTreeNode>(""));
 }
 
@@ -1058,7 +1023,7 @@ void SCDAwidget::seriesAddToGraph(int mode)
 }
 void SCDAwidget::seriesRemoveFromGraph(const int& seriesIndex)
 {
-	if (seriesIndex >= wjBarGraph->mapChecksumIndex.size()) { jf.err("Bar graph parameter index not found-SCDAwidget.seriesRemoveFromGraph"); }
+	if (seriesIndex >= wjBarGraph->mapChecksumIndex.size()) { err("Bar graph parameter index not found-SCDAwidget.seriesRemoveFromGraph"); }
 	unsigned checksum = wjBarGraph->vChecksum[seriesIndex];
 	wjBarGraph->vChecksum.erase(wjBarGraph->vChecksum.begin() + seriesIndex);
 	auto it = wjBarGraph->mapChecksumIndex.find(checksum);
@@ -1215,7 +1180,10 @@ void SCDAwidget::treeClicked()
 	auto selNode = *selIt;
 	auto wTemp = selNode->label()->text();
 	string sRegion = wTemp.toUTF8();
-	int geoCode = jtRegion.getIName(sRegion);
+	vector<int> vID = jtRegion.searchData(sRegion, 0);
+	if (vID.size() != 1) { err("Failed to determine sRegion ID-treeClicked"); }
+	JNODE jn = jtRegion.getNode(vID[0]);
+	int geoCode = stoi(jn.vsData[1]);
 	setTable(geoCode, sRegion);
 }
 void SCDAwidget::treeClicked(int& geoCode, string& sRegion)
@@ -1227,7 +1195,10 @@ void SCDAwidget::treeClicked(int& geoCode, string& sRegion)
 	auto selNode = *selIt;
 	auto wTemp = selNode->label()->text();
 	sRegion = wTemp.toUTF8();
-	geoCode = jtRegion.getIName(sRegion);
+	vector<int> vID = jtRegion.searchData(sRegion, 0);
+	if (vID.size() != 1) { err("Failed to determine sRegion ID-treeClicked"); }
+	JNODE jn = jtRegion.getNode(vID[0]);
+	geoCode = stoi(jn.vsData[1]);
 }
 
 void SCDAwidget::updateDownloadTab()
@@ -1354,18 +1325,18 @@ void SCDAwidget::updatePinButtons(int mode)
 void SCDAwidget::updateRegion(vector<string> vsNamePop)
 {
 	// vsNamePop has form [region name, sRegionPopulation].
-	if (vsNamePop.size() != 2) { jf.err("Invalid vsNamePop-SCDAwidget.updateRegion"); }
+	if (vsNamePop.size() != 2) { err("Invalid vsNamePop-SCDAwidget.updateRegion"); }
 	wjUnitPin.activeRegion = vsNamePop[0];
 	wjUnitPin.sRegionPopulation = vsNamePop[1];
 	try {
 		wjUnitPin.regionPopulation = stoi(vsNamePop[1]);
 	}
-	catch (invalid_argument) { jf.err("stoi-SCDAwidget.updateRegion"); }
+	catch (invalid_argument) { err("stoi-SCDAwidget.updateRegion"); }
 }
 void SCDAwidget::updateTextCata(int numCata)
 {
 	Wt::WString wsTemp;
-	if (numCata < 1) { jf.err("Less than one catalogue remains-SCDAwidget.updateTextCata"); }
+	if (numCata < 1) { err("Less than one catalogue remains-SCDAwidget.updateTextCata"); }
 	else if (numCata == 1)
 	{
 		wsTemp = "Chosen catalogue is being displayed.";
@@ -1403,7 +1374,7 @@ void SCDAwidget::updateUnit(string sUnit)
 				vsNamePop.push_back(unit1);
 				index = 1;
 			}
-			else { jf.err("Unknown unit-SCDAwidget.updateUnit"); }
+			else { err("Unknown unit-SCDAwidget.updateUnit"); }
 			vector<int> rowColSel;
 			tableData = wjTableBox->updateTable(vsNamePop, rowColSel);
 			tableData->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));

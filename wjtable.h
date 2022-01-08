@@ -13,6 +13,7 @@
 #include <Wt/WPopupMenu.h>
 #include <Wt/WPushButton.h>
 #include <Wt/WText.h>
+#include "jfunc.h"
 #include "jtree.h"
 
 using namespace std;
@@ -142,6 +143,8 @@ class WJTABLE : public Wt::WTableView
 	Wt::WColor wcSelectedWeak, wcSelectedStrong, wcWhite;
 	Wt::WLength wlAuto;
 
+	void err(string message);
+
 public:
 	WJTABLE(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop)
 		: Wt::WTableView() {
@@ -217,6 +220,7 @@ class WJTABLEBOX : public Wt::WContainerWidget
 	WJTABLE* wjTable = nullptr;
 	Wt::WLength wlAuto, wlTableWidth, wlTableHeight;
 
+	void err(string message);
 	void init();
 	void initColour();
 	void initMaps();

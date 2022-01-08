@@ -390,6 +390,11 @@ void WJDOWNLOAD::downloadSettings(int mode)
 	// Send out a signal to fetch the requested data.
 	previewSignal_.emit(selectedMode);
 }
+void WJDOWNLOAD::err(string message)
+{
+	string errorMessage = "WJDOWNLOAD error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
 int WJDOWNLOAD::getLegendBarDouble(vector<string>& vsRegion, string sUnit, int displayDataSize)
 {
 	if (vsRegion.size() > 2 && sUnit == "# of persons" && displayDataSize == 1) { return 1; }
@@ -602,7 +607,7 @@ shared_ptr<WJRPDF> WJDOWNLOAD::makeWJRPDF(string& sName)
 void WJDOWNLOAD::setRadioEnabled(vector<int> vEnabled)
 {
 	auto vButton = wbGroup->buttons();
-	if (vButton.size() != vEnabled.size()) { jf.err("Size mismatch-wjdownload.setRadioEnabled"); }
+	if (vButton.size() != vEnabled.size()) { err("Size mismatch-wjdownload.setRadioEnabled"); }
 	for (int ii = 0; ii < vButton.size(); ii++) {
 		vButton[ii]->setEnabled(vEnabled[ii]);
 	}

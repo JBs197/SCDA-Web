@@ -16,9 +16,9 @@ void WJTABLE::cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol)
 {
 	// Un-highlight and un-border the previous selection, highlight and border this col/row, 
 	// and then load a map using the col/row headers. 
-	if (!wmIndex.isValid()) { jf.err("Invalid model index-wjtable.cellSelect"); }
-	if (iRow >= model->rowCount() || iCol >= model->columnCount()) { jf.err("Index beyond maximum-wjtable.cellClicked"); }
-	if (iRow < 0 || iCol < 0) { jf.err("Index below minimum-wjtable.cellClicked"); }
+	if (!wmIndex.isValid()) { err("Invalid model index-wjtable.cellSelect"); }
+	if (iRow >= model->rowCount() || iCol >= model->columnCount()) { err("Index beyond maximum-wjtable.cellClicked"); }
+	if (iRow < 0 || iCol < 0) { err("Index below minimum-wjtable.cellClicked"); }
 
 	string sID;
 	string sProperty ="margin-left";
@@ -182,7 +182,7 @@ void WJTABLE::compressUnitCell(string& sUnit, string& sCell)
 		}
 		sUnit = mapPrefixNumber.at(iPower) + " $";
 	}
-	else { jf.err("Unknown unit-wjtable.compressUnitCell"); }
+	else { err("Unknown unit-wjtable.compressUnitCell"); }
 }
 void WJTABLE::compressUnitCol(int iCol, vector<vector<string>>& vvsCore)
 {
@@ -220,7 +220,7 @@ void WJTABLE::compressUnitCol(int iCol, vector<vector<string>>& vvsCore)
 		mapColUnit.erase(iCol);
 		mapColUnit.emplace(iCol, sUnit);
 	}
-	else { jf.err("Unknown unit-wjtable.compressUnitCol"); }
+	else { err("Unknown unit-wjtable.compressUnitCol"); }
 }
 void WJTABLE::compressUnitRow(int iRow, vector<vector<string>>& vvsCore)
 {
@@ -255,13 +255,18 @@ void WJTABLE::compressUnitRow(int iRow, vector<vector<string>>& vvsCore)
 		mapRowUnit.erase(iRow);
 		mapRowUnit.emplace(iRow, sUnit);
 	}
-	else { jf.err("Unknown unit-wjtable.compressUnitRow"); }
+	else { err("Unknown unit-wjtable.compressUnitRow"); }
+}
+void WJTABLE::err(string message)
+{
+	string errorMessage = "WJTABLE error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
 }
 string WJTABLE::getCell(int iRow, int iCol)
 {
 	// For ease of access, an iRow value of "-1" will be interpreted as being the header's index.
-	if (iRow < -1 || iCol < 0) { jf.err("Negative index-wjtable.getCell"); }
-	if (iRow >= model->rowCount() || iCol >= model->columnCount()) { jf.err("Index beyond maximum-wjtable.getCell"); }	
+	if (iRow < -1 || iCol < 0) { err("Negative index-wjtable.getCell"); }
+	if (iRow >= model->rowCount() || iCol >= model->columnCount()) { err("Index beyond maximum-wjtable.getCell"); }	
 	
 	Wt::WString wsTemp;
 	if (iRow == -1)
@@ -303,7 +308,7 @@ int WJTABLE::getColIndex(string sHeader)
 vector<int> WJTABLE::getRowColSel()
 {
 	// Return form [selectedRow, selectedCol] using MODEL indices.
-	if (!selectedIndex.isValid()) { jf.err("Invalid selection-wjtable.getRowColSel"); }
+	if (!selectedIndex.isValid()) { err("Invalid selection-wjtable.getRowColSel"); }
 	vector<int> viSel(2);
 	viSel[0] = selectedIndex.row();
 	viSel[1] = selectedIndex.column();
@@ -383,7 +388,7 @@ void WJTABLE::headerSelect(int iCol)
 	// Otherwise, un-highlight a previous selection and highlight this column. 
 	// Then, load a map using the col/row headers. 
 	if (iCol == 0) { return; }
-	if (!selectedIndex.isValid()) { jf.err("Invalid model index-wjtable.headerSelect"); }
+	if (!selectedIndex.isValid()) { err("Invalid model index-wjtable.headerSelect"); }
 
 	string sID;
 	int selectedRow = selectedIndex.row();
@@ -481,7 +486,7 @@ void WJTABLE::init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsC
 	try {
 		regionPopulation = stod(vsNamePop[1]);
 	}
-	catch (invalid_argument) { jf.err("stod-wjtable.init"); }
+	catch (invalid_argument) { err("stod-wjtable.init"); }
 	sUnitPreference = vsNamePop[2];
 
 	initModel(vvsCore.size(), vvsCore[0].size() + 1);
@@ -735,7 +740,7 @@ void WJTABLE::setProperty(Wt::WWidget* widget, vector<string> vsProperty, vector
 {
 	// Load a widget's CSS style property list, and add/edit the given properties 
 	// to the values.
-	if (vsProperty.size() != vsValue.size()) { jf.err("Parameter size mismatch-wjtable.setProperty"); }
+	if (vsProperty.size() != vsValue.size()) { err("Parameter size mismatch-wjtable.setProperty"); }
 	Wt::WString wsStyle = widget->attributeValue("style");
 	string sStyle = wsStyle.toUTF8();
 	size_t pos1, pos2;
@@ -781,7 +786,7 @@ void WJTABLE::setRowUnit(string& rowHeader, int index)
 void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent)
 {
 	// Triggered in response to a user click.
-	if (!wmIndex.isValid()) { jf.err("Invalid index from table click-wjtable.tableClicked"); }
+	if (!wmIndex.isValid()) { err("Invalid index from table click-wjtable.tableClicked"); }
 	jf.timerStart();
 	cellSelect(wmIndex);
 	int iRow = wmIndex.row();
@@ -855,6 +860,11 @@ void WJTABLEBOX::addTipWidth()
 
 	boxTip->setLayout(move(tipLayout));
 }
+void WJTABLEBOX::err(string message)
+{
+	string errorMessage = "WJTABLEBOX error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
 vector<vector<string>> WJTABLEBOX::getBargraphCol()
 {
 	vector<vector<string>> bgCol;  
@@ -868,7 +878,7 @@ vector<vector<string>> WJTABLEBOX::getBargraphCol()
 	}
 	else {
 		sUnitCol = wjTable->getUnit();  // Uses the table rows/columns.
-		if (sUnitCol.size() < 1) { jf.err("Missing unit-wjtablebox.getBargraphCol"); }
+		if (sUnitCol.size() < 1) { err("Missing unit-wjtablebox.getBargraphCol"); }
 	}
 	int numRow = wjTable->model->rowCount();
 	for (int ii = 0; ii < numRow; ii++)
@@ -896,7 +906,7 @@ vector<vector<string>> WJTABLEBOX::getBargraphRow()
 	}
 	else {
 		sUnitRow = wjTable->getUnit();
-		if (sUnitRow.size() < 1) { jf.err("Missing unit-wjtablebox.getBargraphRow"); }
+		if (sUnitRow.size() < 1) { err("Missing unit-wjtablebox.getBargraphRow"); }
 	}
 	int numCol = wjTable->model->columnCount();
 	for (int ii = 1; ii < numCol; ii++)
@@ -1062,7 +1072,7 @@ void WJTABLEBOX::setTableSize(Wt::WLength& wlWidth, Wt::WLength& wlHeight)
 }
 void WJTABLEBOX::updatePinButtons(vector<string> vsTooltip)
 {
-	if (vsTooltip.size() != 3) { jf.err("Invalid input-wjtablebox.updatePinButtons"); }
+	if (vsTooltip.size() != 3) { err("Invalid input-wjtablebox.updatePinButtons"); }
 	Wt::WPushButton* wpb = nullptr;
 	Wt::WString wsTemp;
 	for (int ii = 0; ii < vsTooltip.size(); ii++)
@@ -1091,13 +1101,13 @@ void WJTABLEBOX::updatePinButtons(vector<string> vsTooltip)
 			wpb->decorationStyle().setBackgroundColor(wcWhite);
 			wpb->setEnabled(0);
 		}
-		else { jf.err("Tooltip not found-wjtablebox.updatePinButtons"); }
+		else { err("Tooltip not found-wjtablebox.updatePinButtons"); }
 	}
 }
 WJTABLE* WJTABLEBOX::updateTable(vector<string>& vsNamePop, vector<int>& rowColSel)
 {
-	if (vvsCore.size() < 1 || vvsCol.size() < 2 || vvsRow.size() < 2) { jf.err("Cannot update without initial values-wjtable.updateTable"); }
-	if (vsNamePop[0] != sRegion) { jf.err("Region mismatch-wjtablebox.updateTable"); }
+	if (vvsCore.size() < 1 || vvsCol.size() < 2 || vvsRow.size() < 2) { err("Cannot update without initial values-wjtable.updateTable"); }
+	if (vsNamePop[0] != sRegion) { err("Region mismatch-wjtablebox.updateTable"); }
 	rowColSel = wjTable->getRowColSel();
 	if (boxTable != nullptr) { boxTable->clear(); }
 	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, vsNamePop);

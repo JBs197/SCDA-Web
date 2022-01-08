@@ -81,6 +81,11 @@ void WJPARAMPANEL::drawTrashRect(vector<int>& vColourIndex)
 	WJTRASHRECT* wjTrashRect = (WJTRASHRECT*)wlItem->widget();
 	wjTrashRect->setColours(vwc);
 }
+void WJPARAMPANEL::err(string message)
+{
+	string errorMessage = "WJPARAMPANEL error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
 void WJPARAMPANEL::init(string sTitle, Wt::WLink linkIconTrash)
 {
 	setTitleBar(1);
@@ -218,7 +223,7 @@ void WJBARGRAPH::addTipWheel(int layoutIndex)
 }
 void WJBARGRAPH::configureChart()
 {
-	if (chart == nullptr) { jf.err("No init-wjbargraph.configureChart"); }
+	if (chart == nullptr) { err("No init-wjbargraph.configureChart"); }
 	chart->setAutoLayoutEnabled(1);
 	map<Wt::WFlags<Wt::KeyboardModifier>, Wt::Chart::InteractiveAction> mapWheel;
 	mapWheel.emplace(Wt::KeyboardModifier::None, Wt::Chart::InteractiveAction::PanMatching);
@@ -268,6 +273,11 @@ void WJBARGRAPH::display()
 		Wt::Chart::WAxis& wX = chart->axis(Wt::Chart::Axis::X);
 		wX.setZoomRange(0.0, 14.0);
 	}
+}
+void WJBARGRAPH::err(string message)
+{
+	string errorMessage = "WJBARGRAPH error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
 }
 void WJBARGRAPH::getParameterAll(vector<vector<double>>& seriesColour, vector<vector<vector<int>>>& panelColourIndex, vector<vector<vector<string>>>& panelText)
 {
@@ -468,7 +478,7 @@ vector<vector<string>> WJBARGRAPH::getModelValues()
 }
 vector<Wt::WColor> WJBARGRAPH::getSeriesColour()
 {
-	if (chart == nullptr) { jf.err("No chart loaded-wjbargraph.getSeriesColour"); }
+	if (chart == nullptr) { err("No chart loaded-wjbargraph.getSeriesColour"); }
 	int numCol = model->columnCount();
 	vector<Wt::WColor> seriesColour(numCol - 1);
 	for (int ii = 1; ii < numCol; ii++)
@@ -537,7 +547,7 @@ unique_ptr<WJPARAMPANEL> WJBARGRAPH::makeWJPP(WJPARAMPANEL*& wjpp, string sTitle
 		{
 			pos1 = sTitle.find("Diff");
 			if (pos1 < sTitle.size()) { ppUnique->setObjectName("wjppDiff"); }
-			else { jf.err("Cannot identify WJPARAMPANEL-wjbargraph-makeWJPP"); }
+			else { err("Cannot identify WJPARAMPANEL-wjbargraph-makeWJPP"); }
 		}
 	}
 	return ppUnique;

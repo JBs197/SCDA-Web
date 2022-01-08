@@ -104,10 +104,10 @@ void WTPAINT::displaceParentToWidget(vector<vector<vector<double>>>& vvvdBorder,
 }
 vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<string>& vsRegion, vector<vector<vector<double>>>& vvvdFrame, vector<vector<vector<double>>>& vvvdBorder)
 {
-	if (vvvdBorder.size() < 2 || vsRegion.size() < 2) { jf.err("Less than two regions given-wtpaint.drawMap"); }
-	if (legendBarDouble < 0 || legendTickLines < 1) { jf.err("No legend initialization-wtpaint.drawMap"); }
+	if (vvvdBorder.size() < 2 || vsRegion.size() < 2) { err("Less than two regions given-wtpaint.drawMap"); }
+	if (legendBarDouble < 0 || legendTickLines < 1) { err("No legend initialization-wtpaint.drawMap"); }
 	int indexScale = jsb.getActiveIndex();
-	if (indexScale < 0) { jf.err("jscalebar missing init-wtpaint.drawMap"); }
+	if (indexScale < 0) { err("jscalebar missing init-wtpaint.drawMap"); }
 
 	vector<vector<double>> parentFrameKM = vvvdFrame[0];
 	scaleImgBar(parentFrameKM);
@@ -139,10 +139,15 @@ vector<Wt::WPolygonArea*> WTPAINT::drawMap(vector<string>& vsRegion, vector<vect
 	update();
 	return area;
 }
+void WTPAINT::err(string message)
+{
+	string errorMessage = "WTPAINT error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
 vector<double> WTPAINT::getChildTL(vector<vector<double>>& vvdBorder, vector<vector<double>>& childFrameKM, vector<vector<double>>& parentFrameKM)
 {
-	if (widgetPPKM <= 0.0) { jf.err("No widgetPPKM-wtpaint.getChildTL"); }
-	if (childFrameKM.size() != 2) { jf.err("Missing frameKM-wtpaint.getChildTL"); }
+	if (widgetPPKM <= 0.0) { err("No widgetPPKM-wtpaint.getChildTL"); }
+	if (childFrameKM.size() != 2) { err("Missing frameKM-wtpaint.getChildTL"); }
 	vector<double> vdTL(2);
 	vdTL[0] = childFrameKM[0][0] - parentFrameKM[0][0];
 	vdTL[0] *= widgetPPKM;
@@ -248,13 +253,13 @@ void WTPAINT::paintEvent(Wt::WPaintDevice* paintDevice)
 }
 void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 {
-	if (legendBarDouble < 0) { jf.err("Missing legendBarDouble-wtpaint.paintLegendBar"); }
+	if (legendBarDouble < 0) { err("Missing legendBarDouble-wtpaint.paintLegendBar"); }
 	int numColour = numColourBands + 1;
 	if (keyColour.size() != numColour) { initColour(); }
 	double width = barTLBR[1][0] - barTLBR[0][0];
-	if (width <= 0.0) { jf.err("Invalid barTLBR width-wtpaint.paintLegendBar"); }
+	if (width <= 0.0) { err("Invalid barTLBR width-wtpaint.paintLegendBar"); }
 	double height = barTLBR[1][1] - barTLBR[0][1];
-	if (height <= 0.0) { jf.err("Invalid barTLBR height-wtpaint.paintLegendBar"); }
+	if (height <= 0.0) { err("Invalid barTLBR height-wtpaint.paintLegendBar"); }
 	bool barVertical = 0;
 	if (height > width) { barVertical = 1; }
 	bool gameOn = 1;
@@ -291,7 +296,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 			scaleValues[1][2] = scaleValues[1][1];
 			scaleValues[1][1] = dTemp;
 		}
-		scaleValues[1][3] = mf.roundingCeil(scaleValues[1][2]);
+		scaleValues[1][3] = jf.roundingCeil(scaleValues[1][2]);
 		break;
 	case 2:
 		scaleValues[0] = jsb.getTickValues(-1, numColour);
@@ -918,7 +923,7 @@ void WTPAINT::makeAreas()
 }
 void WTPAINT::scaleChildToWidget(vector<vector<double>>& vvdBorder, vector<vector<double>>& vvdFrame)
 {
-	if (widgetPPKM <= 0.0) { jf.err("Missing widgetPPKM-wtpaint.scaleChildToWidget"); }
+	if (widgetPPKM <= 0.0) { err("Missing widgetPPKM-wtpaint.scaleChildToWidget"); }
 	vvdFrame[0][0] *= widgetPPKM;
 	vvdFrame[0][1] *= widgetPPKM;
 	vvdFrame[1][0] *= widgetPPKM;
@@ -932,9 +937,9 @@ void WTPAINT::scaleChildToWidget(vector<vector<double>>& vvdBorder, vector<vecto
 void WTPAINT::scaleImgBar()
 {
 	// Creates new values for barTLBR and imgTLBR.
-	if (dHeight < 0.0 || dWidth < 0.0) { jf.err("No widget dimensions-wtpaint.scaleImgBar"); }
-	if (legendBarDouble < 0 || legendTickLines < 0) { jf.err("Missing legend init-scaleImgBar"); }
-	if (parentAspectRatio < 0.0) { jf.err("Missing parentAspectRatio-scaleImgBar"); }
+	if (dHeight < 0.0 || dWidth < 0.0) { err("No widget dimensions-wtpaint.scaleImgBar"); }
+	if (legendBarDouble < 0 || legendTickLines < 0) { err("Missing legend init-scaleImgBar"); }
+	if (parentAspectRatio < 0.0) { err("Missing parentAspectRatio-scaleImgBar"); }
 
 	barTLBR.clear();
 	barTLBR.resize(2, vector<double>(2));
@@ -1008,7 +1013,7 @@ void WTPAINT::scaleImgBar(vector<vector<double>>& parentFrameKM)
 vector<Wt::WPointF> WTPAINT::scaleParentToWidget(vector<vector<vector<double>>>& vvvdBorder, vector<vector<double>>& parentFrameKM)
 {
 	// Returns the parent region's border (in pixels), scaled to the widget.
-	if (imgTLBR.size() < 2) { jf.err("imgTLBR not initialized-wtpaint.scaleParentToWidget"); }
+	if (imgTLBR.size() < 2) { err("imgTLBR not initialized-wtpaint.scaleParentToWidget"); }
 
 	double xRatio = (parentFrameKM[1][0] - parentFrameKM[0][0]) / imgTLBR[1][0];
 	double yRatio = (parentFrameKM[1][1] - parentFrameKM[0][1]) / imgTLBR[1][1];
@@ -1103,7 +1108,7 @@ void WTPAINT::updateAreaColour()
 }
 void WTPAINT::updateDisplay(int index)
 {
-	if (index >= jsb.vDataset.size() || index < 0) { jf.err("Invalid index-wtpaint.updateDisplay"); }
+	if (index >= jsb.vDataset.size() || index < 0) { err("Invalid index-wtpaint.updateDisplay"); }
 	jsb.activeIndex = index;
 	string unit = jsb.vUnit[index];
 
