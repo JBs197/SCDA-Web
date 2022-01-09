@@ -166,7 +166,7 @@ void WJTABLE::compressUnitCell(string& sUnit, string& sCell)
 	string cell = sCell;
 	size_t pos1 = sUnit.find('$');
 	if (pos1 < sUnit.size()) {
-		jstr.clean(cell, dirt, soap);
+		jf.clean(cell, dirt, soap);
 		length = cell.size();
 		while (length > 3) {
 			power *= 1000.0;
@@ -478,11 +478,11 @@ void WJTABLE::headerSelect(int iCol)
 		wBox->setPadding(6.0, Wt::Side::Left);
 	}
 }
-void WJTABLE::init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop)
+void WJTABLE::init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop, string& configXML)
 {
 	// vsNamePop has form [sRegion, sRegionPopulation, sUnitPreference]. sUnitPreference can
 	// be "# of persons" or "% of population", and is used if a cell does not have a unit.
-	initValues();
+	initValues(configXML);
 	try {
 		regionPopulation = stod(vsNamePop[1]);
 	}
@@ -504,7 +504,8 @@ void WJTABLE::initBlank()
 {
 	// For the server object.
 	vector<vector<string>> vvsDummy = { {"0", "1"}};
-	initValues();
+	string sDummy = "";
+	initValues(sDummy);
 	initModel(1, 2);
 	modelSetTopLeft(vvsDummy[0][0]);
 	modelSetTop(vvsDummy);
@@ -535,7 +536,7 @@ void WJTABLE::initModel(int numRow, int numCol)
 		else { setColumnWidth(ii, 170.0); }
 	}
 }
-void WJTABLE::initValues()
+void WJTABLE::initValues(string& configXML)
 {
 	// WColors used.
 	wcSelectedWeak.setRgb(200, 200, 255);
@@ -555,24 +556,26 @@ void WJTABLE::initValues()
 	wbSelected = Wt::WBorder(Wt::BorderStyle::Inset, Wt::BorderWidth::Medium, wcSelectedStrong);
 
 	// Populate string list sets.
-	setUnitBreaker.emplace(" ");
-	setUnitBreaker.emplace("GIS");  // Guaranteed Income Supplement
-	setUnitBreaker.emplace("TFSAs");
-	setUnitBreaker.emplace("RRSPs");
-	setUnitBreaker.emplace("RPPs");  // Registered Pension Plans
-
-	setUnitPercent.emplace("Percentage ");
-	setUnitPercent.emplace(" percentage");
-	setUnitPercent.emplace("Rate ");
-	setUnitPercent.emplace(" rate");
-
-	setUnitDollar1.emplace("Income ");
-	setUnitDollar1.emplace(" income");
-
-	setUnitDollar2.emplace("Median ");
-	setUnitDollar2.emplace(" median");
-	setUnitDollar2.emplace("Average ");
-	setUnitDollar2.emplace(" average");
+	vector<string> vsTag = { "set", "unit_breaker" };
+	vector<vector<string>> vvsTag = jf.getXML(configXML, vsTag);
+	for (int ii = 0; ii < vvsTag.size(); ii++) {
+		setUnitBreaker.emplace(vvsTag[ii][1]);
+	}
+	vsTag[1] = "unit_dollar1";
+	vvsTag = jf.getXML(configXML, vsTag);
+	for (int ii = 0; ii < vvsTag.size(); ii++) {
+		setUnitDollar1.emplace(vvsTag[ii][1]);
+	}
+	vsTag[1] = "unit_dollar2";
+	vvsTag = jf.getXML(configXML, vsTag);
+	for (int ii = 0; ii < vvsTag.size(); ii++) {
+		setUnitDollar2.emplace(vvsTag[ii][1]);
+	}
+	vsTag[1] = "unit_percent";
+	vvsTag = jf.getXML(configXML, vsTag);
+	for (int ii = 0; ii < vvsTag.size(); ii++) {
+		setUnitPercent.emplace(vvsTag[ii][1]);
+	}
 
 	mapPrefixNumber.emplace(1, "");
 	mapPrefixNumber.emplace(1000, "Thousand");
@@ -692,30 +695,24 @@ void WJTABLE::setColUnit(string& colHeader, int index)
 	// Map non-default units by index. 
 	string unit, temp;
 	size_t pos1, pos2;
-	if (colHeader.back() == ')')
-	{
+	if (colHeader.back() == ')') {
 		pos2 = colHeader.size() - 1;
 		pos1 = colHeader.rfind('(') + 1;
 		unit = colHeader.substr(pos1, pos2 - pos1);
 		pos1 = unit.find(' ');
-		if (pos1 < unit.size()) { return; }
-		if (setUnitBreaker.count(unit)) { return; }
-		else { mapColUnit.emplace(index, unit); }
-	}
-	else
-	{
-		unit = getUnitParser(colHeader);
-		if (unit.size() > 0) { 
-			mapColUnit.emplace(index, unit); 
-		}
-		else if (sUnitPreference == "% of population") {
-			setItemDelegateForColumn(index, wjsDel);
-		}
-		else {
-			setItemDelegateForColumn(index, wjDel);
+		if (!setUnitBreaker.count(unit)) { 
+			mapColUnit.emplace(index, unit);
+			return; 
 		}
 	}
-	return;
+	unit = getUnitParser(colHeader);
+	if (unit.size() > 0) {
+		mapColUnit.emplace(index, unit);
+	}
+	else if (sUnitPreference == "% of population") {
+		setItemDelegateForColumn(index, wjsDel);
+	}
+	else { setItemDelegateForColumn(index, wjDel); }
 }
 void WJTABLE::setProperty(Wt::WWidget* widget, string property, string value)
 {
@@ -1054,7 +1051,7 @@ WJTABLE* WJTABLEBOX::setTable(vector<vector<string>>& core, vector<vector<string
 	vvsCol = col;
 	vvsRow = row;
 	sRegion = vsNamePop[0];
-	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, vsNamePop);
+	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, vsNamePop, configXML);
 	wjTable = boxTable->addWidget(move(tableUnique));
 	return wjTable;
 }
@@ -1110,7 +1107,7 @@ WJTABLE* WJTABLEBOX::updateTable(vector<string>& vsNamePop, vector<int>& rowColS
 	if (vsNamePop[0] != sRegion) { err("Region mismatch-wjtablebox.updateTable"); }
 	rowColSel = wjTable->getRowColSel();
 	if (boxTable != nullptr) { boxTable->clear(); }
-	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, vsNamePop);
+	auto tableUnique = make_unique<WJTABLE>(vvsCore, vvsCol, vvsRow, vsNamePop, configXML);
 	wjTable = boxTable->addWidget(move(tableUnique));
 	wjTable->setMaximumSize(wlTableWidth, wlTableHeight);
 	auto app = Wt::WApplication::instance();

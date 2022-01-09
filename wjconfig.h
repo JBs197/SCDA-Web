@@ -4,7 +4,8 @@
 #include <Wt/WCssDecorationStyle.h>
 #include <Wt/WStackedWidget.h>
 #include <Wt/WTree.h>
-#include <Wt/WTreeNode.h>
+#include <Wt/WTreeTable.h>
+#include <Wt/WTreeTableNode.h>
 #include <Wt/WPushButton.h>
 #include <Wt/WVBoxLayout.h>
 #include <Wt/WHBoxLayout.h>
@@ -38,9 +39,8 @@ struct WJPANEL : public Wt::WPanel
 	string selMID = "";
 	Wt::WStackedWidget *stackedPB = nullptr;
 	Wt::WText *textMID = nullptr;
-	Wt::WTree *treeDialog = nullptr;
-	Wt::WTreeNode *treeNodeSel = nullptr;
-	vector<int> viFilter;                   // JTREE indices of permitted items.
+	Wt::WTreeTable* treeDialog = nullptr;
+	Wt::WTreeTableNode* treeNodeSel = nullptr;
 	vector<string> vsTitle, vsMID;
 	Wt::WColor wcBorder, wcGrey, wcOffWhite, wcSelectedWeak, wcWhite;
 	Wt::WBorder wbDefaultCB, wbThick;
@@ -55,18 +55,17 @@ struct WJPANEL : public Wt::WPanel
 	void dialogMIDToggle(int stackedIndex);
 	Wt::Signal<string>& dialogOpenSignal() { return dialogOpenSignal_; }
 	Wt::Signal<>& filterSignal() { return filterSignal_; }
-	int getIndexMID(int mode);
+	int getIndexMID();
 	vector<string> getTextLegend();
 	void highlight(int widgetIndex);
 	void init();
 	void initStackedPB(Wt::WLink wlClosed, Wt::WLink wlOpened);
 	void panelClicked() { jf.timerStart(); }
-	void populateTree(JTREE& jt, int parentID, Wt::WTreeNode*& parentNode, int selectedID = -1);
+	void populateTree(JTREE& jt, int parentID, Wt::WTreeTableNode*& parentNode, int selectedID = -1);
 	void resetMapIndex();
 	void setCB(vector<string>& vsList);
 	void setCB(vector<string>& vsList, int iActive);
 	void setCB(vector<string>& vsList, string sActive);
-	void setFilter(vector<int>& viFilter);
 	void setIndexMID(int indexMID);
 	void setTextMID(string sMID);
 	void setTree(vector<string>& vsList);
@@ -137,7 +136,6 @@ public:
 	vector<string> getDemo();
 	vector<vector<string>> getDemoSplit();
 	vector<vector<string>> getDemoSplit(vector<string>& vsDemo);
-	vector<vector<int>> getFilterTable();
 	void getPrompt(vector<string>& vsP);
 	void getPrompt(vector<string>& vsP, vector<vector<string>>& vvsP);
 	void getPrompt(string& sP, vector<vector<string>>& vvsP1, vector<vector<string>>& vvsP2);

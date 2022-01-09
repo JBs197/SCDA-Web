@@ -63,6 +63,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	WJLEGEND* wjlMap = nullptr;
 	WJTABLE* tableData = nullptr;
 	WJTABLEBOX* wjTableBox = nullptr;
+	WJTREE* wjTree = nullptr;
 	WJUNITPIN wjUnitPin;
 	WTPAINT* wtMap = nullptr;
 
@@ -75,7 +76,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WStackedWidget* stackedTabData;
 	Wt::WTabWidget* tabData;
 	Wt::WText *textTable;
-	Wt::WTree *treeDialog, *treeRegion;
+	Wt::WTreeTable* treeDialog;
 	Wt::WTreeNode *treeNodeSel;
 	unique_ptr<Wt::WDialog> wdBlock = nullptr;
 
@@ -84,22 +85,28 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void cleanUnit(string& unit);
 	void connect();
 	void err(string message);
+	
 	int getHeight();
 	string getUnit();
 	int getWidth();
+	
 	void incomingHeaderSignal(const int& iRow, const int& iCol);
 	void incomingPreviewSignal(const int& type);
 	void incomingPullSignal(const int& pullType);
 	void incomingResetSignal(const int& resetType);
 	void incomingVarSignal();
+	
 	void init();
 	void initMaps();
 	void initUI();
+	
 	unique_ptr<Wt::WContainerWidget> makeBoxData();
 	unsigned makeParamChecksum(vector<vector<string>>& vvsParameter);
 	void mapAreaClicked(int areaIndex);
+	
 	void populateTextLegend(WJLEGEND*& wjLegend);
-	void populateTree(JTREE& jt, Wt::WTreeNode*& node);
+	void populateTree(JTREE& jt, int parentID, Wt::WTreeTableNode*& parentNode);
+	
 	void processDataEvent(const DataEvent& event);
 	void processEventCatalogue(string sYear, string sCata);
 	void processEventCategory(vector<string> vsCategory);
@@ -111,32 +118,38 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow);
 	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
 	void processEventTree();
+	
 	void resetBarGraph();
 	void resetDownload();
 	void resetMap();
 	void resetTabAll();
 	void resetTable();
 	void resetTree();
+	
 	void seriesAddToGraph(int mode);
 	void seriesRemoveFromGraph(const int& seriesIndex);
+	
 	void setMap(int iRow, int iCol, string sRegion);
 	void setTable(int geoCode, string sRegion);
 	void setTipAdd(const string& sTip) { setTip.emplace(sTip); }
+	
 	void tabChanged(const int& tabIndex);
 	void toggleMobile();
 	void treeClicked();
 	void treeClicked(int& geoCode, string& sRegion);
+	
 	void updateDownloadTab();
 	void updatePinButtons();
 	void updatePinButtons(int mode);
 	void updateRegion(vector<string> vsNamePop);
 	void updateTextCata(int numCata);
 	void updateUnit(string sUnit);
+	
 	void widgetMobile();
 
 public:
-	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver), jsInfo(this, "jsInfo", 1), jsTWidth(this, "jsTWidth", 1)
-	{ 
+	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver), 
+		jsInfo(this, "jsInfo", 1), jsTWidth(this, "jsTWidth", 1) { 
 		this->setId("SCDAwidget");
 		init();
 	}

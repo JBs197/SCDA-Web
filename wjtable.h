@@ -129,7 +129,6 @@ class WJTABLE : public Wt::WTableView
 	Wt::Signal<int, int> headerSignal_;
 	const double heightCell = 68.0;
 	const double heightHeader = 68.0;
-	JSTRING jstr;
 	mutex m_time;
 	double regionPopulation;
 	string scSelectedWeak, scSelectedStrong, scWhite;
@@ -146,10 +145,10 @@ class WJTABLE : public Wt::WTableView
 	void err(string message);
 
 public:
-	WJTABLE(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop)
+	WJTABLE(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop, string& configXML)
 		: Wt::WTableView() {
 		setRowHeaderCount(1); 
-		init(vvsCore, vvsCol, vvsRow, vsNamePop);
+		init(vvsCore, vvsCol, vvsRow, vsNamePop, configXML);
 	}
 	WJTABLE() : Wt::WTableView() {
 		setRowHeaderCount(1);
@@ -188,10 +187,10 @@ public:
 	string getUnit(string header);
 	string getUnitParser(string header);
 	void headerSelect(int iCol);
-	void init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop);
+	void init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop, string& configXML);
 	void initBlank();
 	void initModel(int numRow, int numCol);
-	void initValues();
+	void initValues(string& configXML);
 	void modelSetCore(vector<vector<string>>& vvsCore);
 	void modelSetLeft(vector<vector<string>>& vvsRow);
 	void modelSetTop(vector<vector<string>>& vvsCol);
@@ -229,6 +228,7 @@ public:
 	WJTABLEBOX() : Wt::WContainerWidget() { init(); }
 	~WJTABLEBOX() {}
 
+	string configXML;
 	JFUNC jf;
 	Wt::WLink linkIconClose = Wt::WLink();
 	Wt::WPushButton *pbFilterCol, *pbFilterRow, *pbPinCol, *pbPinRow, *pbPinReset, *pbUnit;

@@ -225,6 +225,7 @@ int SCDAserver::init(string sessionID)
 	if (index != wjTable.size()) { err("Shared pointer size mismatch-SCDAserver.init"); }
 	wtPaint.push_back(make_shared<WTPAINT>());
 	wjTable.push_back(make_shared<WJTABLE>());
+	wjTable[index]->initValues(configXML);
 	mapClientIndex.emplace(sessionID, index);
 	return index;
 }
@@ -1534,6 +1535,31 @@ void SCDAserver::log(vector<string> vsColumn)
 	// NOTE: UNFINISHED !
 
 }
+void SCDAserver::makeTreeGeo(JTREE& jt, vector<vector<string>>& geo)
+{
+	// geo should have form
+	// [region index][GEO_CODE, sRegion, GEO_LEVEL, Ancestor0, Ancestor1, ...]
+	unordered_map<string, int> mapGCID;
+	string sParent;
+	int parentID;
+	JNODE jnRoot = jt.getRoot();
+	int numRegion = (int)geo.size();
+	for (int ii = 0; ii < numRegion; ii++) {
+		JNODE jn(3);
+		mapGCID.emplace(geo[ii][0], jn.ID);
+		jn.vsData[0] = geo[ii][1];
+		jn.vsData[1] = geo[ii][0];
+		jn.vsData[2] = geo[ii][2];
+		if (geo[ii].size() < 4) {  // Parent is root.
+			jt.addChild(jnRoot.ID, jn);
+		}
+		else {
+			sParent = geo[ii].back();
+			parentID = mapGCID.at(sParent);
+			jt.addChild(parentID, jn);
+		}
+	}
+}
 void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 {
 	string temp;
@@ -1848,10 +1874,11 @@ void SCDAserver::pullTree(vector<string> prompt)
 	string tempYear = prompt[1];
 	prompt[1] = getYear(tempYear, prompt[2]);
 
-	JTREE jt;
+
 	vector<vector<string>> geo = getGeo(prompt[1], prompt[2]);
 	jf.removeBlanks(geo);
-	//jt.inputTreeDB(geo); FIX
+	JTREE jt;
+	makeTreeGeo(jt, geo);
 	postDataEvent(DataEvent(DataEvent::Tree, prompt[0], jt), prompt[0]);
 }
 void SCDAserver::pullVariable(vector<string> prompt, vector<vector<string>> vvsFixed)

@@ -107,11 +107,10 @@ void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
 	// Update the CB widgets or the data table's selected cell, then load a map. 
 	string sRegion = tableData->getCell(-1, 0);
 	int iRowSel, iColSel;
-	if (timeConfig < timeTable)  // CB values override table values. 
-	{
-		if (iRow < 0) { iRowSel = wjConfig->wjpTopicRow->getIndexMID(1); }
+	if (timeConfig < timeTable) {  // CB values override table values.
+		if (iRow < 0) { iRowSel = wjConfig->wjpTopicRow->getIndexMID(); }
 		else { iRowSel = iRow; }
-		if (iCol < 0) { iColSel = wjConfig->wjpTopicCol->getIndexMID(1); }
+		if (iCol < 0) { iColSel = wjConfig->wjpTopicCol->getIndexMID(); }
 		else { iColSel = iCol; }
 		tableData->cellSelect(iRowSel, iColSel + 1);
 		setMap(iRowSel, iColSel, sRegion);
@@ -124,9 +123,8 @@ void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
 			wjConfig->wjpTopicCol->setIndexMID(iCol - 1); 
 			setMap(iRow, iCol - 1, sRegion);
 		}
-		else  // A row header was clicked. 
-		{
-			iColSel = wjConfig->wjpTopicCol->getIndexMID(1);
+		else {  // A row header was clicked. 
+			iColSel = wjConfig->wjpTopicCol->getIndexMID();
 			setMap(iRow, iColSel, sRegion);
 		}
 	}
@@ -339,7 +337,6 @@ void SCDAwidget::initUI()
 	// Widget names.
 	boxData->setObjectName("boxData");
 	tabData->setObjectName("tabData");
-	treeRegion->setObjectName("treeRegion");
 
 	// Initial values for box sizes.
 	boxData->setMaximumSize(screenWidth - 470, wlAuto);
@@ -360,7 +357,7 @@ void SCDAwidget::initUI()
 
 	// Initial values for the region tree widget.
 	auto fnTree = std::bind(static_cast<void(SCDAwidget::*)(void)>(&SCDAwidget::treeClicked), this);
-	treeRegion->itemSelectionChanged().connect(fnTree);
+	wjTree->treeRegion->tree()->itemSelectionChanged().connect(fnTree);
 }
 
 shared_ptr<Wt::WMemoryResource> SCDAwidget::loadCSS(vector<unsigned char>& binCSS)
@@ -377,6 +374,7 @@ shared_ptr<Wt::WMemoryResource> SCDAwidget::loadIcon(vector<unsigned char>& binI
 	icon->setData(&binIcon[0], binSize);
 	return icon;
 }
+
 unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 {
 	auto boxDataUnique = make_unique<Wt::WContainerWidget>();
@@ -386,12 +384,13 @@ unique_ptr<Wt::WContainerWidget> SCDAwidget::makeBoxData()
 	auto tabDataUnique = make_unique<Wt::WTabWidget>();
 	tabData = tabDataUnique.get();
 
-	auto treeRegionUnique = make_unique<Wt::WTree>();
-	treeRegion = treeRegionUnique.get();
-	tabData->addTab(move(treeRegionUnique), "Geographic Region", Wt::ContentLoading::Eager);
+	auto wjTreeUnique = make_unique<WJTREE>(screenWidth - 485, screenHeight - 130);
+	wjTree = wjTreeUnique.get();
+	tabData->addTab(move(wjTreeUnique), "Geographic Region", Wt::ContentLoading::Eager);
 
 	auto wjBoxTableUnique = make_unique<WJTABLEBOX>();
 	wjTableBox = wjBoxTableUnique.get();
+	wjTableBox->configXML = sRef.configXML;
 	tabData->addTab(move(wjBoxTableUnique), "Data Table", Wt::ContentLoading::Eager);
 
 	auto wjMapUnique = make_unique<WJMAP>();
@@ -437,7 +436,7 @@ void SCDAwidget::mapAreaClicked(int areaIndex)
 		sID = jn.vsData[1];
 	}
 	else {
-		auto selSet = treeRegion->selectedNodes();
+		auto selSet = wjTree->treeRegion->tree()->selectedNodes();
 		if (selSet.size() < 1) { return; }
 		auto selIt = selSet.begin();
 		auto selNode = *selIt;
@@ -449,8 +448,8 @@ void SCDAwidget::mapAreaClicked(int areaIndex)
 		if (jnParent.vsData.size() < 2) { err("Parent node has no sID-mapAreaClicked"); }
 		sID = jnParent.vsData[1];
 	}	
-	Wt::WTreeNode* nodeSel = (Wt::WTreeNode*)treeRegion->findById(sID);
-	if (!treeRegion->isSelected(nodeSel)) { treeRegion->select(nodeSel); }
+	Wt::WTreeNode* nodeSel = (Wt::WTreeNode*)wjTree->treeRegion->findById(sID);
+	if (!wjTree->treeRegion->tree()->isSelected(nodeSel)) { wjTree->treeRegion->tree()->select(nodeSel); }
 }
 void SCDAwidget::populateTextLegend(WJLEGEND*& wjLegend)
 {
@@ -460,26 +459,31 @@ void SCDAwidget::populateTextLegend(WJLEGEND*& wjLegend)
 	wjLegend->setColour(viChanged);
 	wjLegend->display(1);
 }
-void SCDAwidget::populateTree(JTREE& jt, Wt::WTreeNode*& node)
+void SCDAwidget::populateTree(JTREE& jt, int parentID, Wt::WTreeTableNode*& parentNode)
 {
 	// Recursive function that takes an existing node and makes its children.
-	// NOTE: This variant is meant for regions with unique names !
-	vector<int> viChildren, viID;
-	Wt::WString wTemp = node->label()->text();
-	string sNode = wTemp.toUTF8();
-	//if (jt.isExpanded(sNode)) { node->expand(); }
-	string sID = node->id();
-	viID = jt.searchData(sID, 1);
-	if (viID.size() != 1) { err("Failed to determine node ID-populateTree"); }
-	viChildren = jt.getChildrenID(viID[0]);
-	for (int ii = 0; ii < viChildren.size(); ii++) {
-		JNODE jn = jt.getNode(viChildren[0]);
-		if (jn.vsData.size() < 2) { err("Child node is missing sID-populateTree"); }
-		wTemp = Wt::WString::fromUTF8(jn.vsData[1]);
-		auto childUnique = make_unique<Wt::WTreeNode>(wTemp);
-		auto child = childUnique.get();
-		populateTree(jt, child);
-		node->addChildNode(move(childUnique));
+	Wt::WTreeTableNode* child = nullptr;
+	unique_ptr<Wt::WText> text = nullptr;
+	int numCol;
+	vector<int> childrenID = jt.getChildrenID(parentID);
+	int numChildren = (int)childrenID.size();
+	if (numChildren < 1) { return; }
+	for (int ii = 0; ii < numChildren; ii++) {
+		JNODE jn = jt.getNode(childrenID[ii]);
+		numCol = (int)jn.vsData.size();
+
+		auto childUnique = make_unique<Wt::WTreeTableNode>(jn.vsData[0]);
+		child = childUnique.get();
+		parentNode->addChildNode(move(childUnique));
+
+		if (jn.expanded) { child->expand(); }
+		for (int jj = 1; jj < numCol; jj++) {
+			text = make_unique<Wt::WText>(jn.vsData[jj]);
+			text->setHidden(1);
+			child->setColumnWidget(jj, move(text));
+		}
+
+		populateTree(jt, childrenID[ii], child);
 	}
 }
 
@@ -857,21 +861,29 @@ void SCDAwidget::processEventTopic(vector<string> vsRowTopic, vector<string> vsC
 }
 void SCDAwidget::processEventTree()
 {
+	// Each WTreeTable node will have column values [sRegion, GEO_CODE, GEO_LEVEL].
+
 	string sRoot;
 	JNODE jnRoot = jtRegion.getRoot();
 	if (jnRoot.vsData.size() > 0) { sRoot = jnRoot.vsData[0]; }
 	else { sRoot = " "; }
-	Wt::WString wTemp = Wt::WString::fromUTF8(sRoot);
-	auto treeRootUnique = make_unique<Wt::WTreeNode>(wTemp);
+	Wt::WString wsTemp = Wt::WString::fromUTF8(sRoot);
+	auto treeRootUnique = make_unique<Wt::WTreeTableNode>(wsTemp);
 	treeRootUnique->setLoadPolicy(Wt::ContentLoading::Eager);
+	treeRootUnique->setNodeVisible(0);
 	auto treeRoot = treeRootUnique.get();
-	populateTree(jtRegion, treeRoot);
-	treeRegion->setSelectionMode(Wt::SelectionMode::Single);
-	treeRegion->setTreeRoot(move(treeRootUnique));
+	wjTree->treeRegion->setTreeRoot(move(treeRootUnique), " ");
+	populateTree(jtRegion, jnRoot.ID, treeRoot);
 	tabData->setTabEnabled(0, 1);
-	treeRoot = treeRegion->treeRoot();
+	treeRoot = wjTree->treeRegion->treeRoot();
 	treeRoot->expand();
-	treeRegion->select(treeRoot);
+	vector<Wt::WTreeNode*> vChildren = treeRoot->childNodes();
+	int numChildren = (int)vChildren.size();
+	if (numChildren < 1) { err("Root has no children-processEventTree"); }
+	for (int ii = 0; ii < numChildren; ii++) {
+		vChildren[ii]->expand();
+	}
+	wjTree->treeRegion->tree()->select(vChildren[0]);
 }
 
 void SCDAwidget::resetBarGraph()
@@ -916,7 +928,12 @@ void SCDAwidget::resetTable()
 void SCDAwidget::resetTree()
 {
 	jtRegion.reset();
-	treeRegion->setTreeRoot(make_unique<Wt::WTreeNode>(""));
+	Wt::WTreeTableNode* treeRoot = wjTree->treeRegion->treeRoot();
+	if (treeRoot == nullptr) { return; }
+	vector<Wt::WTreeNode*> vTreeNode = treeRoot->childNodes();
+	for (int ii = vTreeNode.size() - 1; ii >= 0; ii--) {
+		treeRoot->removeChildNode(vTreeNode[ii]);
+	}
 }
 
 void SCDAwidget::seriesAddToGraph(int mode)
@@ -1174,7 +1191,7 @@ void SCDAwidget::toggleMobile()
 void SCDAwidget::treeClicked()
 {
 	// This variant automatically launches a new table pull.
-	auto selSet = treeRegion->selectedNodes();
+	auto selSet = wjTree->treeRegion->tree()->selectedNodes();
 	if (selSet.size() < 1) { return; }
 	auto selIt = selSet.begin();
 	auto selNode = *selIt;
@@ -1189,7 +1206,7 @@ void SCDAwidget::treeClicked()
 void SCDAwidget::treeClicked(int& geoCode, string& sRegion)
 {
 	// This variant simply returns the geoCode and name of the selected region. 
-	auto selSet = treeRegion->selectedNodes();
+	auto selSet = wjTree->treeRegion->tree()->selectedNodes();
 	if (selSet.size() < 1) { return; }
 	auto selIt = selSet.begin();
 	auto selNode = *selIt;

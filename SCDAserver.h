@@ -7,8 +7,6 @@
 #include <Wt/WMeasurePaintDevice.h>
 #include <Wt/WMemoryResource.h>
 #include <Wt/WTime.h>
-#include <Wt/WTree.h>
-#include <Wt/WTreeNode.h>
 #include <functional>
 #include "jcrc32.h"
 #include "jscalebar.h"
@@ -21,6 +19,7 @@
 #include "wjdrag.h"
 #include "wjmap.h"
 #include "wjtable.h"
+#include "wjtree.h"
 #include "wtpaint.h"
 
 using namespace std;
@@ -131,6 +130,7 @@ public:
 	class User {};
 
 	const double cellMargin = 4.0;  // Unit of pixels, applied vertically and horizontally.
+	string configXML;
 	Wt::WFont wfTable = Wt::WFont();
 	JFUNC jf;
 
@@ -167,7 +167,10 @@ public:
 	string getUnit(int clientIndex, string sYear, string sCata, string sDimMID);
 	vector<string> getYear(string sYear);
 	string getYear(string sYear, string sCata);
+	
 	void log(vector<string> vsColumn);
+	void makeTreeGeo(JTREE& jt, vector<vector<string>>& geo);
+	
 	void pullCategory(vector<string> prompt);
 	void pullConnection(string sessionID);
 	void pullDifferentiator(string prompt, vector<vector<string>> vvsCata, vector<vector<string>> vvsDiff);
