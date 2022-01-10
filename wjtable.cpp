@@ -783,7 +783,7 @@ void WJTABLE::setRowUnit(string& rowHeader, int index)
 void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent)
 {
 	// Triggered in response to a user click.
-	if (!wmIndex.isValid()) { err("Invalid index from table click-wjtable.tableClicked"); }
+	if (!wmIndex.isValid()) { return; }
 	jf.timerStart();
 	cellSelect(wmIndex);
 	int iRow = wmIndex.row();

@@ -38,7 +38,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	JCRC32 jcrc;
 	JFUNC jf;
 	bool jsEnabled = 0;
-	JTREE jtRegion, jtWidget;
 	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
 	unordered_map<int, string> mapTimeWord;  // word index -> word  (shown in init).
 	unordered_map<string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
@@ -105,7 +104,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void mapAreaClicked(int areaIndex);
 	
 	void populateTextLegend(WJLEGEND*& wjLegend);
-	void populateTree(JTREE& jt, int parentID, Wt::WTreeTableNode*& parentNode);
+	void populateTree(JTREE& jt, int parentID, Wt::WTreeNode*& parentNode);
 	
 	void processDataEvent(const DataEvent& event);
 	void processEventCatalogue(string sYear, string sCata);
@@ -136,7 +135,7 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void tabChanged(const int& tabIndex);
 	void toggleMobile();
 	void treeClicked();
-	void treeClicked(int& geoCode, string& sRegion);
+	void getTreeClicked(int& geoCode, string& sRegion);
 	
 	void updateDownloadTab();
 	void updatePinButtons();

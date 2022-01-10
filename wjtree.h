@@ -1,10 +1,10 @@
 #pragma once
 #include <Wt/WContainerWidget.h>
 #include <Wt/WTree.h>
-#include <Wt/WTreeTable.h>
-#include <Wt/WTreeTableNode.h>
+#include <Wt/WTreeNode.h>
 #include <Wt/WVBoxLayout.h>
 #include "jfunc.h"
+#include "jtree.h"
 
 using namespace std;
 
@@ -20,5 +20,8 @@ public:
 	WJTREE(int width, int height) { init(width, height); }
 	~WJTREE() override {}
 
-	Wt::WTreeTable* treeRegion = nullptr;
+	JTREE jt;
+	Wt::WTree* tree = nullptr;
+
+	Wt::WTreeNode* findNode(int jtreeID);
 };
