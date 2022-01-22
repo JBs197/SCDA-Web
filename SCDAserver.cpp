@@ -1522,7 +1522,7 @@ void SCDAserver::log(vector<string> vsColumn)
 			{"Region", "TEXT"} };
 		sfLog.createTable(tname, vvsColTitle); 
 	}
-	else { vvsColTitle = sfLog.getColTitles(tname); }
+	else { vvsColTitle = sfLog.getColTitle(tname); }
 
 	auto time = dateTime.time();
 	int hour = time.hour();

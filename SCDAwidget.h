@@ -42,7 +42,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	unordered_map<int, string> mapTimeWord;  // word index -> word  (shown in init).
 	unordered_map<string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
 	unordered_map<string, string> mapUnit;  // ambiguous unit -> definitive unit
-	bool mobile = 0;
 	const int num_filters = 3;
 	int screenWidth, screenHeight;         // Unit of pixels, measured from the client. 
 	Wt::WString selectedRegion, selectedFolder;
@@ -133,7 +132,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void setTipAdd(const string& sTip) { setTip.emplace(sTip); }
 	
 	void tabChanged(const int& tabIndex);
-	void toggleMobile();
 	void treeClicked();
 	void getTreeClicked(int& geoCode, string& sRegion);
 	
@@ -143,8 +141,6 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void updateRegion(vector<string> vsNamePop);
 	void updateTextCata(int numCata);
 	void updateUnit(string sUnit);
-	
-	void widgetMobile();
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver), 

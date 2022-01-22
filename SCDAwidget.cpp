@@ -15,7 +15,6 @@ void SCDAwidget::connect()
 	{
 		wjConfig->pullSignal().connect(this, bind(&SCDAwidget::incomingPullSignal, this, placeholders::_1));
 		wjConfig->resetSignal().connect(this, bind(&SCDAwidget::incomingResetSignal, this, placeholders::_1));
-		wjConfig->pbMobile->clicked().connect(this, &SCDAwidget::toggleMobile);
 		wjConfig->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
 		tabData->currentChanged().connect(this, bind(&SCDAwidget::tabChanged, this, placeholders::_1));
 		wjTableBox->pbPinRow->clicked().connect(this, bind(&SCDAwidget::seriesAddToGraph, this, 0));
@@ -274,8 +273,6 @@ void SCDAwidget::init()
 	connect();
 	initUI();
 	initMaps();
-	if (screenHeight > screenWidth) { toggleMobile(); }
-	else { widgetMobile(); }
 
 	auto app = Wt::WApplication::instance();
 
@@ -557,7 +554,6 @@ void SCDAwidget::processEventCategory(vector<string> vsCategory)
 	vsCategory.insert(vsCategory.begin(), "[Choose a topical category]");
 	wjConfig->wjpCategory->setCB(vsCategory);
 	wjConfig->wjpCategory->highlight(0);
-	wjConfig->setMobile(mobile);
 }
 void SCDAwidget::processEventConnection()
 {
@@ -706,7 +702,6 @@ void SCDAwidget::processEventParameter(vector<vector<vector<string>>> vvvsParame
 	wjConfig->removeDifferentiators();
 	wjConfig->wjpTopicCol->unhighlight(0);
 	wjConfig->wjpTopicRow->unhighlight(0);
-	widgetMobile();
 
 	// Given there are no more unspecified variables, populate the region tree tab.
 	Wt::WApplication* app = Wt::WApplication::instance();
@@ -758,8 +753,7 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<vect
 		vsNamePop.push_back("% of population");
 	}
 	tableData = wjTableBox->setTable(vvsTable, vvsCol, vvsRow, vsNamePop);
-	if (mobile) { wjTableBox->setTableSize(wlAuto, wlAuto); }
-	else { wjTableBox->setTableSize(wlTableWidth, wlTableHeight); }
+	wjTableBox->setTableSize(wlTableWidth, wlTableHeight);
 	tableData->headerSignal().connect(this, bind(&SCDAwidget::incomingHeaderSignal, this, placeholders::_1, placeholders::_2));
 
 	// Add a helper tip, if necessary.
@@ -1017,7 +1011,7 @@ void SCDAwidget::seriesAddToGraph(int mode)
 	wjBarGraph->addDataset(vvsData, vvsParameter);
 	wjBarGraph->display();
 
-	if (!mobile && !setTip.count("barGraphWheel"))
+	if (!setTip.count("barGraphWheel"))
 	{
 		wjBarGraph->tipSignal().connect(this, std::bind(&SCDAwidget::setTipAdd, this, std::placeholders::_1));
 		wjBarGraph->addTipWheel(1);
@@ -1150,38 +1144,6 @@ void SCDAwidget::tableReceiveString(const string& sInfo)
 	int bbq = 1;
 }
 
-void SCDAwidget::toggleMobile()
-{
-	if (mobile)
-	{
-		mobile = 0;
-		auto hLayout = make_unique<Wt::WHBoxLayout>();
-		auto wjConfigUnique = this->removeWidget(wjConfig);
-		auto boxDataUnique = this->removeWidget(boxData);
-		wjConfig = hLayout->addWidget(move(wjConfigUnique));
-		boxData = hLayout->addWidget(move(boxDataUnique));		
-		this->setLayout(move(hLayout));
-		wjConfig->setMaximumSize(300.0, wlAuto);
-		boxData->setMaximumSize(screenWidth - 480, wlAuto);
-		wjBarGraph->setMaximumSize(screenWidth - 490, wlAuto);
-		widgetMobile();
-	}
-	else
-	{
-		mobile = 1;
-		auto vLayout = make_unique<Wt::WVBoxLayout>();
-		auto wjConfigUnique = this->removeWidget(wjConfig);
-		auto boxDataUnique = this->removeWidget(boxData);
-		wjConfig = vLayout->addWidget(move(wjConfigUnique));
-		boxData = vLayout->addWidget(move(boxDataUnique));
-		this->setLayout(move(vLayout));
-		wjConfig->setMaximumSize(wlAuto, wlAuto);
-		boxData->setMaximumSize(wlAuto, wlAuto);
-		wjBarGraph->setMaximumSize(wlAuto, wlAuto);
-		widgetMobile();
-	}
-	wjConfig->setMobile(mobile);
-}
 void SCDAwidget::treeClicked()
 {
 	// This variant automatically launches a new table pull.
@@ -1197,7 +1159,6 @@ void SCDAwidget::treeClicked()
 	int geoCode = stoi(jn.vsData[1]);
 	setTable(geoCode, sRegion);
 }
-
 void SCDAwidget::getTreeClicked(int& geoCode, string& sRegion)
 {
 	// This variant simply returns the geoCode and name of the selected region. 
@@ -1429,56 +1390,4 @@ void SCDAwidget::updateUnit(string sUnit)
 		wjTableBox->popupUnit->select(0);
 		wjMap->popupUnit->select(0);
 	}
-}
-
-void SCDAwidget::widgetMobile()
-{
-	if (mobile)
-	{
-		for (int ii = 0; ii < allPB.size(); ii++)
-		{
-			if (allPB[ii] != nullptr)
-			{
-				allPB[ii]->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-				allPB[ii]->setMinimumSize(wlAuto, 50.0);
-			}
-		}
-		if (tabData != nullptr)
-		{
-			tabData->decorationStyle().font().setSize(Wt::FontSize::XLarge);
-			tabData->setMinimumSize(wlAuto, 1400.0);
-			tabData->setOverflow(Wt::Overflow::Auto);
-		}
-	}
-	else
-	{
-		for (int ii = 0; ii < allPB.size(); ii++)
-		{
-			if (allPB[ii] != nullptr)
-			{
-				allPB[ii]->decorationStyle().font().setSize(Wt::FontSize::Medium);
-				allPB[ii]->setMinimumSize(wlAuto, wlAuto);
-			}
-		}
-		if (tabData != nullptr)
-		{
-			tabData->decorationStyle().font().setSize(Wt::FontSize::Medium);
-			tabData->setMinimumSize(wlAuto, wlAuto);
-			tabData->setOverflow(Wt::Overflow::Hidden);
-		}
-		wlTableWidth = Wt::WLength(screenWidth - 515);
-	}
-	wjConfig->widgetMobile(mobile);
-	wjTableBox->widgetMobile(mobile);
-	wjMap->widgetMobile(mobile);
-	wjBarGraph->widgetMobile(mobile);
-	wjDownload->widgetMobile(mobile);
-	vector<int> vTabEnabled;
-	vTabEnabled.assign(3, 0);
-	if (tabData->isTabEnabled(2)) { 
-		vTabEnabled[1] = 1; 
-		vTabEnabled[2] = 1;
-	}
-	if (tabData->isTabEnabled(3)) { vTabEnabled[0] = 1; }
-	wjDownload->setRadioEnabled(vTabEnabled);
 }

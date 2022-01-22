@@ -54,14 +54,11 @@ void WJPANEL::dialogMID()
 	double dGuess = (double)maxLength * 10.0;
 
 	// Generate a tree-structured selection menu for the user to select a MID.
-	auto tree = make_unique<Wt::WTreeTable>();
+	auto tree = make_unique<Wt::WTree>();
 	treeDialog = tree.get();
-	for (int ii = 1; ii < numCol; ii++) {
-		tree->addColumn(" ", 0);
-	}
-	tree->tree()->setSelectionMode(Wt::SelectionMode::Single);
-	tree->tree()->itemSelectionChanged().connect(this, &WJPANEL::panelClicked);
-	tree->tree()->itemSelectionChanged().connect(this, &WJPANEL::dialogMIDEnd);
+	tree->setSelectionMode(Wt::SelectionMode::Single);
+	tree->itemSelectionChanged().connect(this, &WJPANEL::panelClicked);
+	tree->itemSelectionChanged().connect(this, &WJPANEL::dialogMIDEnd);
 	tree->setMinimumSize(dGuess, wlAuto);
 
 	auto wBox = wDialog->contents();
@@ -71,10 +68,10 @@ void WJPANEL::dialogMID()
 
 	// Generate an invisible tree root, and bind it to the tree.
 	Wt::WString wsTemp(" ");
-	auto treeRootUnique = make_unique<Wt::WTreeTableNode>(wsTemp);
-	Wt::WTreeTableNode* treeRoot = treeRootUnique.get();
-	treeDialog->setTreeRoot(move(treeRootUnique), " ");
-	treeRoot->setObjectName("Root");
+	auto treeRootUnique = make_unique<Wt::WTreeNode>(wsTemp);
+	Wt::WTreeNode* treeRoot = treeRootUnique.get();
+	treeDialog->setTreeRoot(move(treeRootUnique));
+	treeRoot->setObjectName(to_string(jnRoot.ID));
 	treeRoot->setLoadPolicy(Wt::ContentLoading::Eager);
 	treeRoot->setNodeVisible(0);
 	treeRoot->expand();
@@ -87,8 +84,7 @@ void WJPANEL::dialogMID()
 	int selTreeID = jtMID.selectedID;
 	populateTree(jtMID, jnRoot.ID, treeRoot, selTreeID);
 	if (treeNodeSel == nullptr) { err("Failed to locate previous tree node-wjpanel.dialogMID"); }
-	else { treeDialog->tree()->select(treeNodeSel); }
-
+	else { treeDialog->select(treeNodeSel); }
 
 	swap(wdTree, wDialog);
 	wdTree->show();
@@ -97,7 +93,7 @@ void WJPANEL::dialogMID()
 void WJPANEL::dialogMIDEnd()
 {
 	if (wdTree == nullptr) { return; }
-	auto selSet = treeDialog->tree()->selectedNodes();
+	auto selSet = treeDialog->selectedNodes();
 	if (selSet.size() < 1) { return; }
 	if (selSet.size() > 1) { err("Invalid selection-wjpanel.dialogMIDEnd"); }
 	auto selIt = selSet.begin();
@@ -280,7 +276,7 @@ void WJPANEL::initStackedPB(Wt::WLink wlClosed, Wt::WLink wlOpened)
 	styleOpened.setBackgroundImage(wlOpened, flags, Wt::Side::CenterX | Wt::Side::CenterY);
 	pbMIDopened->clicked().connect(this, std::bind(&WJPANEL::dialogMIDToggle, this, 1));
 }
-void WJPANEL::populateTree(JTREE& jt, int parentID, Wt::WTreeTableNode*& parentNode, int selectedID)
+void WJPANEL::populateTree(JTREE& jt, int parentID, Wt::WTreeNode*& parentNode, int selectedID)
 {
 	// Recursive function that takes an existing node and makes its children. If selectedID 
 	// is specified, then a pointer to the node with that ID will be saved.
@@ -288,7 +284,7 @@ void WJPANEL::populateTree(JTREE& jt, int parentID, Wt::WTreeTableNode*& parentN
 	Wt::WString wsTemp;
 	string sID;
 	int numCol;
-	Wt::WTreeTableNode* child = nullptr;
+	Wt::WTreeNode* child = nullptr;
 	vector<int> childrenID = jt.getChildrenID(parentID);
 	int numChildren = (int)childrenID.size();
 	for (int ii = 0; ii < numChildren; ii++) {
@@ -297,15 +293,11 @@ void WJPANEL::populateTree(JTREE& jt, int parentID, Wt::WTreeTableNode*& parentN
 		sID = to_string(jn.ID);
 
 		wsTemp = Wt::WString::fromUTF8(jn.vsData[0]);
-		auto childUnique = make_unique<Wt::WTreeTableNode>(wsTemp);
+		auto childUnique = make_unique<Wt::WTreeNode>(wsTemp);
 		child = childUnique.get();
 		parentNode->addChildNode(move(childUnique));
 		child->setObjectName(sID);
-		//child->setNodeVisible(1);
-		if (jn.expanded) { child->expand(); }
-		for (int jj = 1; jj < numCol; jj++) {
-			child->setColumnWidget(jj, make_unique<Wt::WText>(jn.vsData[jj]));
-		}				
+		if (jn.expanded) { child->expand(); }			
 		if (jn.ID == selectedID) { treeNodeSel = child; }
 
 		populateTree(jt, jn.ID, child, selectedID);
@@ -540,7 +532,6 @@ void WJCONFIG::addDemographic(vector<vector<string>>& vvsDemo)
 		wjpDemo->setHidden(1); 
 		demographicChanged();
 	}
-	widgetMobile(mobile);
 }
 void WJCONFIG::addDifferentiator(vector<string> vsDiff)
 {
@@ -576,7 +567,6 @@ void WJCONFIG::addDifferentiator(vector<string> vsDiff)
 
 	int numItem = vLayout->count();
 	vLayout->insertWidget(numItem - 1, move(wpUnique));
-	widgetMobile(mobile);
 }
 void WJCONFIG::addDifferentiator(vector<string> vsDiff, string sTitle)
 {
@@ -654,7 +644,6 @@ void WJCONFIG::addDifferentiator(vector<string> vsDiff, string sTitle)
 		unhighlightPanel(diffWP[index - 1], 1);
 		unhighlightPanel(diffWP[index - 1], 0);
 	}
-	widgetMobile(mobile);
 }
 void WJCONFIG::addVariable(string& sTitle, vector<vector<string>>& vvsMID)
 {
@@ -1034,15 +1023,16 @@ void WJCONFIG::init(vector<string> vsYear)
 	wcssHighlighted = wcssDefault;
 	wcssHighlighted.setBackgroundColor(wcSelectedWeak);
 
+	this->setMaximumSize(300.0, wlAuto);
+
 	// Insert the widgets into the layout.
 	auto layout = make_unique<Wt::WVBoxLayout>();
 	vLayout = layout.get();
-	auto pbMobileUnique = make_unique<Wt::WPushButton>("Toggle Mobile Version");
-	pbMobile = pbMobileUnique.get();
-	layout->addWidget(move(pbMobileUnique));
 	auto textCataUnique = make_unique<Wt::WText>();
 	textCata = textCataUnique.get();
 	layout->addWidget(move(textCataUnique));
+	textCata->setMinimumSize(wlAuto, wlAuto);
+	textCata->decorationStyle().font().setSize(Wt::FontSize::Medium);
 	unique_ptr<WJPANEL> year = makePanelYear(vsYear);
 	layout->addWidget(move(year));
 	unique_ptr<WJPANEL> category = makePanelCategory();
@@ -1053,8 +1043,6 @@ void WJCONFIG::init(vector<string> vsYear)
 	layout->addWidget(move(topicRow));
 	layout->addStretch(1);
 	this->setLayout(move(layout));
-
-	pbMobile->setEnabled(1);
 
 	// Connect signals to functions. 
 	string sID;
@@ -1182,11 +1170,6 @@ void WJCONFIG::resetVariables(int plus)
 		wjpDemo = nullptr;
 		vvsDemographic.clear();
 	}	
-}
-void WJCONFIG::setMobile(bool goMobile)
-{
-	mobile = goMobile;
-	widgetMobile(mobile);
 }
 void WJCONFIG::setPrompt(vector<string>& vsP)
 {
@@ -1375,53 +1358,3 @@ void WJCONFIG::varMIDClicked()
 {
 	jf.timerStart();
 }
-void WJCONFIG::widgetMobile(bool mobile)
-{
-	if (mobile)
-	{
-		setMaximumSize(wlAuto, wlAuto);
-		if (pbMobile != nullptr)
-		{
-			pbMobile->setMinimumSize(wlAuto, 50.0);
-			pbMobile->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-		}
-		if (textCata != nullptr)
-		{
-			textCata->setMinimumSize(wlAuto, 100.0);
-			textCata->decorationStyle().font().setSize(Wt::FontSize::XXLarge);
-		}
-	}
-	else
-	{
-		setMaximumSize(300.0, wlAuto);
-		if (pbMobile != nullptr)
-		{
-			pbMobile->setMinimumSize(wlAuto, wlAuto);
-			pbMobile->decorationStyle().font().setSize(Wt::FontSize::Medium);
-		}
-		if (textCata != nullptr)
-		{
-			textCata->setMinimumSize(wlAuto, wlAuto);
-			textCata->decorationStyle().font().setSize(Wt::FontSize::Medium);
-		}
-	}
-
-	for (int ii = 0; ii < basicWJP.size(); ii++)
-	{
-		if (basicWJP[ii] == nullptr) { continue; }
-		basicWJP[ii]->toggleMobile(mobile);
-	}
-	for (int ii = 0; ii < diffWP.size(); ii++)
-	{
-		if (diffWP[ii] == nullptr) { continue; }
-		toggleMobilePanel(diffWP[ii], mobile);
-	}
-	for (int ii = 0; ii < varWJP.size(); ii++)
-	{
-		if (varWJP[ii] == nullptr) { continue; }
-		if (varWJP[ii] == nullptr) { continue; }
-		varWJP[ii]->toggleMobile(mobile);
-	}
-	if (wjpDemo != nullptr) { wjpDemo->toggleMobile(mobile); }
-}
-
