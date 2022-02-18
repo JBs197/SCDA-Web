@@ -1,5 +1,7 @@
 #include "wjtree.h"
 
+using namespace std;
+
 void WJTREE::err(string message)
 {
 	string errorMessage = "WJTREE error:\n" + message;

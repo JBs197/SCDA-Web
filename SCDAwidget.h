@@ -20,34 +20,33 @@
 #include <Wt/WJavaScript.h>
 #include "SCDAserver.h"
 
-using namespace std;
-
 struct WJUNITPIN
 {
-	string activeRegion, activeUnit, sRegionPopulation;
+	std::string activeRegion, activeUnit, sRegionPopulation;
 	int regionPopulation = -1;
-	string sUnitPreference = "% of population";
+	std::string sUnitPreference = "% of population";
 	unsigned xChecksum;
 };
 
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 {
-	string activeCata;
+	std::string activeCata;
 	bool filtersEnabled = 0;
 	bool first = 1;
 	JCRC32 jcrc;
-	JFUNC jf;
 	bool jsEnabled = 0;
-	unordered_map<string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
-	unordered_map<int, string> mapTimeWord;  // word index -> word  (shown in init).
-	unordered_map<string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
-	unordered_map<string, string> mapUnit;  // ambiguous unit -> definitive unit
+	JSORT jsort;
+	JTIME jtime;
+	std::unordered_map<std::string, int> mapNumVar;  // sCata -> number of variables (excluding col/row)
+	std::unordered_map<int, std::string> mapTimeWord;  // word index -> word  (shown in init).
+	std::unordered_map<std::string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
+	std::unordered_map<std::string, std::string> mapUnit;  // ambiguous unit -> definitive unit
 	const int num_filters = 3;
 	int screenWidth, screenHeight;         // Unit of pixels, measured from the client. 
 	Wt::WString selectedRegion, selectedFolder;
-	string sessionID;
-	unordered_set<string> setTip;         // List of helpful tips which have been dismissed by the user.
-	vector<vector<string>> tableCol, tableCore, tableRow;
+	std::string sessionID;
+	std::unordered_set<std::string> setTip;         // List of helpful tips which have been dismissed by the user.
+	std::vector<std::vector<std::string>> tableCol, tableCore, tableRow;
 	int tableWidth, boxTableWidth;        // Used by JS functions.
 	int tabRecent = 0;
 	Wt::WCssDecorationStyle wcssAttention, wcssDefault, wcssHighlighted;
@@ -76,16 +75,16 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	Wt::WText *textTable;
 	Wt::WTreeTable* treeDialog;
 	Wt::WTreeNode *treeNodeSel;
-	unique_ptr<Wt::WDialog> wdBlock = nullptr;
+	std::unique_ptr<Wt::WDialog> wdBlock = nullptr;
 
-	vector<Wt::WPushButton*> allPB;
+	std::vector<Wt::WPushButton*> allPB;
 
-	void cleanUnit(string& unit);
+	void cleanUnit(std::string& unit);
 	void connect();
-	void err(string message);
+	void err(std::string message);
 	
 	int getHeight();
-	string getUnit();
+	std::string getUnit();
 	int getWidth();
 	
 	void incomingHeaderSignal(const int& iRow, const int& iCol);
@@ -98,23 +97,23 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void initMaps();
 	void initUI();
 	
-	unique_ptr<Wt::WContainerWidget> makeBoxData();
-	unsigned makeParamChecksum(vector<vector<string>>& vvsParameter);
+	std::unique_ptr<Wt::WContainerWidget> makeBoxData();
+	unsigned makeParamChecksum(std::vector<std::vector<std::string>>& vvsParameter);
 	void mapAreaClicked(int areaIndex);
 	
 	void populateTextLegend(WJLEGEND*& wjLegend);
 	void populateTree(JTREE& jt, int parentID, Wt::WTreeNode*& parentNode);
 	
 	void processDataEvent(const DataEvent& event);
-	void processEventCatalogue(string sYear, string sCata);
-	void processEventCategory(vector<string> vsCategory);
+	void processEventCatalogue(std::string sYear, std::string sCata);
+	void processEventCategory(std::vector<std::string> vsCategory);
 	void processEventConnection();
-	void processEventDemographic(vector<vector<string>> vvsDemo);
-	void processEventDifferentiation(vector<string> vsDiff, string sTitle);
-	void processEventMap(vector<string> vsRegion, vector<vector<vector<double>>> vvvdFrame, vector<vector<vector<double>>> vvvdArea, vector<vector<double>> vvdData);
-	void processEventParameter(vector<vector<vector<string>>> vvvsParameter, vector<vector<string>> vvsCata);
-	void processEventTable(vector<vector<string>>& vvsTable, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow);
-	void processEventTopic(vector<string> vsRowTopic, vector<string> vsColTopic);
+	void processEventDemographic(std::vector<std::vector<std::string>> vvsDemo);
+	void processEventDifferentiation(std::vector<std::string> vsDiff, std::string sTitle);
+	void processEventMap(std::vector<std::string> vsRegion, std::vector<std::vector<std::vector<double>>> vvvdFrame, std::vector<std::vector<std::vector<double>>> vvvdArea, std::vector<std::vector<double>> vvdData);
+	void processEventParameter(std::vector<std::vector<std::vector<std::string>>> vvvsParameter, std::vector<std::vector<std::string>> vvsCata);
+	void processEventTable(std::vector<std::vector<std::string>>& vvsTable, std::vector<std::vector<std::string>>& vvsCol, std::vector<std::vector<std::string>>& vvsRow);
+	void processEventTopic(std::vector<std::string> vsRowTopic, std::vector<std::string> vsColTopic);
 	void processEventTree();
 	
 	void resetBarGraph();
@@ -127,20 +126,20 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	void seriesAddToGraph(int mode);
 	void seriesRemoveFromGraph(const int& seriesIndex);
 	
-	void setMap(int iRow, int iCol, string sRegion);
-	void setTable(int geoCode, string sRegion);
-	void setTipAdd(const string& sTip) { setTip.emplace(sTip); }
+	void setMap(int iRow, int iCol, std::string sRegion);
+	void setTable(int geoCode, std::string sRegion);
+	void setTipAdd(const std::string& sTip) { setTip.emplace(sTip); }
 	
 	void tabChanged(const int& tabIndex);
 	void treeClicked();
-	void getTreeClicked(int& geoCode, string& sRegion);
+	void getTreeClicked(int& geoCode, std::string& sRegion);
 	
 	void updateDownloadTab();
 	void updatePinButtons();
 	void updatePinButtons(int mode);
-	void updateRegion(vector<string> vsNamePop);
+	void updateRegion(std::vector<std::string> vsNamePop);
 	void updateTextCata(int numCata);
-	void updateUnit(string sUnit);
+	void updateUnit(std::string sUnit);
 
 public:
 	SCDAwidget(SCDAserver& myserver) : WContainerWidget(), sRef(myserver), 
@@ -150,14 +149,14 @@ public:
 	}
 
 	void displayCata(const Wt::WKeyEvent& wKey);
-	shared_ptr<Wt::WMemoryResource> loadCSS(vector<unsigned char>& binCSS);
-	shared_ptr<Wt::WMemoryResource> loadIcon(vector<unsigned char>& binIcon);
+	std::shared_ptr<Wt::WMemoryResource> loadCSS(std::vector<unsigned char>& binCSS);
+	std::shared_ptr<Wt::WMemoryResource> loadIcon(std::vector<unsigned char>& binIcon);
 	void tableReceiveDouble(const double& width);
-	void tableReceiveString(const string& sInfo);
+	void tableReceiveString(const std::string& sInfo);
 
-	shared_ptr<Wt::WMemoryResource> cssTextPlain, cssTextShaded;
-	shared_ptr<Wt::WMemoryResource> iconChevronDown, iconChevronRight, iconClose, iconTrash;
-	Wt::JSignal<string> jsInfo;
+	std::shared_ptr<Wt::WMemoryResource> cssTextPlain, cssTextShaded;
+	std::shared_ptr<Wt::WMemoryResource> iconChevronDown, iconChevronRight, iconClose, iconTrash;
+	Wt::JSignal<std::string> jsInfo;
 	Wt::JSignal<double> jsTWidth;
 	
 	Wt::WLength wlAuto = Wt::WLength::Auto;

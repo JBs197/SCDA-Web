@@ -1,5 +1,7 @@
 #include "wjmap.h"
 
+using namespace std;
+
 void WJLEGEND::display(bool oddItalics)
 {
 	Wt::WContainerWidget::clear();

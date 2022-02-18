@@ -1,5 +1,7 @@
 #include "jpdftable.h"
 
+using namespace std;
+
 void JPDFTABLE::addColourBars(vector<vector<double>>& vColour, int iRow, int iCol)
 {
 	// Adds a list of colours to a single table cell.
@@ -55,11 +57,9 @@ void JPDFTABLE::drawColourBars(int barWidth)
 {
 	// Draw every cell's pre-loaded list of colours, as rectangles of cell height and given width.
 	double dWidth = (double)barWidth;
-	for (int ii = 0; ii < numCol; ii++)
-	{
-		for (int jj = 0; jj < numRow; jj++)
-		{
-			vvCell[jj][ii].drawCellBar(page, jf, dWidth);
+	for (int ii = 0; ii < numCol; ii++) {
+		for (int jj = 0; jj < numRow; jj++) {
+			vvCell[jj][ii].drawCellBar(page, dWidth);
 		}
 	}
 }
@@ -260,13 +260,11 @@ void JPDFTABLE::drawText(int index)
 	HPDF_STATUS error = HPDF_Page_SetRGBFill(page, 0.0, 0.0, 0.0);  // Black.
 	if (error != HPDF_OK) { err("SetRGBFill-jpdftable.drawText"); }
 	string text;
-	for (int ii = 0; ii < numCol; ii++)
-	{
-		for (int jj = 0; jj < numRow; jj++)
-		{
+	for (int ii = 0; ii < numCol; ii++) {
+		for (int jj = 0; jj < numRow; jj++) {
 			if (vvCell[jj][ii].vsText.size() > index) {
 				text = vvCell[jj][ii].vsText[index];
-				vvCell[jj][ii].drawCellTextPlain(page, jf, text);
+				vvCell[jj][ii].drawCellTextPlain(page, text);
 			}
 		}
 	}
@@ -277,11 +275,9 @@ void JPDFTABLE::drawTextList(int italicFreq, string separator)
 	// text is rendered using an italic font once per intalicFreq.
 	HPDF_STATUS error = HPDF_Page_SetRGBFill(page, 0.0, 0.0, 0.0);
 	if (error != HPDF_OK) { err("SetRGBFill-jpdftable.drawTextList"); }
-	for (int ii = 0; ii < numRow; ii++)
-	{
-		for (int jj = 0; jj < numCol; jj++)
-		{
-			vvCell[ii][jj].drawCellTextList(page, jf, italicFreq, separator);
+	for (int ii = 0; ii < numRow; ii++) {
+		for (int jj = 0; jj < numCol; jj++) {
+			vvCell[ii][jj].drawCellTextList(page, italicFreq, separator);
 		}
 	}
 }
@@ -312,9 +308,10 @@ void JPDFTABLE::initColour()
 	colourList[4] = { 150, 150, 192, 255 };  // SelectedStrong
 
 	colourListDouble.resize(colourList.size());
-	for (int ii = 0; ii < colourListDouble.size(); ii++)
-	{
-		colourListDouble[ii] = jf.rgbxToDouble(colourList[ii]);
+	for (int ii = 0; ii < colourListDouble.size(); ii++) {
+		for (int jj = 0; jj < colourListDouble[ii].size(); jj++) {
+			colourListDouble[ii][jj] = (double)colourList[ii][jj] / 255.0;
+		}
 	}
 }
 void JPDFTABLE::initTitle(string sTitle, HPDF_Font& font, double fontSize)

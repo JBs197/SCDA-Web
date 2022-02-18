@@ -1,5 +1,7 @@
 #include "wjdrag.h"
 
+using namespace std;
+
 string WJPARAMRECT::getHexColour()
 {
 	string hexColour;

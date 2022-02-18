@@ -1,36 +1,35 @@
 #pragma once
-#include "jfunc.h"
-
-using namespace std;
+#include "jnumber.h"
+#include "jstring.h"
 
 struct JSCALEBAR
 {
 	int activeIndex = -1;
-	JFUNC jf;
-	unordered_map<string, double> mapPrefix;  // Prefix (Thousand, Million, etc) -> multiple of thousand
-	set<string> setPrefix;  // Prefix (Thousand, Million, etc)
-	vector<vector<double>> vDataset;
-	vector<int> vDecimalPlaces;
-	vector<string> vUnit;
+	JNUMBER jnumber;
+	std::unordered_map<std::string, double> mapPrefix;  // Prefix (Thousand, Million, etc) -> multiple of thousand
+	std::set<std::string> setPrefix;  // Prefix (Thousand, Million, etc)
+	std::vector<std::vector<double>> vDataset;
+	std::vector<int> vDecimalPlaces;
+	std::vector<std::string> vUnit;
 
 	JSCALEBAR() { initMaps(); }
 	~JSCALEBAR() {}
 
-	int addDataset(vector<double>& dataset);
-	vector<int> addDataset(vector<vector<double>>& datasetList);
-	double checkForCompressedUnit(string unit);
+	int addDataset(std::vector<double>& dataset);
+	std::vector<int> addDataset(std::vector<std::vector<double>>& datasetList);
+	double checkForCompressedUnit(std::string unit);
 	void clear();
-	void err(string message);
+	void err(std::string message);
 	int getActiveIndex() { return activeIndex; }
-	vector<vector<double>> getDatasetColour(vector<vector<double>>& keyColour, vector<double>& keyValue, int index);
+	std::vector<std::vector<double>> getDatasetColour(std::vector<std::vector<double>>& keyColour, std::vector<double>& keyValue, int index);
 	double getDatasetValue(int index, int indexValue);
 	int getDecimalPlaces(int index);
-	unordered_map<string, double> getMapDatasetLabel(vector<string>& vsLabel, int index);
-	vector<double> getTickValues(int index, int numTicks);
-	vector<double> getTickValues(int index, int numTicks, vector<int> vExclude);
-	string getUnit(int index);
+	std::unordered_map<std::string, double> getMapDatasetLabel(std::vector<std::string>& vsLabel, int index);
+	std::vector<double> getTickValues(int index, int numTicks);
+	std::vector<double> getTickValues(int index, int numTicks, std::vector<int> vExclude);
+	std::string getUnit(int index);
 	void initMaps();
-	int makeDataset(vector<int> vIndex, char operation);
-	void setUnit(int index, string unit);
+	int makeDataset(std::vector<int> vIndex, char operation);
+	void setUnit(int index, std::string unit);
 };
 

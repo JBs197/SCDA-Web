@@ -1,5 +1,7 @@
 #include "jpdf.h"
 
+using namespace std;
+
 int JPDF::addBargraph(vector<vector<double>>& bargraphBLTR)
 {
 	// Return the new bar graph's index within the vector.

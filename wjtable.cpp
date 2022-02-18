@@ -1,5 +1,7 @@
 #include "wjtable.h"
 
+using namespace std;
+
 void WJTABLE::cellSelect(int iRow, int iCol)
 {
 	Wt::WStandardItem* wsiCell = model->item(iRow, iCol);
@@ -166,7 +168,7 @@ void WJTABLE::compressUnitCell(string& sUnit, string& sCell)
 	string cell = sCell;
 	size_t pos1 = sUnit.find('$');
 	if (pos1 < sUnit.size()) {
-		jf.clean(cell, dirt, soap);
+		jparse.clean(cell, dirt, soap);
 		length = cell.size();
 		while (length > 3) {
 			power *= 1000.0;
@@ -557,22 +559,22 @@ void WJTABLE::initValues(string& configXML)
 
 	// Populate string list sets.
 	vector<string> vsTag = { "set", "unit_breaker" };
-	vector<vector<string>> vvsTag = jf.getXML(configXML, vsTag);
+	vector<vector<string>> vvsTag = jparse.getXML(configXML, vsTag);
 	for (int ii = 0; ii < vvsTag.size(); ii++) {
 		setUnitBreaker.emplace(vvsTag[ii][1]);
 	}
 	vsTag[1] = "unit_dollar1";
-	vvsTag = jf.getXML(configXML, vsTag);
+	vvsTag = jparse.getXML(configXML, vsTag);
 	for (int ii = 0; ii < vvsTag.size(); ii++) {
 		setUnitDollar1.emplace(vvsTag[ii][1]);
 	}
 	vsTag[1] = "unit_dollar2";
-	vvsTag = jf.getXML(configXML, vsTag);
+	vvsTag = jparse.getXML(configXML, vsTag);
 	for (int ii = 0; ii < vvsTag.size(); ii++) {
 		setUnitDollar2.emplace(vvsTag[ii][1]);
 	}
 	vsTag[1] = "unit_percent";
-	vvsTag = jf.getXML(configXML, vsTag);
+	vvsTag = jparse.getXML(configXML, vsTag);
 	for (int ii = 0; ii < vvsTag.size(); ii++) {
 		setUnitPercent.emplace(vvsTag[ii][1]);
 	}
@@ -615,31 +617,31 @@ void WJTABLE::modelSetCore(vector<vector<string>>& vvsCore)
 
 			if (unit == "% of population") {
 				dNum = 100.0 * stod(vvsCore[ii][jj]) / regionPopulation;
-				temp = jf.doubleToCommaString(dNum, 2) + "\n(" + unit + ")";
+				temp = jnumber.doubleToCommaString(dNum, 2) + "\n(" + unit + ")";
 			}
 			else if (unit[0] == '%') { 
-				temp = jf.numericToCommaString(vvsCore[ii][jj], 1) + "\n(" + unit + ")";
+				temp = jnumber.numericToCommaString(vvsCore[ii][jj], 1) + "\n(" + unit + ")";
 			}
 			else if (setUnitCol.count(jj + 1) || setUnitRow.count(ii)) {
 				dNum = stod(vvsCore[ii][jj]);
-				temp = jf.doubleToCommaString(dNum, 3);
+				temp = jnumber.doubleToCommaString(dNum, 3);
 				temp += "\n(" + unit + ")";
 			}
 			else {
-				temp = jf.numericToCommaString(vvsCore[ii][jj], 0);
+				temp = jnumber.numericToCommaString(vvsCore[ii][jj], 0);
 				if (temp.size() >= 12) {  // Very large number, needs to be compressed.
 					if (rowUnit) {
 						compressUnitRow(ii, vvsCore);
 						unit = mapRowUnit.at(ii);
 						dNum = stod(vvsCore[ii][jj]);
-						temp = jf.doubleToCommaString(dNum, 3);
+						temp = jnumber.doubleToCommaString(dNum, 3);
 						setUnitRow.emplace(ii);
 					}
 					else if (colUnit) {
 						compressUnitCol(jj + 1, vvsCore);
 						unit = mapColUnit.at(jj + 1);
 						dNum = stod(vvsCore[ii][jj]);
-						temp = jf.doubleToCommaString(dNum, 3);
+						temp = jnumber.doubleToCommaString(dNum, 3);
 						setUnitCol.emplace(jj + 1);
 					}
 					else {
@@ -784,7 +786,7 @@ void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent
 {
 	// Triggered in response to a user click.
 	if (!wmIndex.isValid()) { return; }
-	jf.timerStart();
+	jtime.timerStart();
 	cellSelect(wmIndex);
 	int iRow = wmIndex.row();
 	int iCol = wmIndex.column();
@@ -793,14 +795,14 @@ void WJTABLE::tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent
 void WJTABLE::tableClickedSimulated(int iRow, int iCol)
 {
 	// Used to simulate a user click.
-	jf.timerStart();
+	jtime.timerStart();
 	cellSelect(iRow, iCol);
 	headerSignal_.emit(iRow, iCol);
 }
 void WJTABLE::tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent)
 {
 	// Triggered in response to a user click.
-	jf.timerStart();
+	jtime.timerStart();
 	headerSelect(iCol);
 	int iRow = selectedIndex.row();
 	headerSignal_.emit(iRow, iCol);

@@ -9,7 +9,9 @@
 #include <Wt/WTime.h>
 #include <functional>
 #include "jcrc32.h"
+#include "jfile.h"
 #include "jscalebar.h"
+#include "jsort.h"
 #include "jtree.h"
 #include "sqlfunc.h"
 #include "winfunc.h"
@@ -22,187 +24,189 @@
 #include "wjtree.h"
 #include "wtpaint.h"
 
-using namespace std;
-extern mutex m_server;
+extern std::mutex m_server;
 
 class DataEvent
 {
 public:
 	const JTREE tree;
 	const int numCata;
-	const vector<string> list, listCol, listRow, vsNamePop;
-	const vector<vector<string>> catalogue, table, treeCol, treeRow, variable;
-	const vector<string> ancestry;
-	const vector<vector<vector<string>>> parameter;
-	const string sYear, sCata, sRegion, title;
-	const vector<Wt::WPainterPath> wpPaths;
-	const vector<vector<vector<double>>> areas, frames;
-	const vector<vector<double>> regionData;
+	const std::vector<std::string> list, listCol, listRow, vsNamePop;
+	const std::vector<std::vector<std::string>> catalogue, table, treeCol, treeRow, variable;
+	const std::vector<std::string> ancestry;
+	const std::vector<std::vector<std::vector<std::string>>> parameter;
+	const std::string sYear, sCata, sRegion, title;
+	const std::vector<Wt::WPainterPath> wpPaths;
+	const std::vector<std::vector<std::vector<double>>> areas, frames;
+	const std::vector<std::vector<double>> regionData;
 
 	enum eType { Catalogue, Category, Connection, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree };
-	string getSessionID() { return sessionID; }
-	vector<string> get_ancestry() const { return ancestry; }
-	vector<vector<vector<double>>> getAreas() const { return areas; }
-	vector<vector<string>> getCata() const { return catalogue; }
-	vector<vector<string>> getCol() const { return treeCol; }
-	vector<vector<vector<double>>> getFrames() const { return frames; }
-	vector<string> get_list() const { return list; }
-	vector<string> getListCol() const { return listCol; }
-	vector<string> getListRow() const { return listRow; }
-	vector<string> getNamePop() const { return vsNamePop; }
+	std::string getSessionID() { return sessionID; }
+	std::vector<std::string> get_ancestry() const { return ancestry; }
+	std::vector<std::vector<std::vector<double>>> getAreas() const { return areas; }
+	std::vector<std::vector<std::string>> getCata() const { return catalogue; }
+	std::vector<std::vector<std::string>> getCol() const { return treeCol; }
+	std::vector<std::vector<std::vector<double>>> getFrames() const { return frames; }
+	std::vector<std::string> get_list() const { return list; }
+	std::vector<std::string> getListCol() const { return listCol; }
+	std::vector<std::string> getListRow() const { return listRow; }
+	std::vector<std::string> getNamePop() const { return vsNamePop; }
 	int getNumCata() const { return numCata; }
-	vector<vector<vector<string>>> getParameter() const { return parameter; }
-	vector<vector<double>> getRegionData() const { return regionData; }
-	vector<vector<string>> getRow() const { return treeRow; }
-	string getSCata() const { return sCata; }
-	string getSRegion() const { return sRegion; }
-	string getSYear() const { return sYear; }
-	vector<vector<string>> getTable() const { return table; }
-	string getTitle() const { return title; }
+	std::vector<std::vector<std::vector<std::string>>> getParameter() const { return parameter; }
+	std::vector<std::vector<double>> getRegionData() const { return regionData; }
+	std::vector<std::vector<std::string>> getRow() const { return treeRow; }
+	std::string getSCata() const { return sCata; }
+	std::string getSRegion() const { return sRegion; }
+	std::string getSYear() const { return sYear; }
+	std::vector<std::vector<std::string>> getTable() const { return table; }
+	std::string getTitle() const { return title; }
 	const JTREE getTree() const { return tree; }
-	vector<vector<string>> getVariable() const { return variable; }
-	vector<Wt::WPainterPath> get_wpPaths() const { return wpPaths; }
+	std::vector<std::vector<std::string>> getVariable() const { return variable; }
+	std::vector<Wt::WPainterPath> get_wpPaths() const { return wpPaths; }
 	int type() const { return etype; }
 	
 private:
 	eType etype;
-	string sessionID;
+	std::string sessionID;
 
 	// Constructor for eType Catalogue.
-	DataEvent(eType et, const string& sID, const string& sy, const string& sc)
+	DataEvent(eType et, const std::string& sID, const std::string& sy, const std::string& sc)
 		: etype(et), sessionID(sID), numCata(1), sYear(sy), sCata(sc) {}
 
 	// Constructor for eTypes Category.
-	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsList)
+	DataEvent(eType et, const std::string& sID, const int& nC, const std::vector<std::string>& vsList)
 		: etype(et), sessionID(sID), numCata(nC), list(vsList) {}
 
 	// Constructor for eType Connection.
-	DataEvent(eType et, const string& sID)
+	DataEvent(eType et, const std::string& sID)
 		: etype(et), sessionID(sID), numCata(1) {}
 
 	// Constructor for eType Demographic.
-	DataEvent(eType et, const string& sID, const int& nC, const vector<vector<string>>& vvs)
+	DataEvent(eType et, const std::string& sID, const int& nC, const std::vector<std::vector<std::string>>& vvs)
 		: etype(et), sessionID(sID), numCata(nC), variable(vvs) {}
 
 	// Constructor for eType Differentiator.
-	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsList, const string& sTitle)
+	DataEvent(eType et, const std::string& sID, const int& nC, const std::vector<std::string>& vsList, const std::string& sTitle)
 		: etype(et), sessionID(sID), numCata(nC), list(vsList), title(sTitle) {}
 
 	// Constructor for eType Map.
-	DataEvent(eType et, const string& sID, const vector<string>& vsRegion, const vector<vector<vector<double>>>& frame, const vector<vector<vector<double>>>& area, const vector<vector<double>>& rData)
+	DataEvent(eType et, const std::string& sID, const std::vector<std::string>& vsRegion, const std::vector<std::vector<std::vector<double>>>& frame, const std::vector<std::vector<std::vector<double>>>& area, const std::vector<std::vector<double>>& rData)
 		: etype(et), sessionID(sID), list(vsRegion), frames(frame), areas(area), regionData(rData), numCata(1) {}
 
 	// Constructor for eType Parameter.
-	DataEvent(eType et, const string& sID, const int& nC, const vector<vector<vector<string>>>& param, const vector<vector<string>>& cata)
+	DataEvent(eType et, const std::string& sID, const int& nC, const std::vector<std::vector<std::vector<std::string>>>& param, const std::vector<std::vector<std::string>>& cata)
 		: etype(et), sessionID(sID), numCata(nC), parameter(param), catalogue(cata){}
 
 	// Constructor for eType Table.
-	DataEvent(eType et, const string& sID, const vector<vector<string>>& vvsTable, const vector<vector<string>>& vvsCol, const vector<vector<string>>& vvsRow, const vector<string>& regionNamePop)
+	DataEvent(eType et, const std::string& sID, const std::vector<std::vector<std::string>>& vvsTable, const std::vector<std::vector<std::string>>& vvsCol, const std::vector<std::vector<std::string>>& vvsRow, const std::vector<std::string>& regionNamePop)
 		: etype(et), sessionID(sID), table(vvsTable), treeCol(vvsCol), treeRow(vvsRow), vsNamePop(regionNamePop), numCata(1) {}
 
 	// Constructor for eType Topic.
-	DataEvent(eType et, const string& sID, const int& nC, const vector<string>& vsCol, const vector<string>& vsRow)
+	DataEvent(eType et, const std::string& sID, const int& nC, const std::vector<std::string>& vsCol, const std::vector<std::string>& vsRow)
 		: etype(et), sessionID(sID), numCata(nC), listCol(vsCol), listRow(vsRow) {}
 
 	// Constructor for eType Tree.
-	DataEvent(eType et, const string& sID, const JTREE& jt)
+	DataEvent(eType et, const std::string& sID, const JTREE& jt)
 		: etype(et), sessionID(sID), numCata(1), tree(jt) {}
 
 	friend class SCDAserver;
 };
 
-typedef function<void(const DataEvent&)> DataEventCallback;
+typedef std::function<void(const DataEvent&)> DataEventCallback;
 
 class SCDAserver
 {
-	unordered_map<string, int> mapClientIndex;  // sessionID -> shared_ptr index
+	std::unordered_map<std::string, int> mapClientIndex;  // sessionID -> shared_ptr index
 
-	void err(string message);
+	void err(std::string message);
 
 public:
-	SCDAserver(Wt::WServer& wtServer, string& dbPath) 
+	SCDAserver(Wt::WServer& wtServer, std::string& dbPath)
 		: serverRef(wtServer), db_path(dbPath) {
 		sf.init(db_path);
-		//initLog();
 	}
 	SCDAserver(const SCDAserver&) = delete;
 	SCDAserver& operator=(const SCDAserver&) = delete;
 	class User {};
 
 	const double cellMargin = 4.0;  // Unit of pixels, applied vertically and horizontally.
-	string configXML;
+	std::string configXML;
 	Wt::WFont wfTable = Wt::WFont();
-	JFUNC jf;
+	JFILE jfile;
 
-	int applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsDIM);
-	vector<vector<int>> binMapBorder(string& tname0);
-	vector<vector<vector<int>>> binMapFrames(string& tname0);
-	string binMapParent(string& tname0);
-	vector<double> binMapPosition(string& tname0);
-	double binMapScale(string& tname0);
-	vector<vector<string>> completeVariable(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed, string sYear);
+	int applyCataFilter(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsDIM);
+	std::vector<std::vector<int>> binMapBorder(std::string& tname0);
+	std::vector<std::vector<std::vector<int>>> binMapFrames(std::string& tname0);
+	std::string binMapParent(std::string& tname0);
+	std::vector<double> binMapPosition(std::string& tname0);
+	double binMapScale(std::string& tname0);
+	void cleanTempFolder(std::string& docRoot);
+	std::vector<std::vector<std::string>> completeVariable(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsFixed, std::string sYear);
 	bool connect(User* user, const DataEventCallback& handleEvent);
-	int init(string sessionID);
+	int init(std::string sessionID);
 	void initPopulation();
-	vector<vector<vector<double>>> getBorderKM(vector<string>& vsGeoCode, string sYear);
-	vector<vector<string>> getCatalogue(vector<string>& vsPrompt);
-	vector<vector<string>> getCatalogue(vector<string>& vsPrompt, vector<vector<string>>& vvsVariable);
-	vector<vector<string>> getColTitle(string sYear, string sCata);
-	vector<double> getDataFamily(string sYear, string sCata, vector<string> vsIndex, vector<string> vsGeoCode);
-	vector<string> getDataIndex(string sYear, string sCata, vector<vector<string>>& vvsDIM);
-	vector<string> getDataIndex(string sYear, string sCata, vector<string>& vsDIMtitle, vector<int>& viMID);
-	vector<string> getDifferentiatorMID(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
-	vector<string> getDifferentiatorTitle(vector<vector<string>>& vvsCata, vector<string>& vsFixed);
-	vector<string> getDIMIndex(vector<vector<string>>& vvsCata);
-	vector<vector<vector<double>>> getFrameKM(vector<string>& vsGeoCode, string sYear);
-	vector<vector<string>> getForWhom(vector<vector<string>>& vvsCata);
-	vector<vector<string>> getGeo(string sYear, string sCata);
-	int getGeoFamily(vector<vector<string>>& geo, vector<string>& vsGeoCode, vector<string>& vsRegionName);
-	string getLinearizedColTitle(string& sCata, string& rowTitle, string& colTitle);
-	vector<vector<vector<string>>> getParameter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed);
-	vector<double> getPopulationFamily(string sYear, vector<string>& vsGeoCode);
-	vector<vector<string>> getRowTitle(string sYear, string sCata);
+	std::vector<std::vector<std::vector<double>>> getBorderKM(std::vector<std::string>& vsGeoCode, std::string sYear);
+	std::vector<std::vector<std::string>> getCatalogue(std::vector<std::string>& vsPrompt);
+	std::vector<std::vector<std::string>> getCatalogue(std::vector<std::string>& vsPrompt, std::vector<std::vector<std::string>>& vvsVariable);
+	std::vector<std::vector<std::string>> getColTitle(std::string sYear, std::string sCata);
+	std::vector<double> getDataFamily(std::string sYear, std::string sCata, std::vector<std::string> vsIndex, std::vector<std::string> vsGeoCode);
+	std::vector<std::string> getDataIndex(std::string sYear, std::string sCata, std::vector<std::vector<std::string>>& vvsDIM);
+	std::vector<std::string> getDataIndex(std::string sYear, std::string sCata, std::vector<std::string>& vsDIMtitle, std::vector<int>& viMID);
+	std::vector<std::string> getDifferentiatorMID(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsFixed);
+	std::vector<std::string> getDifferentiatorTitle(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::string>& vsFixed);
+	std::vector<std::string> getDIMIndex(std::vector<std::vector<std::string>>& vvsCata);
+	std::vector<std::vector<std::vector<double>>> getFrameKM(std::vector<std::string>& vsGeoCode, std::string sYear);
+	std::vector<std::vector<std::string>> getForWhom(std::vector<std::vector<std::string>>& vvsCata);
+	std::vector<std::vector<std::string>> getGeo(std::string sYear, std::string sCata);
+	int getGeoFamily(std::vector<std::vector<std::string>>& geo, std::vector<std::string>& vsGeoCode, std::vector<std::string>& vsRegionName);
+	std::string getLinearizedColTitle(std::string& sCata, std::string& rowTitle, std::string& colTitle);
+	std::vector<std::vector<std::vector<std::string>>> getParameter(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsFixed);
+	std::vector<double> getPopulationFamily(std::string sYear, std::vector<std::string>& vsGeoCode);
+	std::vector<std::vector<std::string>> getRowTitle(std::string sYear, std::string sCata);
 	long long getTimer();
-	vector<string> getTopicList(vector<string> vsYear);
-	string getUnit(int clientIndex, string sYear, string sCata, string sDimMID);
-	vector<string> getYear(string sYear);
-	string getYear(string sYear, string sCata);
+	std::vector<std::string> getTopicList(std::vector<std::string> vsYear);
+	std::string getUnit(int clientIndex, std::string sYear, std::string sCata, std::string sDimMID);
+	std::vector<std::string> getYear(std::string sYear);
+	std::string getYear(std::string sYear, std::string sCata);
 	
-	void log(vector<string> vsColumn);
-	void makeTreeGeo(JTREE& jt, vector<vector<string>>& geo);
+	void log(std::vector<std::string> vsColumn);
+	void makeTreeGeo(JTREE& jt, std::vector<std::vector<std::string>>& geo);
 	
-	void pullCategory(vector<string> prompt);
-	void pullConnection(string sessionID);
-	void pullDifferentiator(string prompt, vector<vector<string>> vvsCata, vector<vector<string>> vvsDiff);
-	void pullMap(vector<string> prompt, vector<string> vsDIMtitle, vector<int> viMID);
-	void pullTable(vector<string> prompt, vector<string> vsDIMtitle, vector<int> viMID);
-	void pullTopic(vector<string> prompt);
-	void pullTree(vector<string> prompt);
-	void pullVariable(vector<string> prompt, vector<vector<string>> variable);
+	void pullCategory(std::vector<std::string> prompt);
+	void pullConnection(std::string sessionID);
+	void pullDifferentiator(std::string prompt, std::vector<std::vector<std::string>> vvsCata, std::vector<std::vector<std::string>> vvsDiff);
+	void pullMap(std::vector<std::string> prompt, std::vector<std::string> vsDIMtitle, std::vector<int> viMID);
+	void pullTable(std::vector<std::string> prompt, std::vector<std::string> vsDIMtitle, std::vector<int> viMID);
+	void pullTopic(std::vector<std::string> prompt);
+	void pullTree(std::vector<std::string> prompt);
+	void pullVariable(std::vector<std::string> prompt, std::vector<std::vector<std::string>> variable);
 
 private:
+	JNUMBER jnumber;
+	JSORT jsort;
 	JSTRING jstr;
+	JTIME jtime;
 	JTREE jt;
 	SQLFUNC sf, sfLog;
-	vector<shared_ptr<WJTABLE>> wjTable;
-	vector<shared_ptr<WTPAINT>> wtPaint;
+	std::vector<std::shared_ptr<WJTABLE>> wjTable;
+	std::vector<std::shared_ptr<WTPAINT>> wtPaint;
 	struct UserInfo
 	{
-		string sessionID;
+		std::string sessionID;
 		DataEventCallback eventCallback;
 	};
 
-	unordered_map<string, int> cataMap;  // Cata desc -> gidTree index.
-	const string db_path;
-	string dbLogPath;
-	unordered_map<string, string> mapPopCata;  // externalYear -> internalYear$sCata (general population)
-	unordered_map<string, string> mapPopDI;  // sCata -> dataIndex$dimIndex (general population)
+	std::unordered_map<std::string, int> cataMap;  // Cata desc -> gidTree index.
+	const std::string db_path;
+	std::string dbLogPath;
+	std::unordered_map<std::string, std::string> mapPopCata;  // externalYear -> internalYear$sCata (general population)
+	std::unordered_map<std::string, std::string> mapPopDI;  // sCata -> dataIndex$dimIndex (general population)
 	Wt::WServer& serverRef;
-	typedef map<User*, UserInfo> userMap;
+	typedef std::map<User*, UserInfo> userMap;
 	userMap users;
 	Wt::WFont wFont;
 
 	void initLog();
-	void postDataEvent(const DataEvent& event, string sID);
+	void postDataEvent(const DataEvent& event, std::string sID);
 };
 

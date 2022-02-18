@@ -1,6 +1,8 @@
 #include "jpdfcell.h"
 
-void JPDFCELL::drawCellBar(HPDF_Page& page, JFUNC& jf, double barWidth)
+using namespace std;
+
+void JPDFCELL::drawCellBar(HPDF_Page& page, double barWidth)
 {
 	// Coloured bars take the full cell height, rather than the vBLTR/text height.
 	HPDF_STATUS error;
@@ -24,7 +26,7 @@ void JPDFCELL::drawCellBar(HPDF_Page& page, JFUNC& jf, double barWidth)
 	newBLTR[0][0] = xCoord;
 	vBLTR.push_back(newBLTR);
 }
-void JPDFCELL::drawCellText(HPDF_Page& page, JFUNC& jf, string text, HPDF_Font& Font)
+void JPDFCELL::drawCellText(HPDF_Page& page, string text, HPDF_Font& Font)
 {
 	// Uses the entire (unused) cell area to paint the text.
 	if (text.size() < 1) { return; }
@@ -38,7 +40,8 @@ void JPDFCELL::drawCellText(HPDF_Page& page, JFUNC& jf, string text, HPDF_Font& 
 	double internalPadding, lineWidth, spaceWidth, textWidth;
 	HPDF_STATUS error;
 	string temp;
-	vector<string> vText = jf.splitByMarker(text, ' ');  // Split by word.
+	vector<string> vText;
+	jstr.splitByMarker(vText, text, ' ');  // Split by word.
 
 	// Firstly, determine the maximum font size which can be used.
 	while (1) {
@@ -97,13 +100,13 @@ void JPDFCELL::drawCellText(HPDF_Page& page, JFUNC& jf, string text, HPDF_Font& 
 			newBLTR[1][1] = vBLTR[index][0][1] - padding;
 			newBLTR[0][1] = newBLTR[1][1] - fontSize;
 			vBLTR.push_back(newBLTR);
-			drawText(page, jf, vText[ii]);
+			drawText(page, vText[ii]);
 			newBLTR[0][0] = newBLTR[1][0];
 			newBLTR[1][0] = right;
 			vBLTR.push_back(newBLTR);
 		}
 		else if (ii == 0) {
-			drawText(page, jf, vText[ii]);
+			drawText(page, vText[ii]);
 			newBLTR = vBLTR[index];
 			vBLTR[index][1][0] = vBLTR[index][0][0] + textWidth;
 			newBLTR[0][0] = vBLTR[index][1][0];
@@ -111,7 +114,7 @@ void JPDFCELL::drawCellText(HPDF_Page& page, JFUNC& jf, string text, HPDF_Font& 
 		}
 		else {
 			temp = " " + vText[ii];
-			drawText(page, jf, temp);
+			drawText(page, temp);
 			newBLTR = vBLTR[index];
 			vBLTR[index][1][0] = vBLTR[index][0][0] + spaceWidth + textWidth;
 			newBLTR[0][0] = vBLTR[index][1][0];
@@ -119,11 +122,11 @@ void JPDFCELL::drawCellText(HPDF_Page& page, JFUNC& jf, string text, HPDF_Font& 
 		}
 	}
 }
-void JPDFCELL::drawCellTextItalic(HPDF_Page& page, JFUNC& jf, string text)
+void JPDFCELL::drawCellTextItalic(HPDF_Page& page, string text)
 {
-	drawCellText(page, jf, text, fontItalic);
+	drawCellText(page, text, fontItalic);
 }
-void JPDFCELL::drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, string separator)
+void JPDFCELL::drawCellTextList(HPDF_Page& page, int italicFreq, string separator)
 {
 	// Paint the cell's vsText with "separator" between elements. If italicFreq > 0, 
 	// then italicize vsText elements once per italicFreq.
@@ -147,7 +150,8 @@ void JPDFCELL::drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, stri
 	double fontSize = fontHeightMax;
 	double internalPadding, lineWidth, sepWidth, sepWidthSeg, spaceWidth, textWidth;
 	HPDF_STATUS error;
-	vector<vector<string>> vvsText = jf.splitByMarker(vsText, ' ');  // Split by word.
+	vector<vector<string>> vvsText;
+	jstr.splitByMarker(vvsText, vsText, ' ');  // Split by word.
 
 	// Firstly, determine the maximum font size which can be used.
 	/*
@@ -249,7 +253,7 @@ void JPDFCELL::drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, stri
 					lineWidth += (sepWidthSeg - sepWidth);
 					if (lineWidth <= availableWidth) {
 						lineWidth = 0.0;
-						drawText(page, jf, sepSegLast);
+						drawText(page, sepSegLast);
 						index = vBLTR.size() - 1;
 						vector<vector<double>> newBLTR(2, vector<double>(2));
 						newBLTR[0][0] = left;
@@ -267,7 +271,7 @@ void JPDFCELL::drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, stri
 						newBLTR[1][1] = vBLTR[index][0][1] - padding;
 						newBLTR[0][1] = newBLTR[1][1] - fontSize;
 						vBLTR.push_back(newBLTR);
-						drawText(page, jf, sepSegFirst);
+						drawText(page, sepSegFirst);
 						newBLTR[0][0] = newBLTR[1][0];
 						newBLTR[1][0] = right;
 						vBLTR.push_back(newBLTR);
@@ -285,7 +289,7 @@ void JPDFCELL::drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, stri
 				}
 			}
 			else {
-				drawText(page, jf, separator);
+				drawText(page, separator);
 				index = vBLTR.size() - 1;
 				vector<vector<double>> newBLTR = vBLTR[index];
 				vBLTR[index][1][0] = vBLTR[index][0][0] + sepWidth;
@@ -312,13 +316,13 @@ void JPDFCELL::drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, stri
 				newBLTR[1][1] = vBLTR[index][0][1] - padding;
 				newBLTR[0][1] = newBLTR[1][1] - fontSize;
 				vBLTR.push_back(newBLTR);
-				drawText(page, jf, vvsText[ii][jj]);
+				drawText(page, vvsText[ii][jj]);
 				newBLTR[0][0] = newBLTR[1][0];
 				newBLTR[1][0] = right;
 				vBLTR.push_back(newBLTR);
 			}
 			else if (jj == 0) {
-				drawText(page, jf, vvsText[ii][jj]);
+				drawText(page, vvsText[ii][jj]);
 				newBLTR = vBLTR[index];
 				vBLTR[index][1][0] = vBLTR[index][0][0] + textWidth;
 				newBLTR[0][0] = vBLTR[index][1][0];
@@ -326,7 +330,7 @@ void JPDFCELL::drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, stri
 			}
 			else {
 				temp = " " + vvsText[ii][jj];
-				drawText(page, jf, temp);
+				drawText(page, temp);
 				newBLTR = vBLTR[index];
 				vBLTR[index][1][0] = vBLTR[index][0][0] + spaceWidth + textWidth;
 				newBLTR[0][0] = vBLTR[index][1][0];
@@ -339,11 +343,11 @@ void JPDFCELL::drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, stri
 		}
 	}
 }
-void JPDFCELL::drawCellTextPlain(HPDF_Page& page, JFUNC& jf, string text)
+void JPDFCELL::drawCellTextPlain(HPDF_Page& page, string text)
 {
-	drawCellText(page, jf, text, font);
+	drawCellText(page, text, font);
 }
-void JPDFCELL::drawText(HPDF_Page& page, JFUNC& jf, string text)
+void JPDFCELL::drawText(HPDF_Page& page, string text)
 {
 	// Barebones function - assumes measurements and font is already prepared.
 	int index = vBLTR.size() - 1;

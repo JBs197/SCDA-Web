@@ -1,36 +1,34 @@
 #pragma once
 #define HPDF_DLL
 #include <hpdf.h>
-#include "jfunc.h"
-
-using namespace std;
+#include "jstring.h"
 
 struct JPDFCELL
 {
-    string alignment = "left";
-    vector<double> backgroundColour;
-    const vector<vector<double>> cellBLTR;  // For the entire cell.
+    std::string alignment = "left";
+    std::vector<double> backgroundColour;
+    const std::vector<std::vector<double>> cellBLTR;  // For the entire cell.
     HPDF_Font font, fontItalic;
-    JFUNC jf;
+    JSTRING jstr;
     double padding = 2.0;
     int rowIndex, colIndex;
-    vector<double> splitPos;            // List of xCoords where a column split exists.
-    vector<vector<double>> vBarColour;  // Form [bar index][r, g, b, a].
-    vector<vector<vector<double>>> vBLTR;  // Form [value index][BL, TR][xCoord, yCoord]
-    vector<string> vsText;
+    std::vector<double> splitPos;            // List of xCoords where a column split exists.
+    std::vector<std::vector<double>> vBarColour;  // Form [bar index][r, g, b, a].
+    std::vector<std::vector<std::vector<double>>> vBLTR;  // Form [value index][BL, TR][xCoord, yCoord]
+    std::vector<std::string> vsText;
 
-    JPDFCELL(vector<vector<double>> cBLTR) : cellBLTR(cBLTR) {}
+    JPDFCELL(std::vector<std::vector<double>> cBLTR) : cellBLTR(cBLTR) {}
     ~JPDFCELL() {}
 
-    void drawCellBar(HPDF_Page& page, JFUNC& jf, double barWidth);
-    void drawCellText(HPDF_Page& page, JFUNC& jf, string text, HPDF_Font& Font);
-    void drawCellTextItalic(HPDF_Page& page, JFUNC& jf, string text);
-    void drawCellTextList(HPDF_Page& page, JFUNC& jf, int italicFreq, string separator);
-    void drawCellTextPlain(HPDF_Page& page, JFUNC& jf, string text);
-    void drawText(HPDF_Page& page, JFUNC& jf, string text);
+    void drawCellBar(HPDF_Page& page, double barWidth);
+    void drawCellText(HPDF_Page& page, std::string text, HPDF_Font& Font);
+    void drawCellTextItalic(HPDF_Page& page, std::string text);
+    void drawCellTextList(HPDF_Page& page, int italicFreq, std::string separator);
+    void drawCellTextPlain(HPDF_Page& page, std::string text);
+    void drawText(HPDF_Page& page, std::string text);
     double getMaxFontHeight();
 
 private:
-    void err(string message);
+    void err(std::string message);
 };
 

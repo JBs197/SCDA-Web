@@ -1,5 +1,7 @@
 #include "jscalebar.h"
 
+using namespace std;
+
 int JSCALEBAR::addDataset(vector<double>& dataset)
 {
 	activeIndex = vDataset.size();
@@ -128,15 +130,14 @@ vector<double> JSCALEBAR::getTickValues(int index, int numTicks, vector<int> vEx
 	if (index < 0) { index = activeIndex; }
 	vector<double> vTick(numTicks);
 	vector<double> dataset = vDataset[index];
-	for (int ii = vExclude.size() - 1; ii >= 0; ii--)
-	{
+	for (int ii = vExclude.size() - 1; ii >= 0; ii--) {
 		dataset.erase(dataset.begin() + ii);
 	}
-	vector<int> minMax = jf.minMax(dataset);
-	double dMin = dataset[minMax[0]];
-	double dMax = dataset[minMax[1]];
-	if (dMin == dMax)
-	{
+	pair<double, double> minMax;
+	jnumber.minMaxValue(minMax, dataset);
+	double dMin = get<0>(minMax);
+	double dMax = get<1>(minMax);
+	if (dMin == dMax) {
 		vTick.assign(numTicks, dMin);
 		return vTick;
 	}
@@ -144,18 +145,18 @@ vector<double> JSCALEBAR::getTickValues(int index, int numTicks, vector<int> vEx
 	string sNum = to_string(dMin);
 	size_t pos1 = sNum.find('.');
 	int zeroes = -1 * (pos1 - 1);
-	double dMinFloor = jf.roundingFloor(dMin, zeroes);
+	double dMinFloor = jnumber.roundingFloor(dMin, zeroes);
 	sNum = to_string(dMax);
 	pos1 = sNum.find('.');
 	zeroes = -1 * (pos1 - 1);
-	double dMaxCeil = jf.roundingCeil(dMax, zeroes);
+	double dMaxCeil = jnumber.roundingCeil(dMax, zeroes);
 
 	double dTemp;
 	double scaleWidth = (dMaxCeil - dMinFloor) / (double)(numTicks - 1);
 	for (int ii = 0; ii < numTicks; ii++)
 	{
 		dTemp = dMinFloor + ((double)ii * scaleWidth);
-		vTick[ii] = jf.rounding(dTemp, vDecimalPlaces[index]);
+		vTick[ii] = jnumber.rounding(dTemp, vDecimalPlaces[index]);
 	}
 	return vTick;
 }

@@ -1,5 +1,7 @@
 #include "SCDAserver.h"
 
+using namespace std;
+
 int SCDAserver::applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsDIM)
 {
 	// vvsCata has form [year index][sYear, sCata0, sCata1, ...]
@@ -55,7 +57,7 @@ int SCDAserver::applyCataFilter(vector<vector<string>>& vvsCata, vector<vector<s
 	{
 		for (int jj = 1; jj < vvsCata[ii].size(); jj++)
 		{
-			jf.sortInteger(vvsResult[index], JFUNC::Increasing);  // Ascending DIMIndex.
+			jsort.integerList(vvsResult[index], JSORT::Increasing);  // Ascending DIMIndex.
 			for (int kk = 0; kk < vvsResult[index].size(); kk++)
 			{
 				if (vvsDIM[kk][1] == "*") { continue; }
@@ -167,6 +169,14 @@ double SCDAserver::binMapScale(string& tname0)
 	try { dScale = stod(sScale); }
 	catch (invalid_argument) { err("stod-SCDAserver.binMapScale"); }
 	return dScale;
+}
+void SCDAserver::cleanTempFolder(string& docRoot)
+{
+	// Remove temp files from previous session.
+	string tempSearch = docRoot + "/temp/*";
+	vector<string> vsPath;
+	jfile.search(vsPath, tempSearch, 0);
+	jfile.remove(vsPath);
 }
 vector<vector<string>> SCDAserver::completeVariable(vector<vector<string>>& vvsCata, vector<vector<string>>& vvsFixed, string sYear)
 {
@@ -1155,15 +1165,14 @@ vector<string> SCDAserver::getDifferentiatorMID(vector<vector<string>>& vvsCata,
 
 	// Differentiation has failed. Return the candidate with the greatest geographical articulation.
 	vector<int> viRegion(vsYearCata.size());
-	for (int ii = 0; ii < viRegion.size(); ii++)
-	{
+	for (int ii = 0; ii < viRegion.size(); ii++) {
 		tname = "Geo$" + vsYearCata[ii];
-		viRegion[ii] = sf.getNumRows(tname);
+		viRegion[ii] = sf.getNumRow(tname);
 	}
-	vector<int> viMinMax = jf.minMax(viRegion);
-	if (viMinMax[0] != viMinMax[1])
-	{
-		vsDiff = { vsYearCata[viMinMax[1]] };
+	pair<int, int> minMax;
+	jnumber.minMaxIndex(minMax, viRegion);
+	if (get<0>(minMax) != get<1>(minMax)) {
+		vsDiff = { vsYearCata[get<1>(minMax)] };
 		return vsDiff;
 	}
 
@@ -1407,7 +1416,7 @@ vector<vector<string>> SCDAserver::getRowTitle(string sYear, string sCata)
 }
 long long SCDAserver::getTimer()
 {
-	return jf.timerStop();
+	return jtime.timerStop();
 }
 vector<string> SCDAserver::getTopicList(vector<string> vsYear)
 {
@@ -1585,7 +1594,7 @@ void SCDAserver::pullCategory(vector<string> prompt)
 	for (int ii = 0; ii < vsYear.size(); ii++)
 	{
 		tname = "Census$" + vsYear[ii];
-		numCata += sf.getNumRows(tname);
+		numCata += sf.getNumRow(tname);
 	}
 	postDataEvent(DataEvent(DataEvent::Category, prompt[0], numCata, vsTopic), prompt[0]);
 }
@@ -1682,7 +1691,6 @@ void SCDAserver::pullMap(vector<string> prompt, vector<string> vsDIMtitle, vecto
 	vector<string> vsGeoCode = { result };
 	vector<string> vsRegionName = { prompt[3] };
 	vector<vector<string>> geo = getGeo(prompt[1], prompt[2]);
-	jf.removeBlanks(geo);
 	int index = getGeoFamily(geo, vsGeoCode, vsRegionName);  // Note which region was relegated to child status.
 
 	// Get all the border coordinates, form [region index][border point index][xCoord, yCoord].
@@ -1876,7 +1884,6 @@ void SCDAserver::pullTree(vector<string> prompt)
 
 
 	vector<vector<string>> geo = getGeo(prompt[1], prompt[2]);
-	jf.removeBlanks(geo);
 	JTREE jt;
 	makeTreeGeo(jt, geo);
 	postDataEvent(DataEvent(DataEvent::Tree, prompt[0], jt), prompt[0]);

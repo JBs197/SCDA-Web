@@ -1,5 +1,7 @@
 #include "wjbargraph.h"
 
+using namespace std;
+
 void WJPARAMPANEL::addEndspace()
 {
 	Wt::WContainerWidget* wBox = (Wt::WContainerWidget*)this->centralWidget();
@@ -293,16 +295,16 @@ void WJBARGRAPH::getParameterAll(vector<vector<double>>& seriesColour, vector<ve
 	{
 		hexColour.clear();
 		iColour = vwColour[ii].red();
-		hexColour += jf.decToHex(iColour);
+		hexColour += jnumber.decToHex(iColour);
 		seriesColour[ii][0] = (double)iColour / 255.0;
 		iColour = vwColour[ii].green();
-		hexColour += jf.decToHex(iColour);
+		hexColour += jnumber.decToHex(iColour);
 		seriesColour[ii][1] = (double)iColour / 255.0;
 		iColour = vwColour[ii].blue();
-		hexColour += jf.decToHex(iColour);
+		hexColour += jnumber.decToHex(iColour);
 		seriesColour[ii][2] = (double)iColour / 255.0;
 		iColour = vwColour[ii].alpha();
-		hexColour += jf.decToHex(iColour);
+		hexColour += jnumber.decToHex(iColour);
 		seriesColour[ii][3] = (double)iColour / 255.0;
 		mapColourIndex.emplace(hexColour, ii);
 	}
@@ -355,7 +357,8 @@ void WJBARGRAPH::getParameterAll(vector<vector<double>>& seriesColour, vector<ve
 			wText = (Wt::WText*)wlItem->widget();
 			wsTemp = wText->text();
 			temp = wsTemp.toUTF8();
-			vsTemp = jf.splitByMarker(temp, '|');
+			vsTemp.clear();
+			jstr.splitByMarker(vsTemp, temp, '|');
 			panelText[indexPanel][indexRow] = vsTemp;
 			indexRow++;
 		}
@@ -398,7 +401,8 @@ void WJBARGRAPH::getParameterAll(vector<vector<double>>& seriesColour, vector<ve
 			wText = (Wt::WText*)wlItem->widget();
 			wsTemp = wText->text();
 			temp = wsTemp.toUTF8();
-			vsTemp = jf.splitByMarker(temp, '|');
+			vsTemp.clear();
+			jstr.splitByMarker(vsTemp, temp, '|');
 			panelText[indexPanel][indexRow] = vsTemp;
 			indexRow++;
 		}
@@ -441,7 +445,8 @@ void WJBARGRAPH::getParameterAll(vector<vector<double>>& seriesColour, vector<ve
 			wText = (Wt::WText*)wlItem->widget();
 			wsTemp = wText->text();
 			temp = wsTemp.toUTF8();
-			vsTemp = jf.splitByMarker(temp, '|');
+			vsTemp.clear();
+			jstr.splitByMarker(vsTemp, temp, '|');
 			panelText[indexPanel][indexRow] = vsTemp;
 			indexRow++;
 		}

@@ -5,9 +5,6 @@
 #include <Wt/Chart/WDataSeries.h>
 #include <Wt/WRectArea.h>
 #include <Wt/WStackedWidget.h>
-#include "jfunc.h"
-
-using namespace std;
 
 class WJPARAMRECT : public Wt::WPaintedWidget
 {
@@ -23,7 +20,7 @@ public:
 	~WJPARAMRECT() {}
 	void init();
 	void init(double frameWidth);
-	string getHexColour();
+	std::string getHexColour();
 
 protected:
 	virtual void paintEvent(Wt::WPaintDevice* paintDevice) override;
@@ -31,9 +28,9 @@ protected:
 
 class WJTRASHRECT : public Wt::WPaintedWidget
 {
-	Wt::Signal<string> deleteSignal_;
+	Wt::Signal<std::string> deleteSignal_;
 	double perimeterWidth;
-	vector<Wt::WColor> vColour;
+	std::vector<Wt::WColor> vColour;
 	Wt::WBrush wBrush;
 	Wt::WLength wlMinWidth, wlMinHeight;
 	Wt::WPen wPen;
@@ -42,9 +39,9 @@ class WJTRASHRECT : public Wt::WPaintedWidget
 public:
 	WJTRASHRECT() : Wt::WPaintedWidget() { init(); }
 	~WJTRASHRECT() {}
-	Wt::Signal<string>& deleteSignal() { return deleteSignal_; }
+	Wt::Signal<std::string>& deleteSignal() { return deleteSignal_; }
 	void init();
-	void setColours(vector<Wt::WColor> vwcColours);
+	void setColours(std::vector<Wt::WColor> vwcColours);
 protected:
 	void dropEvent(Wt::WDropEvent wde) override;
 	virtual void paintEvent(Wt::WPaintDevice* paintDevice) override;
@@ -52,12 +49,12 @@ protected:
 
 class WJTRASH : public Wt::WImage
 {
-	Wt::Signal<string> deleteSignal_;
+	Wt::Signal<std::string> deleteSignal_;
 
 public:
 	WJTRASH(Wt::WLink linkTrash) : Wt::WImage(linkTrash) { init(); }
 	~WJTRASH() {}
-	Wt::Signal<string>& deleteSignal() { return deleteSignal_; }
+	Wt::Signal<std::string>& deleteSignal() { return deleteSignal_; }
 	void init();
 
 protected:

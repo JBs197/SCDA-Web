@@ -1,5 +1,7 @@
 #include "wjdownload.h"
 
+using namespace std;
+
 void WJRCSV::handleRequest(const Wt::Http::Request& request, Wt::Http::Response& response)
 {
 	response.setMimeType("csv");
@@ -176,7 +178,8 @@ void WJDOWNLOAD::displayPDFbargraph(vector<vector<double>>& seriesColour, vector
 	wjrPDFbargraph->jpdf.getPDF(wjrPDFbargraph->binPDF);
 	long long sizePNG;
 	wjrPDFbargraph->pathPNG = gs.binToPng(wjrPDFbargraph->binPDF, unique, sizePNG);
-	vector<unsigned char> binPNG = wf.loadBin(wjrPDFbargraph->pathPNG);
+	vector<unsigned char> binPNG;
+	wf.load(binPNG, wjrPDFbargraph->pathPNG);
 	wmrPNGbargraph = make_shared<Wt::WMemoryResource>("png", binPNG);
 
 	// Paint the preview screen.
@@ -264,50 +267,50 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	double dVal;
 	vector<string> vsRegion;
 	vsRegion.assign(mapRegion.begin() + 1, mapRegion.end());
-	jf.sortAlphabetically(vsRegion);
+	jsort.sortAlphabetically(vsRegion);
 	if (displayData.size() > 1 || sUnit[0] == '%')
 	{
 		suffix = " %";
 		dVal = mapRegionData.at(mapRegion[0]);
-		vsValue[0] = jf.doubleToCommaString(dVal, 1) + suffix;
+		vsValue[0] = jnumber.doubleToCommaString(dVal, 1) + suffix;
 		for (int ii = 0; ii < vsRegion.size(); ii++)
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
-			vsValue[ii + 1] = jf.doubleToCommaString(dVal, 1) + suffix;
+			vsValue[ii + 1] = jnumber.doubleToCommaString(dVal, 1) + suffix;
 		}
 	}
 	else if (sUnit[0] == '$')
 	{
 		suffix = " $";
 		dVal = mapRegionData.at(mapRegion[0]);
-		vsValue[0] = jf.doubleToCommaString(dVal, 0) + suffix;
+		vsValue[0] = jnumber.doubleToCommaString(dVal, 0) + suffix;
 		for (int ii = 0; ii < vsRegion.size(); ii++)
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
-			vsValue[ii + 1] = jf.doubleToCommaString(dVal, 0) + suffix;
+			vsValue[ii + 1] = jnumber.doubleToCommaString(dVal, 0) + suffix;
 		}
 	}
 	else if (sUnit[sUnit.size() - 1] == '$') {
 		dVal = mapRegionData.at(mapRegion[0]);
-		if (dVal < 10.0) { vsValue[0] = jf.doubleToCommaString(dVal, decimalPlaces); }
-		else if (dVal < 100.0) { vsValue[0] = jf.doubleToCommaString(dVal, decimalPlaces - 1); }
-		else { vsValue[0] = jf.doubleToCommaString(dVal, decimalPlaces - 2); }
+		if (dVal < 10.0) { vsValue[0] = jnumber.doubleToCommaString(dVal, decimalPlaces); }
+		else if (dVal < 100.0) { vsValue[0] = jnumber.doubleToCommaString(dVal, decimalPlaces - 1); }
+		else { vsValue[0] = jnumber.doubleToCommaString(dVal, decimalPlaces - 2); }
 		for (int ii = 0; ii < vsRegion.size(); ii++)
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
-			if (dVal < 10.0) { vsValue[ii + 1] = jf.doubleToCommaString(dVal, decimalPlaces); }
-			else if (dVal < 100.0) { vsValue[ii + 1] = jf.doubleToCommaString(dVal, decimalPlaces - 1); }
-			else { vsValue[ii + 1] = jf.doubleToCommaString(dVal, decimalPlaces - 2); }
+			if (dVal < 10.0) { vsValue[ii + 1] = jnumber.doubleToCommaString(dVal, decimalPlaces); }
+			else if (dVal < 100.0) { vsValue[ii + 1] = jnumber.doubleToCommaString(dVal, decimalPlaces - 1); }
+			else { vsValue[ii + 1] = jnumber.doubleToCommaString(dVal, decimalPlaces - 2); }
 		}
 	}
 	else 
 	{ 
 		dVal = mapRegionData.at(mapRegion[0]);
-		vsValue[0] = jf.doubleToCommaString(dVal, decimalPlaces) + suffix;
+		vsValue[0] = jnumber.doubleToCommaString(dVal, decimalPlaces) + suffix;
 		for (int ii = 0; ii < vsRegion.size(); ii++)
 		{
 			dVal = mapRegionData.at(vsRegion[ii]);
-			vsValue[ii + 1] = jf.doubleToCommaString(dVal, decimalPlaces);
+			vsValue[ii + 1] = jnumber.doubleToCommaString(dVal, decimalPlaces);
 		}
 	}
 	vsRegion.insert(vsRegion.begin(), mapRegion[0]);
@@ -327,7 +330,8 @@ void WJDOWNLOAD::displayPDFmap(vector<vector<string>>& vvsParameter, vector<int>
 	wjrPDFmap->jpdf.getPDF(wjrPDFmap->binPDF);
 	long long sizePNG;
 	wjrPDFmap->pathPNG = gs.binToPng(wjrPDFmap->binPDF, unique, sizePNG);
-	vector<unsigned char> binPNG = wf.loadBin(wjrPDFmap->pathPNG);
+	vector<unsigned char> binPNG;
+	wf.load(binPNG, wjrPDFmap->pathPNG);
 	if (wmrPNGmap != nullptr) { wmrPNGmap.reset(); }
 	wmrPNGmap = make_shared<Wt::WMemoryResource>("png", binPNG);
 
@@ -699,7 +703,7 @@ void WJDOWNLOAD::updateStackedPreview(int index)
 		wTextArea->setText(wsTemp);
 		wTextArea->setDecorationStyle(style);
 		
-		int numLine = jf.countChar(sCSV, '\n');
+		int numLine = jstr.countChar(sCSV, '\n');
 		auto minHeight = Wt::WLength((20 * numLine) + 40);
 		auto minWidth = Wt::WLength::Auto;
 		wTextArea->setMinimumSize(minWidth, minHeight);

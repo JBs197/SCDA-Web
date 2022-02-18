@@ -1,5 +1,7 @@
 #include "jpdfsection.h"
 
+using namespace std;
+
 void JPDFSECTION::makeBargraph()
 {
 	jpBargraph = make_unique<JPDFBARGRAPH>(page, font, sectionBLTR);

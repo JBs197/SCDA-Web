@@ -73,27 +73,33 @@ void SQLFUNC::createTable(string tname, vector<vector<string>>& vvsColTitle, vec
     // vsUnique is a list of columns (or groups of columns) to be declared
     // unique within the table. 
     if (vvsColTitle.size() < 2) { err("Invalid vvsColTitle-createTable"); }
-    size_t pos1;
     int numCol = (int)vvsColTitle[0].size();
-    for (int ii = 0; ii < numCol; ii++) {
-        pos1 = vvsColTitle[0][ii].find("unique");
-        if (pos1 < vvsColTitle[0][ii].size()) {
-            if (!columnType.count(vvsColTitle[1][ii])) {
-                vsUnique.push_back(vvsColTitle[ii][1]);
-                vvsColTitle[0].erase(vvsColTitle[0].begin() + ii);
-                vvsColTitle[1].erase(vvsColTitle[1].begin() + ii);
-                ii--;
-            }
-        }
-    }
-
     string stmt = "CREATE TABLE IF NOT EXISTS \"" + tname + "\" (";
     for (int ii = 0; ii < numCol; ii++) {
         if (ii > 0) { stmt += ", "; }
-        stmt += "\"" + vvsColTitle[0][ii] + "\" " + vvsColTitle[1][ii];
+        stmt += "'" + vvsColTitle[0][ii] + "' " + vvsColTitle[1][ii];
+    }
+    for (int ii = 0; ii < vsUnique.size(); ii++) {
+        stmt += ", UNIQUE('" + vsUnique[ii] + "')";
     }
     stmt += ");";
     executor(stmt);
+    setTable.emplace(tname);
+}
+void SQLFUNC::createTable(string& stmt, string tname, vector<vector<string>>& vvsColTitle, vector<string> vsUnique)
+{
+    // This variant will return the SQL statement rather than executing it.
+    if (vvsColTitle.size() < 2) { err("Invalid vvsColTitle-createTable"); }
+    int numCol = (int)vvsColTitle[0].size();
+    stmt = "CREATE TABLE IF NOT EXISTS \"" + tname + "\" (";
+    for (int ii = 0; ii < numCol; ii++) {
+        if (ii > 0) { stmt += ", "; }
+        stmt += "'" + vvsColTitle[0][ii] + "' " + vvsColTitle[1][ii];
+    }
+    for (int ii = 0; ii < vsUnique.size(); ii++) {
+        stmt += ", UNIQUE('" + vsUnique[ii] + "')";
+    }
+    stmt += ");";
 }
 void SQLFUNC::deleteRow(string tname, vector<string> conditions)
 {
@@ -335,6 +341,7 @@ void SQLFUNC::executor(string stmt, vector<string>& results)
                     break;
                 }
             }
+            while (results.back() == "") { results.pop_back(); }
         }
         else  // Returned result will be a column.
         {
@@ -467,6 +474,7 @@ void SQLFUNC::executor(string stmt, vector<vector<string>>& results)
                 break;
             }
         }
+        while (results.back().back() == "") { results.back().pop_back(); }
         error = sqlite3_step(statement);
     }
     if (error > 0 && error != 101) { sqlerr("step-executor2"); }
@@ -529,6 +537,7 @@ void SQLFUNC::executor(string stmt, vector<vector<wstring>>& results)
                 break;
             }
         }
+        while (results.back().back() == L"") { results.back().pop_back(); }
         error = sqlite3_step(statement);
     }
     if (error > 0 && error != 101) { sqlerr("step-executor2"); }
@@ -578,8 +587,9 @@ int SQLFUNC::getNumCol(string tname)
     executor(stmt, vvsResult);
     return (int)vvsResult.size();
 }
-int SQLFUNC::getNumRows(string tname)
+int SQLFUNC::getNumRow(string tname)
 {
+    if (!tableExist(tname)) { return -1; }
     string stmt = "SELECT COUNT(*) FROM [";
     stmt += tname + "];";
     string result;
@@ -961,7 +971,7 @@ void SQLFUNC::insertRow(string tname, vector<vector<string>>& vvsRow)
     // vvsRow has form [column titles, row0, row1, ...][values].
     // Note: if vvsRow contains more than one row of data to insert, 
     // then the insertion will be done as a transaction.
-    if (vvsRow.size() < 1 || vvsRow[0].size() < 1) { err("Missing vvsRow-insertRow"); }
+    if (vvsRow.size() < 2 || vvsRow[0].size() < 1) { err("Missing vvsRow-insertRow"); }
     map<string, string> mapColTitle;
     getColTitle(mapColTitle, tname);
     int numCol = (int)vvsRow[0].size();
@@ -1201,7 +1211,7 @@ int SQLFUNC::searchTableName(vector<string>& vsTable, string sQuery)
     // Any '*' wildcards are changed into SQL '%' wildcards, which can 
     // have any string length.
     vector<string> dirt = { "*" }, soap = { "%" };
-    jf.clean(sQuery, dirt, soap);
+    jstr.clean(sQuery, dirt, soap);
     sclean(sQuery, 1);
 
     vsTable.clear();
@@ -1545,10 +1555,65 @@ string SQLFUNC::sqlErrMsg()
     }
     return output;
 }
+void SQLFUNC::stmtInsertRow(vector<string>& vsStmt, string tname, vector<vector<string>>& vvsRow)
+{
+    // This function performs as "insertRow" does, except that it returns the SQL statements 
+    // rather than inserting them immediately.
+    // vvsRow has form [column titles, row0, row1, ...][values].
+    if (vvsRow.size() < 2 || vvsRow[0].size() < 1) { err("Missing vvsRow-stmtInsertRow"); }
+    if (tname.size() < 1) { err("Missing tname-stmtInsertRow"); }
+    double test;
+    int numCol = (int)vvsRow[0].size();
+    int numRow = (int)vvsRow.size() - 1;
+    int index = (int)vsStmt.size();
+    vector<size_t> vSize(numCol);
+    size_t rowSize, totalSize;
+    string stmt0 = "INSERT OR IGNORE INTO \"" + tname + "\" (";
+    string temp;
+    vsStmt.resize(index + numRow);
+    for (int ii = 0; ii < numRow; ii++) {
+        rowSize = vvsRow[1 + ii].size();  // Number of values contained in this row.
+        
+        // Determine which columns to skip over (if any), or if the entire row should be skipped.
+        totalSize = 0;
+        for (int jj = 0; jj < rowSize; jj++) {
+            vSize[jj] = vvsRow[1 + ii][jj].size();
+            totalSize += vSize[jj];
+        }
+        if (totalSize == 0) { continue; }
+
+        vsStmt[index + ii] = stmt0;
+        for (int jj = 0; jj < rowSize; jj++) {
+            if (vSize[jj] == 0) { continue; }
+            if (jj > 0) { vsStmt[index + ii] += ", "; }
+            vsStmt[index + ii] += "\"" + vvsRow[0][jj] + "\"";
+        }
+        vsStmt[index + ii] += ") VALUES (";
+        for (int jj = 0; jj < rowSize; jj++) {
+            if (vSize[jj] == 0) { continue; }
+            if (jj > 0) { vsStmt[index + ii] += ", "; }
+            try { 
+                test = stod(vvsRow[1 + ii][jj]); 
+                vsStmt[index + ii] += vvsRow[1 + ii][jj];
+            }
+            catch (invalid_argument) {
+                temp = vvsRow[1 + ii][jj];
+                sclean(temp, 1);
+                vsStmt[index + ii] += "'" + temp + "'";
+            }
+        }
+        vsStmt[index + ii] += ");";
+    }
+}
 bool SQLFUNC::tableExist(string tname)
 {
     // Returns TRUE or FALSE as to the existance of a given table within the database.
     return (bool)setTable.count(tname);
+}
+void SQLFUNC::tableExistUpdate()
+{
+    // Trigger an update to setTable (useful after tables were created within a transaction).
+    allTables(setTable);
 }
 void SQLFUNC::update(string tname, vector<string> revisions, vector<string> conditions)
 {

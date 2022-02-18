@@ -3,17 +3,13 @@
 #include <Wt/WTree.h>
 #include <Wt/WTreeNode.h>
 #include <Wt/WVBoxLayout.h>
-#include "jfunc.h"
 #include "jtree.h"
-
-using namespace std;
 
 class WJTREE : public Wt::WContainerWidget
 {
-	JFUNC jf;
 	Wt::WLength maxWidth, maxHeight, wlAuto;
 
-	void err(string message);
+	void err(std::string message);
 	void init(int width, int height);
 
 public:

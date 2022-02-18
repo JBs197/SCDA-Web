@@ -13,34 +13,30 @@
 #include <Wt/WPopupMenu.h>
 #include <Wt/WPushButton.h>
 #include <Wt/WText.h>
-#include "jfunc.h"
+#include "jnumber.h"
+#include "jtime.h"
 #include "jtree.h"
-
-using namespace std;
 
 class WJDELEGATE : public Wt::WItemDelegate
 {
 	double height;
-	string styleCell = "white-space: normal; overflow-y: auto;";
-	string temp;
+	std::string styleCell = "white-space: normal; overflow-y: auto;";
+	std::string temp;
 
 public:
 	WJDELEGATE(const double& h) : Wt::WItemDelegate(), height(h) {}
 	~WJDELEGATE() {}
 
-	unique_ptr<Wt::WWidget> update(Wt::WWidget* widget, const Wt::WModelIndex& index, Wt::WFlags< Wt::ViewItemRenderFlag > flags)
+	std::unique_ptr<Wt::WWidget> update(Wt::WWidget* widget, const Wt::WModelIndex& index, Wt::WFlags< Wt::ViewItemRenderFlag > flags)
 	{
 		int iRow = index.row();
 		int iCol = index.column();
 		auto widgetUnique = Wt::WItemDelegate::update(widget, index, flags);
-		if (!widget)
-		{
-			if (iCol > 0)
-			{
+		if (!widget) {
+			if (iCol > 0) {
 				temp = styleCell + "line-height: 28px; text-align: right; font-size: x-large;";
 			}
-			else
-			{
+			else {
 				temp = styleCell + "line-height: 20px; text-align: left; font-size: medium; font-weight: bold;";
 			}
 			widgetUnique->setAttributeValue("style", temp);
@@ -55,32 +51,28 @@ public:
 class WJSDELEGATE : public Wt::WItemDelegate  // Used for a smaller cell font.
 {
 	double height;
-	string styleCell = "white-space: normal; overflow-y: auto;";
-	string temp;
+	std::string styleCell = "white-space: normal; overflow-y: auto;";
+	std::string temp;
 
 public:
 	WJSDELEGATE(const double& h) : Wt::WItemDelegate(), height(h) {}
 	~WJSDELEGATE() {}
 
-	unique_ptr<Wt::WWidget> update(Wt::WWidget* widget, const Wt::WModelIndex& index, Wt::WFlags< Wt::ViewItemRenderFlag > flags)
+	std::unique_ptr<Wt::WWidget> update(Wt::WWidget* widget, const Wt::WModelIndex& index, Wt::WFlags< Wt::ViewItemRenderFlag > flags)
 	{
 		int iRow = index.row();
 		int iCol = index.column();
 		auto widgetUnique = Wt::WItemDelegate::update(widget, index, flags);
-		if (!widget)
-		{
-			if (iCol > 0)
-			{
+		if (!widget) {
+			if (iCol > 0) {
 				temp = styleCell + "line-height: 28px; text-align: right; font-size: large;";
 			}
-			else
-			{
+			else {
 				temp = styleCell + "line-height: 20px; text-align: left; font-size: medium; font-weight: bold;";
 			}
 			widgetUnique->setAttributeValue("style", temp);
 		}
-		else
-		{
+		else {
 			int bbq = 1;
 		}
 		return widgetUnique;
@@ -89,35 +81,32 @@ public:
 class WJHDELEGATE : public Wt::WItemDelegate
 {
 	double height;
-	string styleCell = "line-height: 20px; white-space: normal; overflow-y: auto;";
-	string temp;
+	std::string styleCell = "line-height: 20px; white-space: normal; overflow-y: auto;";
+	std::string temp;
 
-	Wt::Signal<int, string> sigHeaderID_;
+	Wt::Signal<int, std::string> sigHeaderID_;
 
 public:
 	WJHDELEGATE(const double& h) : Wt::WItemDelegate(), height(h) {}
 	~WJHDELEGATE() {}
 
-	Wt::Signal<int, string>& sigHeaderID() { return sigHeaderID_; }
+	Wt::Signal<int, std::string>& sigHeaderID() { return sigHeaderID_; }
 
-	unique_ptr<Wt::WWidget> update(Wt::WWidget* widget, const Wt::WModelIndex& index, Wt::WFlags< Wt::ViewItemRenderFlag > flags)
+	std::unique_ptr<Wt::WWidget> update(Wt::WWidget* widget, const Wt::WModelIndex& index, Wt::WFlags< Wt::ViewItemRenderFlag > flags)
 	{
 		int iCol = index.column();
 		auto widgetUnique = Wt::WItemDelegate::update(widget, index, flags);
-		if (!widget)
-		{
+		if (!widget) {
 			if (iCol > 0) { temp = styleCell + " text-align: left;"; }
-			else
-			{
+			else {
 				int iNum = int(height / 2.0) - 10;
 				temp = styleCell + " text-align: center;";
-				temp += " padding-top: " + to_string(iNum) + "px;";
+				temp += " padding-top: " + std::to_string(iNum) + "px;";
 			}
 			widgetUnique->setAttributeValue("style", temp);
 			sigHeaderID_.emit(iCol, widgetUnique->id());
 		}
-		else
-		{
+		else {
 			int bbq = 1;
 		}
 		return widgetUnique;
@@ -129,23 +118,25 @@ class WJTABLE : public Wt::WTableView
 	Wt::Signal<int, int> headerSignal_;
 	const double heightCell = 68.0;
 	const double heightHeader = 68.0;
-	mutex m_time;
+	JNUMBER jnumber;
+	JPARSE jparse;
+	std::mutex m_time;
 	double regionPopulation;
-	string scSelectedWeak, scSelectedStrong, scWhite;
+	std::string scSelectedWeak, scSelectedStrong, scWhite;
 	Wt::WModelIndex selectedIndex = Wt::WModelIndex();
-	set<string> setUnitBreaker;          // List of strings which disqualify a unit candidate.
-	set<string> setUnitDollar1;          // List of strings which may indicate a unit of "$".
-	set<string> setUnitDollar2;          // List of strings which confirm a unit of "$".
-	set<string> setUnitPercent;          // List of strings which indicate a unit of "%".
-	string sUnitPreference;
+	std::set<std::string> setUnitBreaker;          // List of strings which disqualify a unit candidate.
+	std::set<std::string> setUnitDollar1;          // List of strings which may indicate a unit of "$".
+	std::set<std::string> setUnitDollar2;          // List of strings which confirm a unit of "$".
+	std::set<std::string> setUnitPercent;          // List of strings which indicate a unit of "%".
+	std::string sUnitPreference;
 	Wt::WBorder wbNone, wbSelected;
 	Wt::WColor wcSelectedWeak, wcSelectedStrong, wcWhite;
 	Wt::WLength wlAuto;
 
-	void err(string message);
+	void err(std::string message);
 
 public:
-	WJTABLE(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop, string& configXML)
+	WJTABLE(std::vector<std::vector<std::string>>& vvsCore, std::vector<std::vector<std::string>>& vvsCol, std::vector<std::vector<std::string>>& vvsRow, std::vector<std::string>& vsNamePop, std::string& configXML)
 		: Wt::WTableView() {
 		setRowHeaderCount(1); 
 		init(vvsCore, vvsCol, vvsRow, vsNamePop, configXML);
@@ -156,50 +147,51 @@ public:
 	}
 	~WJTABLE() {}
 
-	JFUNC jf;
-	unordered_map<string, int> mapColIndex, mapRowIndex;  // sHeader -> col/row index
-	unordered_map<int, string> mapColUnit, mapRowUnit;  // index -> sUnit (if known)
-	unordered_map<int, string> mapColValue;  // colIndex -> sHeader
-	unordered_map<int, string> mapHeaderID;  // colIndex -> headerID
-	unordered_map<int, int> mapIndentCol, mapIndentRow;  // col/row index -> header indentation.
-	unordered_map<unsigned long long, string> mapPrefixNumber;  // multiple of thousand -> (Thousand, Million, etc).
+	JTIME jtime;
 
-	shared_ptr<Wt::WStandardItemModel> model = nullptr;
-	shared_ptr<WJDELEGATE> wjDel = nullptr;
-	shared_ptr<WJSDELEGATE> wjsDel = nullptr;
-	shared_ptr<WJHDELEGATE> wjhDel = nullptr;
+	std::unordered_map<std::string, int> mapColIndex, mapRowIndex;  // sHeader -> col/row index
+	std::unordered_map<int, std::string> mapColUnit, mapRowUnit;  // index -> sUnit (if known)
+	std::unordered_map<int, std::string> mapColValue;  // colIndex -> sHeader
+	std::unordered_map<int, std::string> mapHeaderID;  // colIndex -> headerID
+	std::unordered_map<int, int> mapIndentCol, mapIndentRow;  // col/row index -> header indentation.
+	std::unordered_map<unsigned long long, std::string> mapPrefixNumber;  // multiple of thousand -> (Thousand, Million, etc).
+
+	std::shared_ptr<Wt::WStandardItemModel> model = nullptr;
+	std::shared_ptr<WJDELEGATE> wjDel = nullptr;
+	std::shared_ptr<WJSDELEGATE> wjsDel = nullptr;
+	std::shared_ptr<WJHDELEGATE> wjhDel = nullptr;
 
 	Wt::Signal<int, int>& headerSignal() { return headerSignal_; }
 
 	void cellSelect(int iRow, int iCol);
 	void cellSelect(Wt::WModelIndex wmIndex);
 	void cellSelect(Wt::WModelIndex wmIndex, int iRow, int iCol);
-	void compressUnitCell(string& sUnit, string& sCell);
-	void compressUnitCol(int iCol, vector<vector<string>>& vvsCore);
-	void compressUnitRow(int iRow, vector<vector<string>>& vvsCore);
-	string getCell(int iRow, int iCol);
-	string getCellValue(int iRow, int iCol);
-	int getColIndex(string sHeader);
-	vector<int> getRowColSel();
-	int getRowIndex(string sHeader);
-	string getUnit();
-	string getUnit(int iRow, int iCol);
-	string getUnit(string header);
-	string getUnitParser(string header);
+	void compressUnitCell(std::string& sUnit, std::string& sCell);
+	void compressUnitCol(int iCol, std::vector<std::vector<std::string>>& vvsCore);
+	void compressUnitRow(int iRow, std::vector<std::vector<std::string>>& vvsCore);
+	std::string getCell(int iRow, int iCol);
+	std::string getCellValue(int iRow, int iCol);
+	int getColIndex(std::string sHeader);
+	std::vector<int> getRowColSel();
+	int getRowIndex(std::string sHeader);
+	std::string getUnit();
+	std::string getUnit(int iRow, int iCol);
+	std::string getUnit(std::string header);
+	std::string getUnitParser(std::string header);
 	void headerSelect(int iCol);
-	void init(vector<vector<string>>& vvsCore, vector<vector<string>>& vvsCol, vector<vector<string>>& vvsRow, vector<string>& vsNamePop, string& configXML);
+	void init(std::vector<std::vector<std::string>>& vvsCore, std::vector<std::vector<std::string>>& vvsCol, std::vector<std::vector<std::string>>& vvsRow, std::vector<std::string>& vsNamePop, std::string& configXML);
 	void initBlank();
 	void initModel(int numRow, int numCol);
-	void initValues(string& configXML);
-	void modelSetCore(vector<vector<string>>& vvsCore);
-	void modelSetLeft(vector<vector<string>>& vvsRow);
-	void modelSetTop(vector<vector<string>>& vvsCol);
-	void modelSetTopLeft(string sRegion);
-	void saveHeader(const int& iCol, const string& sID);
-	void setColUnit(string& colHeader, int index);
-	void setProperty(Wt::WWidget* widget, string property, string value);
-	void setProperty(Wt::WWidget* widget, vector<string> vsProperty, vector<string> vsValue);
-	void setRowUnit(string& rowHeader, int index);
+	void initValues(std::string& configXML);
+	void modelSetCore(std::vector<std::vector<std::string>>& vvsCore);
+	void modelSetLeft(std::vector<std::vector<std::string>>& vvsRow);
+	void modelSetTop(std::vector<std::vector<std::string>>& vvsCol);
+	void modelSetTopLeft(std::string sRegion);
+	void saveHeader(const int& iCol, const std::string& sID);
+	void setColUnit(std::string& colHeader, int index);
+	void setProperty(Wt::WWidget* widget, std::string property, std::string value);
+	void setProperty(Wt::WWidget* widget, std::vector<std::string> vsProperty, std::vector<std::string> vsValue);
+	void setRowUnit(std::string& rowHeader, int index);
 	void tableClicked(const Wt::WModelIndex& wmIndex, const Wt::WMouseEvent& wmEvent);
 	void tableClickedSimulated(int iRow, int iCol);
 	void tableHeaderClicked(const int& iCol, const Wt::WMouseEvent& wmEvent);
@@ -209,17 +201,17 @@ class WJTABLEBOX : public Wt::WContainerWidget
 {
 	Wt::WContainerWidget *boxOption, *boxTable, *boxTip;
 	JSTRING jstr;
-	unordered_map<string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
+	std::unordered_map<std::string, Wt::WString> mapTooltip;  // sPrompt -> wsTooltip
 	bool mobile = 0;
-	string sRegion;
-	Wt::Signal<string> tipSignal_;
-	vector<vector<int>> vviFilter;
-	vector<vector<string>> vvsCore, vvsCol, vvsRow;
+	std::string sRegion;
+	Wt::Signal<std::string> tipSignal_;
+	std::vector<std::vector<int>> vviFilter;
+	std::vector<std::vector<std::string>> vvsCore, vvsCol, vvsRow;
 	Wt::WColor wcSelectedWeak, wcWhite;
 	WJTABLE* wjTable = nullptr;
 	Wt::WLength wlAuto, wlTableWidth, wlTableHeight;
 
-	void err(string message);
+	void err(std::string message);
 	void init();
 	void initColour();
 	void initMaps();
@@ -228,8 +220,7 @@ public:
 	WJTABLEBOX() : Wt::WContainerWidget() { init(); }
 	~WJTABLEBOX() {}
 
-	string configXML;
-	JFUNC jf;
+	std::string configXML;
 	Wt::WLink linkIconClose = Wt::WLink();
 	Wt::WPushButton *pbFilterCol, *pbFilterRow, *pbPinCol, *pbPinRow, *pbPinReset, *pbUnit;
 	Wt::WPopupMenu* popupUnit;
@@ -237,18 +228,18 @@ public:
 
 	void addFilterBox();
 	void addTipWidth();
-	vector<vector<string>> getBargraphCol();
-	vector<vector<string>> getBargraphRow();
-	string makeCSV();
-	unique_ptr<Wt::WContainerWidget> makeUnitPinBox(Wt::WPopupMenu*& popupUnit, Wt::WText*& textUnit, Wt::WPushButton*& pbUnit, Wt::WPushButton*& pbPinRow, Wt::WPushButton*& pbPinCol, Wt::WPushButton*& pbPinReset);
+	std::vector<std::vector<std::string>> getBargraphCol();
+	std::vector<std::vector<std::string>> getBargraphRow();
+	std::string makeCSV();
+	std::unique_ptr<Wt::WContainerWidget> makeUnitPinBox(Wt::WPopupMenu*& popupUnit, Wt::WText*& textUnit, Wt::WPushButton*& pbUnit, Wt::WPushButton*& pbPinRow, Wt::WPushButton*& pbPinCol, Wt::WPushButton*& pbPinReset);
 	void removeTipWidth();
 	void resetMenu();
-	WJTABLE* setTable(vector<vector<string>>& core, vector<vector<string>>& col, vector<vector<string>>& row, vector<string>& vsNamePop);
+	WJTABLE* setTable(std::vector<std::vector<std::string>>& core, std::vector<std::vector<std::string>>& col, std::vector<std::vector<std::string>>& row, std::vector<std::string>& vsNamePop);
 	void setTableSize();
 	void setTableSize(Wt::WLength& wlWidth, Wt::WLength& wlHeight);
-	Wt::Signal<string>& tipSignal() { return tipSignal_; }
-	void updatePinButtons(vector<string> vsTooltip);
-	WJTABLE* updateTable(vector<string>& vsNamePop, vector<int>& rowColSel);
+	Wt::Signal<std::string>& tipSignal() { return tipSignal_; }
+	void updatePinButtons(std::vector<std::string> vsTooltip);
+	WJTABLE* updateTable(std::vector<std::string>& vsNamePop, std::vector<int>& rowColSel);
 	void widgetMobile(bool mobile);
 
 };

@@ -1,5 +1,7 @@
 #include "wtpaint.h"
 
+using namespace std;
+
 int WTPAINT::adjustScale(vector<vector<int>>& scaleValues, string& sUnit)
 {
 	// If scale values are very large, they will be reduced by changing the unit.
@@ -170,7 +172,7 @@ vector<vector<int>> WTPAINT::getFrame(vector<Wt::WPointF>& path)
 		else if (path[ii].y() > TLBRd[1][1]) { TLBRd[1][1] = path[ii].y(); }
 	}
 	vector<vector<int>> TLBR;
-	jf.toInt(TLBRd, TLBR);
+	jnumber.toInt(TLBRd, TLBR);
 	return TLBR;
 }
 vector<double> WTPAINT::getDimensions()
@@ -296,7 +298,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 			scaleValues[1][2] = scaleValues[1][1];
 			scaleValues[1][1] = dTemp;
 		}
-		scaleValues[1][3] = jf.roundingCeil(scaleValues[1][2]);
+		scaleValues[1][3] = jnumber.roundingCeil(scaleValues[1][2]);
 		break;
 	case 2:
 		scaleValues[0] = jsb.getTickValues(-1, numColour);
@@ -369,7 +371,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 	}
 
 	wGrad.setLinearGradient(wGradX0, wGradY0, wGradX1, wGradY1);
-	vector<string> vsVal = jf.doubleToCommaString(scaleValues[0], 1);
+	vector<string> vsVal = jnumber.doubleToCommaString(scaleValues[0], 1);
 
 	double bandWidth = 1.0 / (double)(numColourBands);
 	for (int ii = 0; ii < numColour; ii++)  // Child bar only.
@@ -490,7 +492,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 		}
 
 		int coord1;  // Representing the problematic dimension of ii = 1.
-		vsVal = jf.doubleToCommaString(scaleValues[1], decimalPlaces);
+		vsVal = jnumber.doubleToCommaString(scaleValues[1], decimalPlaces);
 		vsVal[2] = areaName[0];
 		for (int ii = 0; ii < 4; ii++)  // For parent bar only.
 		{
@@ -733,9 +735,9 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 		if (parentValue > 101.0)
 		{
 			int iParentValue = int(round(parentValue));
-			temp = jf.intToCommaString(iParentValue) + suffix;
+			temp = jnumber.intToCommaString(iParentValue) + suffix;
 		}
-		else { temp = jf.doubleToCommaString(parentValue, 1) + suffix; }
+		else { temp = jnumber.doubleToCommaString(parentValue, 1) + suffix; }
 		vsList.push_back(temp);
 
 		if (legendTickLines != 1)
@@ -745,7 +747,7 @@ void WTPAINT::paintLegendBar(Wt::WPainter& painter)
 
 		if (barVertical && gameOn)
 		{
-			vsListCentered = jf.horizontalCentering(vsList);
+			vsListCentered = jstr.horizontalCentering(vsList);
 
 			tickXP = barTLBR[0][0] + barNumberWidth + (1.5 * barThickness);
 			tickYP = wGradY0 - (dTemp * dLen) + 1.0;
@@ -887,9 +889,9 @@ void WTPAINT::makeAreas()
 		if (dAreaValue > 101.0)
 		{
 			iAreaValue = int(round(dAreaValue));
-			value += jf.intToCommaString(iAreaValue);
+			value += jnumber.intToCommaString(iAreaValue);
 		}
-		else { value += jf.doubleToCommaString(dAreaValue, 1); }
+		else { value += jnumber.doubleToCommaString(dAreaValue, 1); }
 		if (legendTickLines == 1) { suffix = " (" + sUnit + ")"; }
 		else
 		{
@@ -1042,9 +1044,10 @@ void WTPAINT::updateAreaColour()
 {
 	if (keyColour.size() != numColourBands + 1) { initColour(); }
 	if (legendMin < 0.0 || legendMax < 0.0) { 
-		vector<int> viMinMax = jf.minMax(jsb.vDataset[jsb.activeIndex]);
-		legendMin = jsb.vDataset[jsb.activeIndex][viMinMax[0]];
-		legendMax = jsb.vDataset[jsb.activeIndex][viMinMax[1]];
+		pair<int, int> minMax;
+		jnumber.minMaxIndex(minMax, jsb.vDataset[jsb.activeIndex]);
+		legendMin = jsb.vDataset[jsb.activeIndex][get<0>(minMax)];
+		legendMax = jsb.vDataset[jsb.activeIndex][get<1>(minMax)];
 	}
 	size_t numArea = areaName.size();
 	areaColour.resize(numArea, vector<int>(3));

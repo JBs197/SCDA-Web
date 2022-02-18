@@ -1,5 +1,7 @@
 #include "jpdfmap.h"
 
+using namespace std;
+
 void JPDFMAP::displaceChildToParent(vector<vector<double>>& vvdBorder, vector<vector<double>>& childFrame, vector<double> dispParentTL)
 {
 	vector<double> vdShift(2);
@@ -239,7 +241,7 @@ vector<vector<double>> JPDFMAP::drawLegend(int indexDataset)
 		legendTickMarks[1][0] = legendTickMarks[0][0];
 		legendTickMarks[1][1] = legendTickMarks[0][legendTickMarks[0].size() - 1];
 		legendTickMarks[1][2] = jsb.getDatasetValue(indexDataset, 0);
-		legendTickMarks[1][3] = jf.roundingCeil(legendTickMarks[1][2]);
+		legendTickMarks[1][3] = jmath.roundingCeil(legendTickMarks[1][2]);
 	}
 	else
 	{
@@ -331,7 +333,7 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<double>& t
 	}
 	int numColour = keyColour.size();
 	double bandWidth = 1.0 / (double)(numColour - 1);
-	vector<string> vsVal = jf.doubleToCommaString(tickValues, 1);
+	vector<string> vsVal = jmath.doubleToCommaString(tickValues, 1);
 	if (legendTickLines == 1) { suffix = " (" + sUnit + ")"; }
 	else
 	{
@@ -408,7 +410,7 @@ void JPDFMAP::drawLegendTicks(vector<vector<double>> rectBLTR, vector<vector<dou
 		length = rectBLTR[1][0] - rectBLTR[0][0];
 	}
 	double dRadius = (barThickness - 6.0) / 2.0;
-	vector<string> vsVal = jf.doubleToCommaString(tickValues[1], 1);
+	vector<string> vsVal = jmath.doubleToCommaString(tickValues[1], 1);
 	if (legendTickLines == 1) { suffix = " (" + sUnit + ")"; }
 	else
 	{
@@ -930,8 +932,8 @@ void JPDFMAP::kmToPixel(vector<vector<vector<double>>> frame, vector<vector<vect
 	vector<double> delta = { imgBLTR[0][0], imgBLTR[1][1] };
 	for (int ii = 0; ii < mapRegion.size(); ii++)
 	{
-		jf.coordReflectY(mapBorder[ii], 0.0);
-		jf.coordDisplacement(mapBorder[ii], delta);
+		jmath.coordReflectY(mapBorder[ii], 0.0);
+		jmath.coordDisplacement(mapBorder[ii], delta);
 	}
 }
 void JPDFMAP::initColour()
@@ -943,10 +945,11 @@ void JPDFMAP::initColour()
 	colourList[3] = { 200, 200, 255, 255 };  // SelectedWeak
 	colourList[4] = { 150, 150, 192, 255 };  // SelectedStrong
 
-	colourListDouble.resize(colourList.size());
-	for (int ii = 0; ii < colourListDouble.size(); ii++)
-	{
-		colourListDouble[ii] = jf.rgbxToDouble(colourList[ii]);
+	colourListDouble.resize(colourList.size(), vector<double>());
+	for (int ii = 0; ii < colourListDouble.size(); ii++) {
+		for (int jj = 0; jj < colourList[ii].size(); jj++) {
+			colourListDouble[ii].emplace_back((double)colourList[ii][jj] / 255.0);
+		}		
 	}
 
 	keyColour.resize(6);

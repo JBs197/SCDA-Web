@@ -1,5 +1,7 @@
 #include "wjconfig.h"
 
+using namespace std;
+
 void WJPANEL::appendSelf(vector<string>& vsDIMtitle, vector<int>& viMID)
 {
 	// Append this panel's selected title and MID to the existing list.
@@ -119,7 +121,7 @@ void WJPANEL::dialogMIDEnd()
 	size_t pos1 = sPanel.find("Variable");
 	if (pos1 < sPanel.size()) { varSignal_.emit(); }  // Member of varWJP
 	else { topicSignal_.emit(); }  // Member of basicWJP
-	jf.timerStart();
+	jtime.timerStart();
 }
 void WJPANEL::dialogMIDToggle(int stackedIndex)
 {
@@ -1239,8 +1241,8 @@ void WJCONFIG::topicSelChanged()
 }
 void WJCONFIG::topicSelClicked()
 {
-	if (wjpTopicRow != nullptr) { wjpTopicRow->jf.timerStart(); }
-	if (wjpTopicCol != nullptr) { wjpTopicCol->jf.timerStart(); }
+	if (wjpTopicRow != nullptr) { wjpTopicRow->jtime.timerStart(); }
+	if (wjpTopicCol != nullptr) { wjpTopicCol->jtime.timerStart(); }
 }
 void WJCONFIG::topicTitleChanged(string id)
 {
@@ -1356,5 +1358,5 @@ void WJCONFIG::varMIDChanged()
 }
 void WJCONFIG::varMIDClicked()
 {
-	jf.timerStart();
+	jtime.timerStart();
 }

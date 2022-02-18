@@ -1,5 +1,7 @@
 #include "jpdfbargraph.h"
 
+using namespace std;
+
 void JPDFBARGRAPH::addRegionData(int indexRegion, vector<double>& regionData)
 {
 	// regionData values are within the interval [0.0, 1.0] of the y-axis scale.
@@ -71,11 +73,13 @@ void JPDFBARGRAPH::drawAxisX(vector<string> vsValue, double rotationDeg)
 	}
 
 	// Determine the x-axis' box dimensions.
-	vector<int> heightMinMax = jf.minMax(vHeight);
+	pair<double, double> heightMinMax;
+	jnumber.minMaxValue(heightMinMax, vHeight);
+	//vector<int> heightMinMax = jf.minMax(vHeight);
 	xAxisBLTR.resize(2, vector<double>(2));
 	xAxisBLTR[0] = bargraphBLTR[0];
 	xAxisBLTR[1][0] = bargraphBLTR[1][0];
-	xAxisBLTR[1][1] = xAxisBLTR[0][1] + vHeight[heightMinMax[1]] + tickLength;
+	xAxisBLTR[1][1] = xAxisBLTR[0][1] + get<1>(heightMinMax) + tickLength;
 
 	// Paint the x-axis angled names, with the text aligned to TR corner.
 	double lineHeight, lineLength, subspace, xBegin;
@@ -145,7 +149,7 @@ void JPDFBARGRAPH::drawAxisY(vector<double>& minMax, string unit)
 	int diff = pos2 - posDecimal;
 
 	double bandwidth, dVal;
-	bandwidth = jf.rounding(bandwidthTemp, diff);
+	bandwidth = jnumber.rounding(bandwidthTemp, diff);
 	if (bandwidth > bandwidthTemp)  // Rounded up, so extra space on the top.
 	{
 		testTick = numTicks - 2;
@@ -172,7 +176,7 @@ void JPDFBARGRAPH::drawAxisY(vector<double>& minMax, string unit)
 	for (int ii = 0; ii < numTicks; ii++)
 	{
 		if (ii == numTicks - 1) { minMax[1] = minMax[0] + ((double)ii * bandwidth); }
-		vsTick[ii] = jf.doubleToCommaString(minMax[0] + ((double)ii * bandwidth), decimalPlaces);
+		vsTick[ii] = jnumber.doubleToCommaString(minMax[0] + ((double)ii * bandwidth), decimalPlaces);
 		if (axisTickLines == 1) { vsTick[ii] += " (" + unit + ")"; }
 	}
 
@@ -265,11 +269,11 @@ void JPDFBARGRAPH::err(string message)
 void JPDFBARGRAPH::initAxisY(vector<double>& minMax, string unit)
 {
 	// Estimate the width needed by the y-axis.
-	double topVal = jf.roundingCeil(minMax[1]);
+	double topVal = jnumber.roundingCeil(minMax[1]);
 	int decimalPlaces;
 	if (unit[0] == '%') { decimalPlaces = 1; }
 	else { decimalPlaces = 0; }
-	string sTop = jf.doubleToCommaString(topVal, decimalPlaces);
+	string sTop = jnumber.doubleToCommaString(topVal, decimalPlaces);
 	if (unit.size() == 1) {
 		sTop += " (" + unit + ")";
 	}
@@ -301,7 +305,8 @@ vector<string> JPDFBARGRAPH::splitAtSpaceBox(string tooLong, vector<vector<doubl
 	size_t pos1;
 	double textLongest = -1.0;
 	double localTopXMinTR = topXMinTR - boxBLTR[0][0];
-	vector<string> vsText = jf.splitByMarker(tooLong, ' ');
+	vector<string> vsText;
+	jstr.splitByMarker(vsText, tooLong, ' ');
 	int indexCandidate, indexLine, numLine = 0;
 	bool fit, success = 0;
 	while (!success) {
@@ -404,8 +409,9 @@ vector<string> JPDFBARGRAPH::splitAtSpaceBox(string tooLong, vector<vector<doubl
 
 	}
 
-	vector<int> fontMinMax = jf.minMax(vFontBest);
-	indexCandidate = fontMinMax[1];
+	pair<int, int> fontMinMax;
+	jnumber.minMaxIndex(fontMinMax, vFontBest);
+	indexCandidate = get<1>(fontMinMax);
 	error = HPDF_Page_SetFontAndSize(page, font, vFontBest[indexCandidate]);
 	if (error != HPDF_OK) { err("SetFontAndSize-jpdfbargraph.splitAtSpaceBox"); }
 	textLongest = (double)HPDF_Page_TextWidth(page, vvsLine[indexCandidate][vvsLine[indexCandidate].size() - 1].c_str());

@@ -1,5 +1,7 @@
 #include "SCDAwidget.h"
 
+using namespace std;
+
 void SCDAwidget::cleanUnit(string& unit)
 {
 	string temp;
@@ -99,9 +101,9 @@ int SCDAwidget::getWidth()
 void SCDAwidget::incomingHeaderSignal(const int& iRow, const int& iCol)
 {
 	// Either the config CBs or the data table is reporting a change in selected headers. 
-	long long timeTable = tableData->jf.timerReport();
-	long long timeConfigCol = wjConfig->wjpTopicCol->jf.timerReport();
-	long long timeConfigRow = wjConfig->wjpTopicRow->jf.timerReport();
+	long long timeTable = tableData->jtime.timerReport();
+	long long timeConfigCol = wjConfig->wjpTopicCol->jtime.timerReport();
+	long long timeConfigRow = wjConfig->wjpTopicRow->jtime.timerReport();
 	long long timeConfig = min(timeConfigCol, timeConfigRow);
 
 	// Update the CB widgets or the data table's selected cell, then load a map. 
@@ -286,7 +288,7 @@ void SCDAwidget::init()
 	}
 	*/
 
-	jf.timerStart();
+	jtime.timerStart();
 	string sessionID = app->sessionId();
 	sRef.pullConnection(sessionID);
 }
@@ -669,7 +671,6 @@ void SCDAwidget::processEventParameter(vector<vector<vector<string>>> vvvsParame
 
 	int sizeVar = wjConfig->varWJP.size();
 	activeCata = vvsCata[0][1];
-	jf.removeBlanks(vvvsParameter);
 
 	Wt::WString wsTemp;
 	WJPANEL* wjp = nullptr;
@@ -724,8 +725,6 @@ void SCDAwidget::processEventTable(vector<vector<string>>& vvsTable, vector<vect
 	string sTitleRow = vvsRow[vvsRow.size() - 1][0];  // Currently unused.
 	vvsCol.pop_back();
 	vvsRow.pop_back();
-	jf.removeBlanks(vvsCol);
-	jf.removeBlanks(vvsRow);
 
 	// Populate ColTopicSel and RowTopicSel if necessary.
 	if (wjConfig->wjpTopicRow->boxMID->isHidden() || wjConfig->wjpTopicCol->boxMID->isHidden())
@@ -992,7 +991,7 @@ void SCDAwidget::seriesAddToGraph(int mode)
 				{
 					parentRow = vvsData[ii];
 					vvsData.erase(vvsData.begin() + ii);
-					jf.sortAlphabetically(vvsData, 0);
+					jsort.sortAlphabetically(vvsData, 0);
 					vvsData.insert(vvsData.begin(), parentRow);
 					break;
 				}
