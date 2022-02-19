@@ -1572,15 +1572,21 @@ void SCDAserver::makeTreeGeo(JTREE& jt, vector<vector<string>>& geo)
 void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 {
 	string temp;
-	for (userMap::const_iterator ii = users.begin(); ii != users.end(); ii++)
-	{
+	for (userMap::const_iterator ii = users.begin(); ii != users.end(); ++ii) {
 		temp = ii->second.sessionID;
-		if (temp == sID)
-		{
+		if (temp == sID) {
 			serverRef.post(sID, bind(ii->second.eventCallback, event));
 			break;
 		}
 	}
+}
+
+void SCDAserver::pullCata(string sessionID, CataFilter cataFilter)
+{
+	// Return a list of catalogues which satisfy the given criteria.
+	vector<string> vsCata;
+	cataFind->applyFilter(vsCata, cataFilter);
+	postDataEvent(DataEvent(DataEvent::Catalogue, (int)vsCata.size(), vsCata), sessionID);
 }
 
 void SCDAserver::pullCategory(vector<string> prompt)
@@ -1616,7 +1622,7 @@ void SCDAserver::pullDifferentiator(string prompt, vector<vector<string>> vvsCat
 	int numCata = applyCataFilter(vvsCata, vvsDiff);
 	if (numCata == 1) 
 	{ 
-		postDataEvent(DataEvent(DataEvent::Catalogue, prompt, vvsCata[0][0], vvsCata[0][1]), prompt); 
+		//postDataEvent(DataEvent(DataEvent::Catalogue, prompt, vvsCata[0][0], vvsCata[0][1]), prompt); 
 		return;
 	}
 	else if (numCata < 1) { err("No catalogues remaining after Diff filter-SCDAserver.pullDifferentiator"); }
@@ -1664,7 +1670,7 @@ void SCDAserver::pullDifferentiator(string prompt, vector<vector<string>> vvsCat
 		if (pos1 > vsCandidate[0].size()) { err("Faulty return-SCDAserver.pullDifferentiator"); }
 		vvsCata[0][0] = vsCandidate[0].substr(0, pos1);
 		vvsCata[0][1] = vsCandidate[0].substr(pos1 + 1);
-		postDataEvent(DataEvent(DataEvent::Catalogue, prompt, vvsCata[0][0], vvsCata[0][1]), prompt);
+		//postDataEvent(DataEvent(DataEvent::Catalogue, prompt, vvsCata[0][0], vvsCata[0][1]), prompt);
 	}
 }
 void SCDAserver::pullMap(vector<string> prompt, vector<string> vsDIMtitle, vector<int> viMID)
