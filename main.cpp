@@ -17,9 +17,7 @@ public:
 };
 SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(env), serverRef(serv), envRef(env)
 {
-	this->enableUpdates(1);
-	this->require("//mozilla.github.io/pdf.js/build/pdf.js");
-
+	enableUpdates(1);
 	setTitle("SCDA Web Tool");
 	auto BootstrapTheme = make_unique<Wt::WBootstrapTheme>();
 	BootstrapTheme->setVersion(Wt::BootstrapVersion::v3);
@@ -28,23 +26,33 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	string docRoot = Wt::WApplication::docRoot();
 	serv.cleanTempFolder(docRoot);
 
-	vector<unsigned char> binCSSplain, binCSSshaded, binIconChevronDown;
-	vector<unsigned char> binIconChevronRight, binIconClose, binIconTrash;
-	serverRef.jfile.load(binCSSplain, docRoot + "/pdfTextPlain.css");
-	serverRef.jfile.load(binCSSshaded, docRoot + "/pdfTextShaded.css");
-	serverRef.jfile.load(binIconChevronDown, docRoot + "/ChevronDown_Icon_16px.png");
-	serverRef.jfile.load(binIconChevronRight, docRoot + "/ChevronRight_Icon_16px.png");
-	serverRef.jfile.load(binIconClose, docRoot + "/Close_Icon_16px.png");
-	serverRef.jfile.load(binIconTrash, docRoot + "/DragIntoTrash_Icon_42px.png");
+	vector<vector<string>> vvsTag = serverRef.jparse.getXML(serverRef.configXML, { "settings" });
+	for (int ii = 0; ii < vvsTag.size(); ii++) {
+		require(vvsTag[ii][1]);  // Javascript libraries, such as PDF.
+	}
 
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
-	scdaWidget->cssTextPlain = scdaWidget->loadCSS(binCSSplain);
-	scdaWidget->cssTextShaded = scdaWidget->loadCSS(binCSSshaded);
-	scdaWidget->iconChevronDown = scdaWidget->loadIcon(binIconChevronDown);
-	scdaWidget->iconChevronRight = scdaWidget->loadIcon(binIconChevronRight);
-	scdaWidget->iconClose = scdaWidget->loadIcon(binIconClose);
-	scdaWidget->iconTrash = scdaWidget->loadIcon(binIconTrash);
-	this->globalKeyWentUp().connect(scdaWidget, &SCDAwidget::displayCata);
+
+	int binSize, index;
+	vector<unsigned char> binResource;
+	vvsTag = serverRef.jparse.getXML(serverRef.configXML, { "path", "css" });
+	for (int ii = 0; ii < vvsTag.size(); ii++) {
+		serverRef.jfile.load(binResource, vvsTag[ii][1]);
+		index = (int)scdaWidget->mapResource.size();
+		scdaWidget->vResource.emplace_back(make_shared<Wt::WMemoryResource>("binCSS"));
+		scdaWidget->mapResource.emplace(vvsTag[ii][0], index);
+		binSize = (int)binResource.size();
+		scdaWidget->vResource.back()->setData(&binResource[0], binSize);
+	}
+	vvsTag = serverRef.jparse.getXML(serverRef.configXML, { "path", "icon" });
+	for (int ii = 0; ii < vvsTag.size(); ii++) {
+		serverRef.jfile.load(binResource, vvsTag[ii][1]);
+		index = (int)scdaWidget->mapResource.size();
+		scdaWidget->vResource.emplace_back(make_shared<Wt::WMemoryResource>("binIcon"));
+		scdaWidget->mapResource.emplace(vvsTag[ii][0], index);
+		binSize = (int)binResource.size();
+		scdaWidget->vResource.back()->setData(&binResource[0], binSize);
+	}
 
 	this->setLoadingIndicator(make_unique<Wt::WOverlayLoadingIndicator>());
 }

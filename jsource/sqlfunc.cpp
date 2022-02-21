@@ -2,6 +2,12 @@
 
 using namespace std;
 
+SQLFUNC::~SQLFUNC()
+{
+    int error = sqlite3_close_v2(db);
+    if (error) { err("SQL Error #" + to_string(error) + ", sqlite3_close_v2 - destructor"); }
+}
+
 void SQLFUNC::addColumn(string tname, string colTitle, string colType)
 {
     // Note that this function can only append a column on the rightmost side.

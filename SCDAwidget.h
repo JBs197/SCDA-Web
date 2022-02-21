@@ -2,6 +2,7 @@
 #include <Wt/WBootstrapTheme.h>
 #include <Wt/WContainerWidget.h>
 #include "SCDAserver.h"
+#include "wjcatalist.h"
 #include "wjfilterbox.h"
 
 class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
@@ -13,5 +14,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 public:
 	SCDAwidget(SCDAserver& myserver);
 	~SCDAwidget() = default;
+
+	std::unordered_map<std::string, int> mapResource;
+	std::vector<std::shared_ptr<Wt::WMemoryResource>> vResource;
 
 };

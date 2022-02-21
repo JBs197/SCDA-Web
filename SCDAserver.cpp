@@ -226,7 +226,14 @@ bool SCDAserver::connect(User* user, const DataEventCallback& handleEvent)
 }
 void SCDAserver::err(string message)
 {
+	lock_guard<mutex> lg(m_err);
 	string errorMessage = "SCDAserver error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
+}
+void SCDAserver::errClient(string& message, string widget)
+{
+	lock_guard<mutex> lg(m_err);
+	string errorMessage = widget + " error:\n" + message;
 	JLOG::getInstance()->err(errorMessage);
 }
 int SCDAserver::init(string sessionID)

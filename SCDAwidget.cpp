@@ -15,8 +15,8 @@ void SCDAwidget::initGUI()
 	auto hLayoutUnique = make_unique<Wt::WHBoxLayout>();
 	auto hLayout = vLayout->addLayout(std::move(hLayoutUnique));
 
-	auto wjFilterUnique = make_unique<WJFILTER>();
-	auto wjFilter = hLayout->addWidget(std::move(wjFilterUnique));
+	auto wjFilterBoxUnique = make_unique<WJFILTERBOX>(sRef);
+	auto wjFilterBox = hLayout->addWidget(std::move(wjFilterBoxUnique));
 
 	auto wjCataListUnique = make_unique<WJCATALIST>();
 	auto wjCataList = hLayout->addWidget(std::move(wjCataListUnique));

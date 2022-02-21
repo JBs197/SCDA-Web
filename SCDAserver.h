@@ -26,7 +26,7 @@
 #include "wjtree.h"
 #include "wtpaint.h"
 
-extern std::mutex m_server;
+extern std::mutex m_err, m_server;
 
 class SCDAserver
 {
@@ -49,6 +49,7 @@ public:
 	std::string configXML;
 	Wt::WFont wfTable = Wt::WFont();
 	JFILE jfile;
+	JPARSE jparse;
 	class User {};
 
 	int applyCataFilter(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsDIM);
@@ -60,6 +61,7 @@ public:
 	void cleanTempFolder(std::string& docRoot);
 	std::vector<std::vector<std::string>> completeVariable(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsFixed, std::string sYear);
 	bool connect(User* user, const DataEventCallback& handleEvent);
+	void errClient(std::string& message, std::string widget);
 	int init(std::string sessionID);
 	void initPopulation();
 	std::vector<std::vector<std::vector<double>>> getBorderKM(std::vector<std::string>& vsGeoCode, std::string sYear);
