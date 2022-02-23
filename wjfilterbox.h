@@ -22,7 +22,7 @@ public:
 	WJFILTERBOX(SCDAserver& serverRef);
 	~WJFILTERBOX() = default;
 
-	std::vector<WJCATA> vCata;
+	std::shared_ptr<std::vector<WJCATA>> vCata;
 
 	void initFilter();
 	//void setFilter(std::vector<std::vector<std::string>>& vvsFilter);

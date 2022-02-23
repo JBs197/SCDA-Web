@@ -19,9 +19,9 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 {
 	enableUpdates(1);
 	setTitle("SCDA Web Tool");
-	auto BootstrapTheme = make_unique<Wt::WBootstrapTheme>();
-	BootstrapTheme->setVersion(Wt::BootstrapVersion::v3);
-	this->setTheme(move(BootstrapTheme));
+	//auto BootstrapTheme = make_unique<Wt::WBootstrapTheme>();
+	//BootstrapTheme->setVersion(Wt::BootstrapVersion::v3);
+	//this->setTheme(move(BootstrapTheme));
 	
 	string docRoot = Wt::WApplication::docRoot();
 	serv.cleanTempFolder(docRoot);
@@ -31,7 +31,11 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 		require(vvsTag[ii][1]);  // Javascript libraries, such as PDF.
 	}
 
+	string cssPath = serverRef.jparse.getXML1(serverRef.configXML, { "path", "css_main" });
+	useStyleSheet(cssPath.c_str());
+
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
+	scdaWidget->setStyleClass("SCDAwidget");
 
 	int binSize, index;
 	vector<unsigned char> binResource;

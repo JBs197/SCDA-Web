@@ -6,9 +6,13 @@
 class DataEvent
 {
 public:
+	enum eType { Catalogue, Category, Connection, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree, CatalogueList };
+
 	const int numCata;
 	const std::vector<std::string> vsCata;
 	const std::vector<WJCATA> vwjCata;
+
+	std::vector<WJCATA> getCataList() const { return vwjCata; }
 
 	const JTREE tree;
 	const std::vector<std::string> list, listCol, listRow, vsNamePop;
@@ -20,7 +24,6 @@ public:
 	const std::vector<std::vector<std::vector<double>>> areas, frames;
 	const std::vector<std::vector<double>> regionData;
 
-	enum eType { Catalogue, Category, Connection, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree, CatalogueList };
 	std::string getSessionID() { return sessionID; }
 	std::vector<std::string> get_ancestry() const { return ancestry; }
 	std::vector<std::vector<std::vector<double>>> getAreas() const { return areas; }

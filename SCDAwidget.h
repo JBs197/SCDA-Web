@@ -10,11 +10,15 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	SCDAserver& sRef;
 
 	void initGUI();
+	void initSignalSlot();
+	void processDataEvent(const DataEvent& event);
 
 public:
 	SCDAwidget(SCDAserver& myserver);
 	~SCDAwidget() = default;
 
+	enum layoutFilter { FilterBox, CataList, CataInfo };
+	enum layoutMain { Filter, Display };
 	std::unordered_map<std::string, int> mapResource;
 	std::vector<std::shared_ptr<Wt::WMemoryResource>> vResource;
 

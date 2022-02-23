@@ -4,6 +4,7 @@ using namespace std;
 
 WJFILTER::WJFILTER(string title) : WPanel()
 {
+	setStyleClass("wjfilter");
 	setTitle(title.c_str());
 	setCollapsible(0);
 

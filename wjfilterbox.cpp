@@ -4,6 +4,7 @@ using namespace std;
 
 WJFILTERBOX::WJFILTERBOX(SCDAserver& serverRef) : WContainerWidget(), sRef(serverRef)
 {
+	setStyleClass("wjfilterbox");
 	initGrid();
 	initGUI();
 }
@@ -29,37 +30,37 @@ void WJFILTERBOX::initGUI()
 	auto gLayout = this->setLayout(std::move(gLayoutUnique));
 
 	auto filterYearUnique = make_unique<WJFILTER>("Select Census Year");
-	auto filterYear = gLayout->addWidget(std::move(filterYearUnique), mapGrid.at("year"));
+	auto filterYear = gLayout->addWidget(std::move(filterYearUnique), get<0>(mapGrid.at("year")), get<1>(mapGrid.at("year")));
 
 	auto filterCategoryUnique = make_unique<WJFILTER>("Select Census Category");
-	auto filterCategory = gLayout->addWidget(std::move(filterCategoryUnique), mapGrid.at("category"));
+	auto filterCategory = gLayout->addWidget(std::move(filterCategoryUnique), get<0>(mapGrid.at("category")), get<1>(mapGrid.at("category")));
 
 	auto filterRowUnique = make_unique<WJFILTER>("Select Row Topic");
-	auto filterRow = gLayout->addWidget(std::move(filterRowUnique), mapGrid.at("rowTopic"));
+	auto filterRow = gLayout->addWidget(std::move(filterRowUnique), get<0>(mapGrid.at("rowTopic")), get<1>(mapGrid.at("rowTopic")));
 
 	auto filterColUnique = make_unique<WJFILTER>("Select Column Topic");
-	auto filterCol = gLayout->addWidget(std::move(filterColUnique), mapGrid.at("colTopic"));
+	auto filterCol = gLayout->addWidget(std::move(filterColUnique), get<0>(mapGrid.at("colTopic")), get<1>(mapGrid.at("colTopic")));
 
 	auto filterParam1Unique = make_unique<WJFILTER>("Select a Parameter");
-	auto filterParam1 = (WJFILTER*)gLayout->addWidget(std::move(filterParam1Unique), mapGrid.at("parameter1"));
+	auto filterParam1 = (WJFILTER*)gLayout->addWidget(std::move(filterParam1Unique), get<0>(mapGrid.at("parameter1")), get<1>(mapGrid.at("parameter1")));
 	filterParam1->setEnabled(1);
 
 	auto filterParam2Unique = make_unique<WJFILTER>("Select a Parameter");
-	auto filterParam2 = (WJFILTER*)gLayout->addWidget(std::move(filterParam2Unique), mapGrid.at("parameter2"));
+	auto filterParam2 = (WJFILTER*)gLayout->addWidget(std::move(filterParam2Unique), get<0>(mapGrid.at("parameter2")), get<1>(mapGrid.at("parameter2")));
 	filterParam2->setEnabled(0);
 
 	auto filterParam3Unique = make_unique<WJFILTER>("Select a Parameter");
-	auto filterParam3 = (WJFILTER*)gLayout->addWidget(std::move(filterParam3Unique), mapGrid.at("parameter3"));
+	auto filterParam3 = (WJFILTER*)gLayout->addWidget(std::move(filterParam3Unique), get<0>(mapGrid.at("parameter3")), get<1>(mapGrid.at("parameter3")));
 	filterParam3->setEnabled(0);
 
 	auto filterParam4Unique = make_unique<WJFILTER>("Select a Parameter");
-	auto filterParam4 = (WJFILTER*)gLayout->addWidget(std::move(filterParam4Unique), mapGrid.at("parameter4"));
+	auto filterParam4 = (WJFILTER*)gLayout->addWidget(std::move(filterParam4Unique), get<0>(mapGrid.at("parameter4")), get<1>(mapGrid.at("parameter4")));
 	filterParam4->setEnabled(0);
 }
 void WJFILTERBOX::initFilter()
 {
 	// Populate the filter comboboxes using the list of catalogues (and their values).
-	int numCata = (int)vCata.size();
+	int numCata = (int)vCata->size();
 	if (numCata == 0) { err("No loaded catalogues-initFilter"); }
 	auto gLayout = (WJGRIDLAYOUT*)this->layout();
 
@@ -68,19 +69,19 @@ void WJFILTERBOX::initFilter()
 	setParameter.clear();
 	setRowTopic.clear();
 	setYear.clear();
-	for (WJCATA wjCata : vCata) {
-		setCategory.emplace(wjCata.category);
-		setColTopic.emplace(wjCata.colTopic);
-		setYear.emplace(wjCata.year);
-		if (wjCata.rowTopic.size() > 0) {
-			setRowTopic.emplace(wjCata.rowTopic);
+	for (int ii = 0; ii < numCata; ii++) {
+		setCategory.emplace(vCata->at(ii).category);
+		setColTopic.emplace(vCata->at(ii).colTopic);
+		setYear.emplace(vCata->at(ii).year);
+		if (vCata->at(ii).rowTopic.size() > 0) {
+			setRowTopic.emplace(vCata->at(ii).rowTopic);
 		}
-		for (string param : wjCata.vParameter) {
+		for (string param : vCata->at(ii).vParameter) {
 			setParameter.emplace(param);
 		}
 	}
 
-	auto wlItem = gLayout->itemAtPosition(mapGrid.at("year"));
+	auto wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("year")), get<1>(mapGrid.at("year")));
 	auto wjFilter = (WJFILTER*)wlItem->widget();
 	vector<string> vsFilter(setYear.size());
 	int index{ 0 };
@@ -91,7 +92,7 @@ void WJFILTERBOX::initFilter()
 	jsort.sortAlphabetically(vsFilter);
 	wjFilter->initValue(vsFilter);
 
-	wlItem = gLayout->itemAtPosition(mapGrid.at("category"));
+	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("category")), get<1>(mapGrid.at("category")));
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilter.resize(setCategory.size());
 	index = 0;
@@ -102,7 +103,7 @@ void WJFILTERBOX::initFilter()
 	jsort.sortAlphabetically(vsFilter);
 	wjFilter->initValue(vsFilter);
 
-	wlItem = gLayout->itemAtPosition(mapGrid.at("rowTopic"));
+	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("rowTopic")), get<1>(mapGrid.at("rowTopic")));
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilter.resize(setRowTopic.size());
 	index = 0;
@@ -113,7 +114,7 @@ void WJFILTERBOX::initFilter()
 	jsort.sortAlphabetically(vsFilter);
 	wjFilter->initValue(vsFilter);
 
-	wlItem = gLayout->itemAtPosition(mapGrid.at("colTopic"));
+	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("colTopic")), get<1>(mapGrid.at("colTopic")));
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilter.resize(setColTopic.size());
 	index = 0;
@@ -124,7 +125,7 @@ void WJFILTERBOX::initFilter()
 	jsort.sortAlphabetically(vsFilter);
 	wjFilter->initValue(vsFilter);
 
-	wlItem = gLayout->itemAtPosition(mapGrid.at("parameter1"));
+	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("parameter1")), get<1>(mapGrid.at("parameter1")));
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilter.resize(setParameter.size());
 	index = 0;
@@ -136,17 +137,17 @@ void WJFILTERBOX::initFilter()
 	vector<string> vsFilterCopy = vsFilter;
 	wjFilter->initValue(vsFilterCopy);
 
-	wlItem = gLayout->itemAtPosition(mapGrid.at("parameter2"));
+	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("parameter2")), get<1>(mapGrid.at("parameter2")));
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilterCopy = vsFilter;
 	wjFilter->initValue(vsFilterCopy);
 
-	wlItem = gLayout->itemAtPosition(mapGrid.at("parameter3"));
+	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("parameter3")), get<1>(mapGrid.at("parameter3")));
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilterCopy = vsFilter;
 	wjFilter->initValue(vsFilterCopy);
 
-	wlItem = gLayout->itemAtPosition(mapGrid.at("parameter4"));
+	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("parameter4")), get<1>(mapGrid.at("parameter4")));
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilterCopy = vsFilter;
 	wjFilter->initValue(vsFilterCopy);
