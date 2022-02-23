@@ -26,7 +26,7 @@ class SQLFUNC
 
 public:
     SQLFUNC() {}
-    ~SQLFUNC();
+    ~SQLFUNC() = default;
 
     std::set<std::string> columnType;
 

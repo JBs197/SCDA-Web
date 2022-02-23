@@ -18,6 +18,7 @@
 #include "jtree.h"
 #include "winfunc.h"
 #include "wjbargraph.h"
+#include "wjcata.h"
 #include "wjconfig.h"
 #include "wjdownload.h"
 #include "wjdrag.h"
@@ -92,6 +93,7 @@ public:
 	void makeTreeGeo(JTREE& jt, std::vector<std::vector<std::string>>& geo);
 	
 	void pullCata(std::string sessionID, CataFilter cataFilter);
+	void pullCataAll(std::string sessionID);
 	void pullCategory(std::vector<std::string> prompt);
 	void pullConnection(std::string sessionID);
 	void pullDifferentiator(std::string prompt, std::vector<std::vector<std::string>> vvsCata, std::vector<std::vector<std::string>> vvsDiff);

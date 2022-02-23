@@ -1595,6 +1595,48 @@ void SCDAserver::pullCata(string sessionID, CataFilter cataFilter)
 	cataFind->applyFilter(vsCata, cataFilter);
 	postDataEvent(DataEvent(DataEvent::Catalogue, (int)vsCata.size(), vsCata), sessionID);
 }
+void SCDAserver::pullCataAll(string sessionID)
+{
+	// Send the client a list of all catalogues available for viewing.
+	vector<WJCATA> vCata;
+	string tnameDIM, tnameYear;
+	vector<string> vsDIM, vsYear;	
+	vector<vector<string>> vvsResult;
+	string tname{ "Census" };
+	string orderby{ "DIMIndex DESC" };
+	vector<string> searchCategory{ "Catalogue", "Topic", "Description" };
+	vector<string> searchDIM{ "DIM" };
+
+	int numResult = sf.select({ "Year" }, tname, vsYear);
+	if (numResult == 0) { err("No census years found-pullCataAll"); }
+	for (int ii = 0; ii < vsYear.size(); ii++) {
+		// Make each catalogue structure, and assign it values.
+		tnameYear = "Census$" + vsYear[ii];
+		vvsResult.clear();
+		numResult = sf.select(searchCategory, tname, vvsResult);
+		if (numResult == 0) { err("No catalogues found for given year-pullCataAll"); }
+		for (int jj = 0; jj < numResult; jj++) {
+			vCata.emplace_back(WJCATA());
+			vCata.back().name = std::move(vvsResult[jj][0]);
+			vCata.back().category = std::move(vvsResult[jj][1]);
+			vCata.back().desc = std::move(vvsResult[jj][2]);
+			vCata.back().year = vsYear[ii];
+
+			tnameDIM = "Census$" + vsYear[ii] + "$" + vCata.back().name + "$DIMIndex";
+			vsDIM.clear();
+			numResult = sf.selectOrderBy(searchDIM, tnameDIM, vsDIM, orderby);
+			if (numResult == 0) { err("No DIMs found for given catalogue-pullCataAll"); }
+			vCata.back().colTopic = std::move(vsDIM[0]);
+			if (numResult > 1) { vCata.back().rowTopic = std::move(vsDIM[1]); }
+
+			for (int kk = numResult - 1; kk > 1; kk--) {
+				vCata.back().vParameter.push_back(std::move(vsDIM[kk]));
+			}
+		}
+	}
+
+	postDataEvent(DataEvent(DataEvent::CatalogueList, vCata), sessionID);
+}
 
 void SCDAserver::pullCategory(vector<string> prompt)
 {
