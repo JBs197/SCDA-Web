@@ -8,9 +8,19 @@ WJFILTER::WJFILTER(string title) : WPanel()
 	setTitle(title.c_str());
 	setCollapsible(0);
 
-	setCentralWidget(make_unique<Wt::WComboBox>());
+	auto cb = setCentralWidget(make_unique<Wt::WComboBox>());
+	cb->activated().connect(this, bind(&WJFILTER::selectionChanged, this, placeholders::_1));
+	
+	goDeaf = 0;
 }
 
+void WJFILTER::getSelected(int& selIndex, string& selValue)
+{
+	auto cb = (Wt::WComboBox*)centralWidget();
+	selIndex = cb->currentIndex();
+	const Wt::WString wsTemp = cb->currentText();
+	selValue = wsTemp.toUTF8();
+}
 void WJFILTER::initValue(vector<string>& vsValue)
 {
 	// vsValue should already be sorted.
@@ -22,10 +32,17 @@ void WJFILTER::initValue(vector<string>& vsValue)
 	}
 
 	auto cb = (Wt::WComboBox*)this->centralWidget();
+	goDeaf = 1;
 	cb->clear();
 	for (int ii = 0; ii <= numValue; ii++) {
 		cb->addItem(vsFilter[ii]);
 	}
+	cb->setCurrentIndex(0);
+	goDeaf = 0;
+}
+void WJFILTER::selectionChanged(const int& selIndex)
+{
+	if (!goDeaf) { updateFilter_.emit(); }
 }
 void WJFILTER::setEnabled(bool trueFalse)
 {

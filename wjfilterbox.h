@@ -17,13 +17,16 @@ class WJFILTERBOX : public Wt::WContainerWidget
 	void err(std::string message);
 	void initGrid();
 	void initGUI();
+	void resetFiltered();
+	void updateFiltered();
 
 public:
 	WJFILTERBOX(SCDAserver& serverRef);
 	~WJFILTERBOX() = default;
 
+	enum index{ Year, Category, RowTopic, ColTopic };
+	std::shared_ptr<std::set<int>> setFiltered;
 	std::shared_ptr<std::vector<WJCATA>> vCata;
 
 	void initFilter();
-	//void setFilter(std::vector<std::vector<std::string>>& vvsFilter);
 };

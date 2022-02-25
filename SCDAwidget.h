@@ -2,6 +2,7 @@
 #include <Wt/WBootstrapTheme.h>
 #include <Wt/WContainerWidget.h>
 #include "SCDAserver.h"
+#include "wjcatainfo.h"
 #include "wjcatalist.h"
 #include "wjfilterbox.h"
 
@@ -10,7 +11,8 @@ class SCDAwidget : public Wt::WContainerWidget, public SCDAserver::User
 	SCDAserver& sRef;
 
 	void initGUI();
-	void initSignalSlot();
+	void populateCataInfo(const int& cataIndex);
+	void populateCataList();
 	void processDataEvent(const DataEvent& event);
 
 public:
