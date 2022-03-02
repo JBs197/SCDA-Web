@@ -1,22 +1,33 @@
 #pragma once
-#include <Wt/WComboBox.h>
+#include <Wt/WContainerWidget.h>
+#include <Wt/WHBoxLayout.h>
 #include <Wt/WPanel.h>
+#include <Wt/WPopupMenu.h>
+#include <Wt/WPushButton.h>
+#include "jlog.h"
 
 class WJFILTER : public Wt::WPanel
 {
 	std::atomic_int goDeaf;
 	std::set<std::string> setDesolate, setNormal;
 	Wt::Signal<> updateFilter_;
-	std::vector<std::string> vsFilter;
 
-	void selectionChanged(const int& selIndex);
+	void clearList(Wt::WPopupMenu* popup = nullptr);
+	void err(std::string message);
+	void highlightItem(const int& liveDead, const int& index);
+	void initGUI(std::string& title);
+	void selectionChanged(const std::string& text);
+	void unhighlightItem(const int& liveDead, const int& index);
+	void updateLabel(std::string text);
 
 public:
 	WJFILTER(std::string title);
 	~WJFILTER() = default;
 
-	void getSelected(int& selIndex, std::string& selValue);
-	void initValue(std::vector<std::string>& vsValue);
-	Wt::Signal<>& updateFilter() { return updateFilter_; }
+	enum index { Label, Stretch, Button };
+
+	std::string getSelected();
+	void initList(std::vector<std::string>& vsLive, std::vector<std::string>& vsDead);
 	void setEnabled(bool trueFalse);
+	Wt::Signal<>& updateFilter() { return updateFilter_; }
 };

@@ -7,17 +7,13 @@
 
 class WJTREE : public Wt::WContainerWidget
 {
-	Wt::WLength maxWidth, maxHeight, wlAuto;
-
 	void err(std::string message);
-	void init(int width, int height);
+	void initGUI();
 
 public:
-	WJTREE(int width, int height) { init(width, height); }
-	~WJTREE() override {}
+	WJTREE();
+	~WJTREE() = default;
 
-	JTREE jt;
-	Wt::WTree* tree = nullptr;
+	std::shared_ptr<JTREE> jt;
 
-	Wt::WTreeNode* findNode(int jtreeID);
 };

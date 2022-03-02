@@ -2,102 +2,157 @@
 
 using namespace std;
 
-WJFILTERBOX::WJFILTERBOX(SCDAserver& serverRef) : WContainerWidget(), sRef(serverRef)
+WJFILTERBOX::WJFILTERBOX() : WContainerWidget()
 {
 	setStyleClass("wjfilterbox");
-	initGrid();
 	initGUI();
 }
 
 void WJFILTERBOX::err(string message)
 {
-	sRef.errClient(message, "WJFILTERBOX");
+	string errorMessage = "WJFILTERBOX error:\n" + message;
+	JLOG::getInstance()->err(errorMessage);
 }
-void WJFILTERBOX::initGrid()
+void WJFILTERBOX::getFilterAll(vector<string>& vsFilter)
 {
-	mapGrid.emplace("year", make_pair(index::Year, 0));
-	mapGrid.emplace("category", make_pair(index::Category, 0));
-	mapGrid.emplace("rowTopic", make_pair(index::RowTopic, 0));
-	mapGrid.emplace("colTopic", make_pair(index::ColTopic, 0));
-	mapGrid.emplace("parameter1", make_pair(0, 1));
-	mapGrid.emplace("parameter2", make_pair(1, 1));
-	mapGrid.emplace("parameter3", make_pair(2, 1));
-	mapGrid.emplace("parameter4", make_pair(3, 1));
+	// Return a list of each active filter.
+	auto vLayout = (Wt::WVBoxLayout*)this->layout();
+	Wt::WLayoutItem* wlItem = nullptr;
+	WJFILTER* wjFilter = nullptr;
+	Wt::WContainerWidget* box = nullptr;
+	Wt::WHBoxLayout* hLayout = nullptr;
+	Wt::WText* label = nullptr;
+
+	int numFilter = vLayout->count();
+	vsFilter.resize(numFilter);
+	for (int ii = 0; ii < numFilter; ii++) {
+		wlItem = vLayout->itemAt(ii);
+		wjFilter = (WJFILTER*)wlItem->widget();
+		if (wjFilter->isEnabled()) {
+			box = (Wt::WContainerWidget*)wjFilter->centralWidget();
+			hLayout = (Wt::WHBoxLayout*)box->layout();
+			wlItem = hLayout->itemAt(WJFILTER::Label);
+			label = (Wt::WText*)wlItem->widget();
+			const Wt::WString wsTemp = label->text();
+			vsFilter[ii] = wsTemp.toUTF8();
+		}
+	}
 }
 void WJFILTERBOX::initGUI()
 {
-	auto gLayoutUnique = make_unique<WJGRIDLAYOUT>();
-	auto gLayout = this->setLayout(std::move(gLayoutUnique));
+	auto vLayoutUnique = make_unique<Wt::WVBoxLayout>();
+	auto vLayout = this->setLayout(std::move(vLayoutUnique));
 
 	string name = "year";
 	auto filterYearUnique = make_unique<WJFILTER>("Select Census Year");
-	auto filterYear = gLayout->addWidget(std::move(filterYearUnique), get<0>(mapGrid.at(name)), get<1>(mapGrid.at(name)));
+	auto filterYear = vLayout->insertWidget(index::Year, std::move(filterYearUnique));
 	filterYear->setObjectName(name);
+	filterYear->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "category";
 	auto filterCategoryUnique = make_unique<WJFILTER>("Select Census Category");
-	auto filterCategory = gLayout->addWidget(std::move(filterCategoryUnique), get<0>(mapGrid.at(name)), get<1>(mapGrid.at(name)));
+	auto filterCategory = vLayout->insertWidget(index::Category, std::move(filterCategoryUnique));
 	filterCategory->setObjectName(name);
+	filterCategory->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "rowTopic";
 	auto filterRowUnique = make_unique<WJFILTER>("Select Row Topic");
-	auto filterRow = gLayout->addWidget(std::move(filterRowUnique), get<0>(mapGrid.at(name)), get<1>(mapGrid.at(name)));
+	auto filterRow = vLayout->insertWidget(index::RowTopic, std::move(filterRowUnique));
 	filterRow->setObjectName(name);
+	filterRow->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "colTopic";
 	auto filterColUnique = make_unique<WJFILTER>("Select Column Topic");
-	auto filterCol = gLayout->addWidget(std::move(filterColUnique), get<0>(mapGrid.at(name)), get<1>(mapGrid.at(name)));
+	auto filterCol = vLayout->insertWidget(index::ColumnTopic, std::move(filterColUnique));
 	filterCol->setObjectName(name);
+	filterCol->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "parameter1";
 	auto filterParam1Unique = make_unique<WJFILTER>("Select a Parameter");
-	auto filterParam1 = (WJFILTER*)gLayout->addWidget(std::move(filterParam1Unique), get<0>(mapGrid.at(name)), get<1>(mapGrid.at(name)));
+	auto filterParam1 = (WJFILTER*)vLayout->insertWidget(index::Parameter, std::move(filterParam1Unique));
 	filterParam1->setObjectName(name);
 	filterParam1->setEnabled(1);
+	filterParam1->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "parameter2";
 	auto filterParam2Unique = make_unique<WJFILTER>("Select a Parameter");
-	auto filterParam2 = (WJFILTER*)gLayout->addWidget(std::move(filterParam2Unique), get<0>(mapGrid.at(name)), get<1>(mapGrid.at(name)));
+	auto filterParam2 = (WJFILTER*)vLayout->insertWidget(index::Parameter + 1, std::move(filterParam2Unique));
 	filterParam2->setObjectName(name);
 	filterParam2->setEnabled(0);
+	filterParam2->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "parameter3";
 	auto filterParam3Unique = make_unique<WJFILTER>("Select a Parameter");
-	auto filterParam3 = (WJFILTER*)gLayout->addWidget(std::move(filterParam3Unique), get<0>(mapGrid.at(name)), get<1>(mapGrid.at(name)));
+	auto filterParam3 = (WJFILTER*)vLayout->insertWidget(index::Parameter + 2, std::move(filterParam3Unique));
 	filterParam3->setObjectName(name);
 	filterParam3->setEnabled(0);
+	filterParam3->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "parameter4";
 	auto filterParam4Unique = make_unique<WJFILTER>("Select a Parameter");
-	auto filterParam4 = (WJFILTER*)gLayout->addWidget(std::move(filterParam4Unique), get<0>(mapGrid.at(name)), get<1>(mapGrid.at(name)));
+	auto filterParam4 = (WJFILTER*)vLayout->insertWidget(index::Parameter + 3, std::move(filterParam4Unique));
 	filterParam4->setObjectName(name);
 	filterParam4->setEnabled(0);
+	filterParam4->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 }
 void WJFILTERBOX::initFilter()
 {
 	// Populate the filter comboboxes using the list of catalogues (and their values).
 	int numCata = (int)vCata->size();
 	if (numCata == 0) { err("No loaded catalogues-initFilter"); }
-	auto gLayout = (WJGRIDLAYOUT*)this->layout();
+	auto vLayout = (Wt::WVBoxLayout*)this->layout();
+	Wt::WLayoutItem* wlItem = nullptr;
+	WJFILTER* wjFilter = nullptr;
+	vector<string> vsBlank{}, vsFilter;
 
-	setCategory.clear();
-	setColTopic.clear();
-	setParameter.clear();
-	setRowTopic.clear();
-	setYear.clear();
+	vFilterCandidate.reset();
+	vFilterCandidate = make_shared<vector<set<string>>>();
+	vFilterCandidate->resize(index::Count, set<string>());
+	for (int ii = 0; ii < index::Count; ii++) {
+		vFilterCandidate->at(ii).emplace("All");
+	}
+
 	for (int ii = 0; ii < numCata; ii++) {
-		setCategory.emplace(vCata->at(ii).category);
-		setColTopic.emplace(vCata->at(ii).colTopic);
-		setYear.emplace(vCata->at(ii).year);
+		vFilterCandidate->at(index::Year).emplace(vCata->at(ii).year);
+		vFilterCandidate->at(index::Category).emplace(vCata->at(ii).category);
 		if (vCata->at(ii).rowTopic.size() > 0) {
-			setRowTopic.emplace(vCata->at(ii).rowTopic);
+			vFilterCandidate->at(index::RowTopic).emplace(vCata->at(ii).rowTopic);
 		}
+		vFilterCandidate->at(index::ColumnTopic).emplace(vCata->at(ii).colTopic);
 		for (string param : vCata->at(ii).vParameter) {
-			setParameter.emplace(param);
+			vFilterCandidate->at(index::Parameter).emplace(param);
 		}
 	}
 
-	auto wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("year")), get<1>(mapGrid.at("year")));
+	int index;
+	for (int ii = 0; ii < index::Count; ii++) {
+		wlItem = vLayout->itemAt(ii);
+		wjFilter = (WJFILTER*)wlItem->widget();
+		vsFilter.resize(vFilterCandidate->at(ii).size());
+		index = 0;
+		for (auto it = vFilterCandidate->at(ii).begin(); it != vFilterCandidate->at(ii).end(); ++it) {
+			vsFilter[index] = *it;
+			index++;
+		}
+		jsort.sortAlphabetically(vsFilter);
+		wjFilter->initList(vsFilter, vsBlank);
+	}
+	for (int ii = 1; ii < numParameter; ii++) {
+		wlItem = vLayout->itemAt(index::Parameter + ii);
+		wjFilter = (WJFILTER*)wlItem->widget();
+		vsFilter.resize(vFilterCandidate->at(index::Parameter).size());
+		index = 0;
+		for (auto it = vFilterCandidate->at(index::Parameter).begin(); it != vFilterCandidate->at(index::Parameter).end(); ++it) {
+			vsFilter[index] = *it;
+			index++;
+		}
+		jsort.sortAlphabetically(vsFilter);
+		wjFilter->initList(vsFilter, vsBlank);
+	}
+
+
+	/*
+	auto wlItem = gLayout->itemAt(index::Year);
 	auto wjFilter = (WJFILTER*)wlItem->widget();
 	vector<string> vsFilter(setYear.size());
 	int index{ 0 };
@@ -106,9 +161,9 @@ void WJFILTERBOX::initFilter()
 		index++;
 	}
 	jsort.sortAlphabetically(vsFilter);
-	wjFilter->initValue(vsFilter);
+	wjFilter->initList(vsFilter, vsBlank);
 
-	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("category")), get<1>(mapGrid.at("category")));
+	wlItem = gLayout->itemAt(index::Category);
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilter.resize(setCategory.size());
 	index = 0;
@@ -117,9 +172,9 @@ void WJFILTERBOX::initFilter()
 		index++;
 	}
 	jsort.sortAlphabetically(vsFilter);
-	wjFilter->initValue(vsFilter);
+	wjFilter->initList(vsFilter, vsBlank);
 
-	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("rowTopic")), get<1>(mapGrid.at("rowTopic")));
+	wlItem = gLayout->itemAt(index::RowTopic);
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilter.resize(setRowTopic.size());
 	index = 0;
@@ -128,9 +183,9 @@ void WJFILTERBOX::initFilter()
 		index++;
 	}
 	jsort.sortAlphabetically(vsFilter);
-	wjFilter->initValue(vsFilter);
+	wjFilter->initList(vsFilter, vsBlank);
 
-	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("colTopic")), get<1>(mapGrid.at("colTopic")));
+	wlItem = gLayout->itemAt(index::ColumnTopic);
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilter.resize(setColTopic.size());
 	index = 0;
@@ -139,9 +194,9 @@ void WJFILTERBOX::initFilter()
 		index++;
 	}
 	jsort.sortAlphabetically(vsFilter);
-	wjFilter->initValue(vsFilter);
+	wjFilter->initList(vsFilter, vsBlank);
 
-	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("parameter1")), get<1>(mapGrid.at("parameter1")));
+	wlItem = gLayout->itemAt(index::Parameter);
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilter.resize(setParameter.size());
 	index = 0;
@@ -151,109 +206,362 @@ void WJFILTERBOX::initFilter()
 	}
 	jsort.sortAlphabetically(vsFilter);
 	vector<string> vsFilterCopy = vsFilter;
-	wjFilter->initValue(vsFilterCopy);
+	wjFilter->initList(vsFilterCopy, vsBlank);
 
-	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("parameter2")), get<1>(mapGrid.at("parameter2")));
+	wlItem = gLayout->itemAt(index::Parameter + 1);
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilterCopy = vsFilter;
-	wjFilter->initValue(vsFilterCopy);
+	wjFilter->initList(vsFilterCopy, vsBlank);
 
-	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("parameter3")), get<1>(mapGrid.at("parameter3")));
+	wlItem = gLayout->itemAt(index::Parameter + 2);
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilterCopy = vsFilter;
-	wjFilter->initValue(vsFilterCopy);
+	wjFilter->initList(vsFilterCopy, vsBlank);
 
-	wlItem = gLayout->itemAtPosition(get<0>(mapGrid.at("parameter4")), get<1>(mapGrid.at("parameter4")));
+	wlItem = gLayout->itemAt(index::Parameter + 3);
 	wjFilter = (WJFILTER*)wlItem->widget();
 	vsFilterCopy = vsFilter;
-	wjFilter->initValue(vsFilterCopy);
+	wjFilter->initList(vsFilterCopy, vsBlank);
+	*/
 
-	resetFiltered();
+	resetPassed();
 }
-void WJFILTERBOX::resetFiltered()
+void WJFILTERBOX::resetPassed()
 {
-	if (setFiltered != nullptr) { setFiltered.reset(); }
-	setFiltered = make_shared<set<int>>();
+	if (setPassed != nullptr) { setPassed.reset(); }
+	setPassed = make_shared<set<int>>();
 	int numCata = (int)vCata->size();
 	for (int ii = 0; ii < numCata; ii++) {
-		setFiltered->emplace(ii);
+		setPassed->emplace(ii);
 	}
 }
-void WJFILTERBOX::updateFiltered()
+void WJFILTERBOX::setFilterAll(vector<vector<vector<string>>>& vvvsLiveDead)
 {
-	resetFiltered();
-
-	int numParam, selIndex;
-	string filterName, filterValue;
-	auto gLayout = (WJGRIDLAYOUT*)this->layout();
+	// vvvsLiveDead has form [filter index][live, dead][filter values].
+	auto vLayout = (Wt::WVBoxLayout*)this->layout();
 	Wt::WLayoutItem* wlItem = nullptr;
 	WJFILTER* wjFilter = nullptr;
-	for (int ii = 0; ii < 4; ii++) {
-		// Non-parameter filters.
-		wlItem = gLayout->itemAtPosition(ii, 0);
-		wjFilter = (WJFILTER*)wlItem->widget();
-		wjFilter->getSelected(selIndex, filterValue);
-		if (selIndex == 0) { continue; }
 		
-		filterName = wjFilter->objectName();
-		switch (get<0>(mapGrid.at(filterName))) {
+	int numFilter = (int)vvvsLiveDead.size();
+	for (int ii = 0; ii < numFilter; ii++) {
+		wlItem = vLayout->itemAt(ii);
+		wjFilter = (WJFILTER*)wlItem->widget();
+		wjFilter->initList(vvvsLiveDead[ii][0], vvvsLiveDead[ii][1]);
+	}
+}
+void WJFILTERBOX::updateFilterAll()
+{
+	// Obtain the list of active filters, and update the list of successful catalogues
+	// which pass them all, as well as each filter's live/dead lists.
+	vector<string> vsFilter;
+	getFilterAll(vsFilter);
+
+	atomic_int statusLiveDead{ 0 };
+	vector<vector<vector<string>>> vvvsLiveDead;
+	auto pvCata = vCata.get();
+	auto pvFilterCandidate = vFilterCandidate.get();
+	std::jthread thr(&WJFILTERBOX::updateLiveDead, this, ref(vvvsLiveDead), ref(statusLiveDead), vsFilter, ref(pvCata), ref(pvFilterCandidate));
+
+	updatePassed(vsFilter);
+	while (statusLiveDead == 0) {
+		this_thread::sleep_for(20ms);
+	}
+	setFilterAll(vvvsLiveDead);
+}
+void WJFILTERBOX::updateLiveDead(vector<vector<vector<string>>>& vvvsLiveDead, atomic_int& statusLiveDead, vector<string> vsFilter, vector<WJCATA>* vCata, vector<set<string>>* vFilterCandidate)
+{
+	// For all active filters, determine which of their alternatives 
+	// would yield one or more successful candidate catalogues (live), or
+	// if all catalogues would fail to pass the combined set of filters (dead).
+	// Return form [filter index][live, dead][filter values].
+
+	int numFilter = (int)vsFilter.size();
+	vvvsLiveDead.resize(numFilter, vector<vector<string>>(2, vector<string>()));
+	int numCata = (int)vCata->size();
+
+	int numParam, numTest;
+	unordered_set<int> setStarter;
+	for (int ii = 0; ii < numFilter; ii++) {
+		// Firstly, determine which catalogues will satisfy the collective group of
+		// non-ii filters.
+		setStarter.clear();
+		for (int jj = 0; jj < numCata; jj++) {
+			setStarter.emplace(jj);
+		}
+		for (int jj = 0; jj < numFilter; jj++) {
+			if (vsFilter[jj] == "All" || jj == ii) { continue; }
+
+			for (auto it = setStarter.begin(); it != setStarter.end();) {
+				switch (jj) {
+				case index::Year:
+				{
+					if (vCata->at(*it).year != vsFilter[jj]) {
+						it = setStarter.erase(it);
+					}
+					else { ++it; }
+					break;
+				}
+				case index::Category:
+				{
+					if (vCata->at(*it).category != vsFilter[jj]) {
+						it = setStarter.erase(it);
+					}
+					else { ++it; }
+					break;
+				}
+				case index::RowTopic:
+				{
+					if (vCata->at(*it).rowTopic != vsFilter[jj]) {
+						it = setStarter.erase(it);
+					}
+					else { ++it; }
+					break;
+				}
+				case index::ColumnTopic:
+				{
+					if (vCata->at(*it).colTopic != vsFilter[jj]) {
+						it = setStarter.erase(it);
+					}
+					else { ++it; }
+					break;
+				}
+
+				numParam = (int)vCata->at(*it).vParameter.size();
+				for (int kk = 0; kk < numParam; kk++) {
+					if (vCata->at(*it).vParameter[kk] == vsFilter[jj]) {
+						++it;
+						break;
+					}
+					else if (kk == numParam - 1) {
+						it = setStarter.erase(it);
+					}
+				}
+				}
+			}
+		}
+
+		// If no catalogues survived the other filters, then all of this filter's 
+		// candidates are dead. 
+		if (setStarter.size() == 0) {
+			for (auto it = vFilterCandidate->at(ii).begin(); it != vFilterCandidate->at(ii).end(); ++it) {
+				vvvsLiveDead[ii][1].emplace_back(*it);
+			}
+			continue;
+		}
+
+		// Make a single modification, and see if any catalogues survive.
+		for (auto itCandidate = vFilterCandidate->at(ii).begin(); itCandidate != vFilterCandidate->at(ii).end(); ++itCandidate) {
+			if (*itCandidate == "All") {
+				vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+			}
+			else {
+				for (auto it = setStarter.begin(); it != setStarter.end(); ++it) {
+					switch (ii) {
+					case index::Year:
+					{
+						if (vCata->at(*it).year == vsFilter[ii]) {
+							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+						}
+						break;
+					}
+					case index::Category:
+					{
+						if (vCata->at(*it).category == vsFilter[ii]) {
+							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+						}
+						break;
+					}
+					case index::RowTopic:
+					{
+						if (vCata->at(*it).rowTopic == vsFilter[ii]) {
+							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+						}
+						break;
+					}
+					case index::ColumnTopic:
+					{
+						if (vCata->at(*it).colTopic == vsFilter[ii]) {
+							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+						}
+						break;
+					}
+
+					numParam = (int)vCata->at(*it).vParameter.size();
+					for (int jj = 0; jj < numParam; jj++) {
+						if (vCata->at(*it).vParameter[jj] == vsFilter[ii]) {
+							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+							break;
+						}
+						else if (jj == numParam - 1) {
+							vvvsLiveDead[ii][1].emplace_back(*itCandidate);
+						}
+					}
+					}
+				}
+			}
+		}
+	}
+
+}
+void WJFILTERBOX::updatePassed(vector<string>& vsFilter)
+{
+	// Reads the active filter in each filterbox, then re-creates the set of 
+	// catalogue names which satisfy all active filters.
+	
+	resetPassed();
+
+	int filteredIndex, numParam;
+	string filterName, filterValue;
+	auto vLayout = (Wt::WVBoxLayout*)this->layout();
+	Wt::WLayoutItem* wlItem = nullptr;
+	WJFILTER* wjFilter = nullptr;
+
+	int numFilter = (int)vsFilter.size();
+	for (int ii = 0; ii < numFilter; ii++) {
+		if (vsFilter[ii] == "All") { continue; }
+
+		switch (ii) {
 		case index::Year:
 		{
-			for (auto it = setFiltered->begin(); it != setFiltered->end(); ++it) {
-				if (vCata->at(*it).year != filterValue) {
-					setFiltered->erase(*it);
+			for (auto it = setPassed->begin(); it != setPassed->end();) {
+				if (vCata->at(*it).year != vsFilter[ii]) {
+					it = setPassed->erase(it);
 				}
+				else { ++it; }
 			}
 			break;
 		}
 		case index::Category:
 		{
-			for (auto it = setFiltered->begin(); it != setFiltered->end(); ++it) {
-				if (vCata->at(*it).category != filterValue) {
-					setFiltered->erase(*it);
+			for (auto it = setPassed->begin(); it != setPassed->end();) {
+				if (vCata->at(*it).category != vsFilter[ii]) {
+					it = setPassed->erase(it);
 				}
+				else { ++it; }
 			}
 			break;
 		}
 		case index::RowTopic:
 		{
-			for (auto it = setFiltered->begin(); it != setFiltered->end(); ++it) {
-				if (vCata->at(*it).rowTopic != filterValue) {
-					setFiltered->erase(*it);
+			for (auto it = setPassed->begin(); it != setPassed->end();) {
+				if (vCata->at(*it).rowTopic != vsFilter[ii]) {
+					it = setPassed->erase(it);
 				}
+				else { ++it; }
 			}
 			break;
 		}
-		case index::ColTopic:
+		case index::ColumnTopic:
 		{
-			for (auto it = setFiltered->begin(); it != setFiltered->end(); ++it) {
-				if (vCata->at(*it).colTopic != filterValue) {
-					setFiltered->erase(*it);
+			for (auto it = setPassed->begin(); it != setPassed->end();) {
+				if (vCata->at(*it).colTopic != vsFilter[ii]) {
+					it = setPassed->erase(it);
 				}
+				else { ++it; }
 			}
 			break;
 		}
-		}
-		if (setFiltered->size() == 0) { return; }
-	}
-	
-	for (int ii = 0; ii < 4; ii++) {
-		// Parameter filters.
-		wlItem = gLayout->itemAtPosition(ii, 1);
-		wjFilter = (WJFILTER*)wlItem->widget();
-		if (!wjFilter->isEnabled()) { continue; }
-		wjFilter->getSelected(selIndex, filterValue);
-		if (selIndex == 0) { continue; }
 
-		for (auto it = setFiltered->begin(); it != setFiltered->end(); ++it) {
+		// Subsequent indices are all parameter indices.
+		for (auto it = setPassed->begin(); it != setPassed->end();) {
 			numParam = (int)vCata->at(*it).vParameter.size();
 			for (int jj = 0; jj < numParam; jj++) {
-				if (vCata->at(*it).vParameter[jj] == filterValue) { break; }
+				if (vCata->at(*it).vParameter[jj] == vsFilter[ii]) {
+					++it;
+					break;
+				}
 				else if (jj == numParam - 1) {
-					setFiltered->erase(*it);
+					it = setPassed->erase(it);
 				}
 			}
 		}
-		if (setFiltered->size() == 0) { return; }
+		}
+
+		if (setPassed->size() == 0) { break; }
 	}
+	populateCataList_.emit();
+
+	/*
+	for (int ii = 0; ii < 4; ii++) {
+		// Non-parameter filters.
+		wlItem = vLayout->itemAt(ii);
+		wjFilter = (WJFILTER*)wlItem->widget();
+		filterValue = wjFilter->getSelected();
+		if (filterValue == "All") { continue; }
+		
+		switch (ii) {
+		case index::Year:
+		{
+			for (auto it = setPassed->begin(); it != setPassed->end();) {
+				if (vCata->at(*it).year != filterValue) {
+					it = setPassed->erase(it);
+				}
+				else { ++it; }
+			}
+			break;
+		}
+		case index::Category:
+		{
+			for (auto it = setPassed->begin(); it != setPassed->end();) {
+				if (vCata->at(*it).category != filterValue) {
+					it = setPassed->erase(it);
+				}
+				else { ++it; }
+			}
+			break;
+		}
+		case index::RowTopic:
+		{
+			for (auto it = setPassed->begin(); it != setPassed->end();) {
+				if (vCata->at(*it).rowTopic != filterValue) {
+					it = setPassed->erase(it);
+				}
+				else { ++it; }
+			}
+			break;
+		}
+		case index::ColumnTopic:
+		{
+			for (auto it = setPassed->begin(); it != setPassed->end();) {
+				if (vCata->at(*it).colTopic != filterValue) {
+					it = setPassed->erase(it);
+				}
+				else { ++it; }
+			}
+			break;
+		}
+		}
+		if (setPassed->size() == 0) { 
+			populateCataList_.emit();
+			return; 
+		}
+	}
+	for (int ii = 0; ii < 4; ii++) {
+		// Parameter filters.
+		wlItem = vLayout->itemAt(index::Parameter + ii);
+		wjFilter = (WJFILTER*)wlItem->widget();
+		if (!wjFilter->isEnabled()) { continue; }
+		filterValue = wjFilter->getSelected();
+		if (filterValue == "All") { continue; }
+
+		for (auto it = setPassed->begin(); it != setPassed->end();) {
+			numParam = (int)vCata->at(*it).vParameter.size();
+			for (int jj = 0; jj < numParam; jj++) {
+				if (vCata->at(*it).vParameter[jj] == filterValue) { 
+					++it;
+					break; 
+				}
+				else if (jj == numParam - 1) {
+					it = setPassed->erase(it);
+				}
+			}
+		}
+		if (setPassed->size() == 0) { 
+			populateCataList_.emit();
+			return; 
+		}
+	}
+	populateCataList_.emit();
+	*/
+
 }

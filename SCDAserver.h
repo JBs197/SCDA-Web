@@ -32,7 +32,6 @@ extern std::mutex m_err, m_server;
 class SCDAserver
 {
 	std::shared_ptr<CataFind> cataFind;
-	std::unordered_map<std::string, int> mapClientIndex;  // sessionID -> shared_ptr index
 
 	void err(std::string message);
 
@@ -63,7 +62,6 @@ public:
 	std::vector<std::vector<std::string>> completeVariable(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsFixed, std::string sYear);
 	bool connect(User* user, const DataEventCallback& handleEvent);
 	void errClient(std::string& message, std::string widget);
-	int init(std::string sessionID);
 	void initPopulation();
 	std::vector<std::vector<std::vector<double>>> getBorderKM(std::vector<std::string>& vsGeoCode, std::string sYear);
 	std::vector<std::vector<std::string>> getCatalogue(std::vector<std::string>& vsPrompt);

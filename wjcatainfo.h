@@ -14,9 +14,8 @@ public:
 	WJCATAINFO();
 	~WJCATAINFO() = default;
 
-	enum displayIndex{ Name, Description, Year, Category, RowTopic, ColTopic, Parameter };
-	enum index{ Display, Selection };
+	enum index{ Name, Description, Year, Category, RowTopic, ColTopic, Parameter };
 
+	void depopulate();
 	void populate(WJCATA& wjCata);
-	void selectCata(const std::string& sCata);
 };

@@ -236,16 +236,6 @@ void SCDAserver::errClient(string& message, string widget)
 	string errorMessage = widget + " error:\n" + message;
 	JLOG::getInstance()->err(errorMessage);
 }
-int SCDAserver::init(string sessionID)
-{
-	int index = wtPaint.size();
-	if (index != wjTable.size()) { err("Shared pointer size mismatch-SCDAserver.init"); }
-	wtPaint.push_back(make_shared<WTPAINT>());
-	wjTable.push_back(make_shared<WJTABLE>());
-	wjTable[index]->initValues(configXML);
-	mapClientIndex.emplace(sessionID, index);
-	return index;
-}
 void SCDAserver::initLog()
 {
 	size_t pos1 = db_path.find_last_of("\\/") + 1;
@@ -1451,18 +1441,6 @@ vector<string> SCDAserver::getTopicList(vector<string> vsYear)
 	sort(vsTopic.begin(), vsTopic.end());
 	return vsTopic;
 }
-string SCDAserver::getUnit(int clientIndex, string sYear, string sCata, string sDimMID)
-{
-	// This variant gets the column header from the database and checks it for a unit.
-	string result, unit;
-	string tname = "Census$" + sYear + "$" + sCata + "$Dim";
-	vector<string> search = { "Dim" };
-	vector<string> conditions = { "MID = " + sDimMID };
-	sf.select(search, tname, result, conditions);
-	if (result.size() < 1) { err("No MID found-SCDAserver.getUnit"); }
-	unit = wjTable[clientIndex]->getUnit(result);
-	return unit;
-}
 vector<string> SCDAserver::getYear(string sYear)
 {
 	// Returns a list of internal years represented by a single external year. 
@@ -1728,8 +1706,6 @@ void SCDAserver::pullMap(vector<string> prompt, vector<string> vsDIMtitle, vecto
 {
 	// Prompt has form [id, year, cata, sParent, rowUnit, colUnit].
 	int clientIndex;
-	if (mapClientIndex.count(prompt[0])) { clientIndex = mapClientIndex.at(prompt[0]); }
-	else { clientIndex = init(prompt[0]); }
 
 	// Determine the correct internal year.
 	string tempYear = prompt[1];
@@ -1787,8 +1763,6 @@ void SCDAserver::pullTable(vector<string> prompt, vector<string> vsDIMtitle, vec
 {
 	// Prompt has form [id, year, cata, GEO_CODE, Region Name].
 	int clientIndex;
-	if (mapClientIndex.count(prompt[0])) { clientIndex = mapClientIndex.at(prompt[0]); }
-	else { clientIndex = init(prompt[0]); }
 
 	// Determine the correct internal year.
 	string tempYear = prompt[1];
