@@ -28,15 +28,30 @@ void WJFILTERBOX::getFilterAll(vector<string>& vsFilter)
 	for (int ii = 0; ii < numFilter; ii++) {
 		wlItem = vLayout->itemAt(ii);
 		wjFilter = (WJFILTER*)wlItem->widget();
-		if (wjFilter->isEnabled()) {
-			box = (Wt::WContainerWidget*)wjFilter->centralWidget();
+		box = (Wt::WContainerWidget*)wjFilter->centralWidget();
+		if (box->isEnabled()) {			
 			hLayout = (Wt::WHBoxLayout*)box->layout();
 			wlItem = hLayout->itemAt(WJFILTER::Label);
 			label = (Wt::WText*)wlItem->widget();
 			const Wt::WString wsTemp = label->text();
 			vsFilter[ii] = wsTemp.toUTF8();
 		}
+		else {
+			vsFilter.resize(ii);
+			break;
+		}
 	}
+}
+void WJFILTERBOX::initCataAll(vector<WJCATA> vCataAll)
+{
+	int numCata = (int)vCataAll.size();
+	setCataAll.reset();
+	setCataAll = make_shared<set<int>>();
+	for (int ii = 0; ii < numCata; ii++) {
+		setCataAll->emplace(ii);
+	}
+	vCata.reset();
+	vCata = make_shared<vector<WJCATA>>(std::move(vCataAll));
 }
 void WJFILTERBOX::initGUI()
 {
@@ -279,15 +294,13 @@ void WJFILTERBOX::updateLiveDead(vector<vector<vector<string>>>& vvvsLiveDead, a
 	vvvsLiveDead.resize(numFilter, vector<vector<string>>(2, vector<string>()));
 	int numCata = (int)vCata->size();
 
+	bool letMeOut;
 	int numParam, numTest;
-	unordered_set<int> setStarter;
+	set<int> setStarter;
 	for (int ii = 0; ii < numFilter; ii++) {
 		// Firstly, determine which catalogues will satisfy the collective group of
 		// non-ii filters.
-		setStarter.clear();
-		for (int jj = 0; jj < numCata; jj++) {
-			setStarter.emplace(jj);
-		}
+		setStarter = *setCataAll;
 		for (int jj = 0; jj < numFilter; jj++) {
 			if (vsFilter[jj] == "All" || jj == ii) { continue; }
 
@@ -355,53 +368,60 @@ void WJFILTERBOX::updateLiveDead(vector<vector<vector<string>>>& vvvsLiveDead, a
 				vvvsLiveDead[ii][0].emplace_back(*itCandidate);
 			}
 			else {
-				for (auto it = setStarter.begin(); it != setStarter.end(); ++it) {
+				letMeOut = 0;
+				for (auto it = setStarter.begin(); it != setStarter.end(); ++it) {							
 					switch (ii) {
 					case index::Year:
 					{
-						if (vCata->at(*it).year == vsFilter[ii]) {
+						if (vCata->at(*it).year == *itCandidate) {
 							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+							letMeOut = 1;
 						}
 						break;
 					}
 					case index::Category:
 					{
-						if (vCata->at(*it).category == vsFilter[ii]) {
+						if (vCata->at(*it).category == *itCandidate) {
 							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+							letMeOut = 1;
 						}
 						break;
 					}
 					case index::RowTopic:
 					{
-						if (vCata->at(*it).rowTopic == vsFilter[ii]) {
+						if (vCata->at(*it).rowTopic == *itCandidate) {
 							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+							letMeOut = 1;
 						}
 						break;
 					}
 					case index::ColumnTopic:
 					{
-						if (vCata->at(*it).colTopic == vsFilter[ii]) {
+						if (vCata->at(*it).colTopic == *itCandidate) {
 							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+							letMeOut = 1;
 						}
 						break;
 					}
 
 					numParam = (int)vCata->at(*it).vParameter.size();
 					for (int jj = 0; jj < numParam; jj++) {
-						if (vCata->at(*it).vParameter[jj] == vsFilter[ii]) {
+						if (vCata->at(*it).vParameter[jj] == *itCandidate) {
 							vvvsLiveDead[ii][0].emplace_back(*itCandidate);
+							letMeOut = 1;
 							break;
 						}
-						else if (jj == numParam - 1) {
-							vvvsLiveDead[ii][1].emplace_back(*itCandidate);
-						}
 					}
 					}
+
+					if (letMeOut) { break; }
 				}
+
+				if (!letMeOut) { vvvsLiveDead[ii][1].emplace_back(*itCandidate); }
 			}
 		}
 	}
-
+	statusLiveDead = 1;
 }
 void WJFILTERBOX::updatePassed(vector<string>& vsFilter)
 {

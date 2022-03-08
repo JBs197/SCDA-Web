@@ -99,10 +99,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		auto hLayout = (Wt::WHBoxLayout*)this->layout();
 		auto wlItem = hLayout->itemAt(layoutMain::Filter);
 		auto wjFilterBox = (WJFILTERBOX*)wlItem->widget();
-		if (wjFilterBox->vCata != nullptr) {
-			wjFilterBox->vCata.reset();
-		}
-		wjFilterBox->vCata = make_shared<vector<WJCATA>>(event.getCataList());
+		wjFilterBox->initCataAll(event.getCataList());
 		wjFilterBox->initFilter();
 		populateCataList();
 		break;

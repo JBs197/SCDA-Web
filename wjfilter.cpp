@@ -71,6 +71,7 @@ void WJFILTER::initGUI(std::string& title)
 
 	auto labelUnique = make_unique<Wt::WText>("All");
 	auto label = hLayout->insertWidget(index::Label, std::move(labelUnique));
+	label->setStyleClass("wjfilterlabel");
 
 	hLayout->insertStretch(index::Stretch, 1);
 
@@ -140,8 +141,8 @@ void WJFILTER::initList(vector<string>& vsLive, vector<string>& vsDead)
 			wmItem->setStyleClass("wjfilterlistitem itemdead itemdeadhighlighted");
 			wmItem->toggleStyleClass("itemdeadhighlighted", 0);
 			wmItem->clicked().connect(this, bind(&WJFILTER::selectionChanged, this, vsDead[ii]));
-			wmItem->mouseWentOut().connect(this, bind(&WJFILTER::unhighlightItem, this, 0, index));
-			wmItem->mouseWentOver().connect(this, bind(&WJFILTER::highlightItem, this, 0, index));
+			wmItem->mouseWentOut().connect(this, bind(&WJFILTER::unhighlightItem, this, 1, index));
+			wmItem->mouseWentOver().connect(this, bind(&WJFILTER::highlightItem, this, 1, index));
 			index++;
 		}
 	}
@@ -150,8 +151,8 @@ void WJFILTER::initList(vector<string>& vsLive, vector<string>& vsDead)
 void WJFILTER::selectionChanged(const std::string& text)
 {
 	if (!goDeaf) { 
-		updateFilter_.emit(); 
 		updateLabel(text);
+		updateFilter_.emit();
 	}
 }
 void WJFILTER::setEnabled(bool trueFalse)

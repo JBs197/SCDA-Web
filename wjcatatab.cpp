@@ -78,6 +78,7 @@ void WJCATATAB::initGUI()
 	auto boxLayout = filteredListBox->setLayout(std::move(boxLayoutUnique));
 	auto filteredListUnique = make_unique<Wt::WTable>();
 	auto filteredList = boxLayout->addWidget(std::move(filteredListUnique));
+	boxLayout->addStretch(1);
 
 	auto cataInfoUnique = make_unique<WJCATAINFO>();
 	auto cataInfo = gLayout->addWidget(std::move(cataInfoUnique), get<0>(mapGrid.at("cataInfo")), get<1>(mapGrid.at("cataInfo")));
