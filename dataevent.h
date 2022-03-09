@@ -1,15 +1,17 @@
 #pragma once
 #include <Wt/WPainter.h>
+#include "catarequest.h"
+#include "catareturn.h"
 #include "jtree.h"
 #include "wjcata.h"
 
 class DataEvent
 {
 public:
-	enum eType { Catalogue, Category, Connection, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree, CatalogueList };
+	enum eType { Catalogue, Category, Connection, Demographic, Differentiation, Map, Parameter, Table, Topic, Tree, CatalogueList, Data };
 
+	const CataReturn cataRet;
 	const int numCata;
-	const std::vector<std::string> vsCata;
 	const std::vector<WJCATA> vwjCata;
 
 	std::vector<WJCATA> getCataList() const { return vwjCata; }
@@ -53,10 +55,10 @@ private:
 	std::string sessionID;
 
 	// Constructor for eType Catalogue.
-	DataEvent(eType et, const int& NumCata, const std::vector<std::string>& cata)
-		: etype(et), numCata(NumCata), vsCata(cata) {}
+	DataEvent(eType et)
+		: etype(et), numCata(-1) {}
 
-	// Constructore for eType CatalogueList.
+	// Constructor for eType CatalogueList.
 	DataEvent(eType et, const std::vector<WJCATA>& vCata)
 		: etype(et), vwjCata(vCata), numCata(-1) {}
 
@@ -67,6 +69,10 @@ private:
 	// Constructor for eType Connection.
 	DataEvent(eType et, const std::string& sID)
 		: etype(et), sessionID(sID), numCata(1) {}
+
+	// Constructor for eType Data.
+	DataEvent(eType et, const CataReturn& cataReturn)
+		: etype(et), cataRet(cataReturn), numCata(-1) {}
 
 	// Constructor for eType Demographic.
 	DataEvent(eType et, const std::string& sID, const int& nC, const std::vector<std::vector<std::string>>& vvs)

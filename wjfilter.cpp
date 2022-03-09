@@ -2,9 +2,16 @@
 
 using namespace std;
 
-WJFILTER::WJFILTER(string title) : WPanel()
+WJFILTER::WJFILTER(string title)
 {
-	initGUI(title);
+	Wt::WPanel::setStyleClass("wjfilter");
+	Wt::WPanel::setCollapsible(0);
+	Wt::WPanel::setTitle(title);
+	
+	WJPANEL::setLabel("All");
+	WJPANEL::setStyleLabel("wjfilterlabel");
+	WJPANEL::setStyleButton("wjfilterbutton");
+	WJPANEL::setStylePopup("wjfilterpopup");
 	
 	goDeaf = 0;
 }
@@ -19,8 +26,8 @@ void WJFILTER::clearList(Wt::WPopupMenu* popup)
 		popup = pb->menu();
 	}
 	Wt::WMenuItem* wmItem = nullptr;
-	int numFilter = popup->count();
-	for (int ii = numFilter - 1; ii >= 0; ii--) {
+	int numItem = popup->count();
+	for (int ii = numItem - 1; ii >= 0; ii--) {
 		wmItem = popup->itemAt(ii);
 		popup->removeItem(wmItem);
 	}
@@ -57,31 +64,6 @@ void WJFILTER::highlightItem(const int& liveDead, const int& index)
 		popupItem->toggleStyleClass("itemdead", 0, 1);
 		popupItem->toggleStyleClass("itemdeadhighlighted", 1, 1);
 	}
-}
-void WJFILTER::initGUI(std::string& title)
-{
-	setStyleClass("wjfilter");
-	setTitle(title);
-	setCollapsible(0);
-
-	auto boxUnique = make_unique<Wt::WContainerWidget>();
-	auto box = setCentralWidget(std::move(boxUnique));
-	auto hLayoutUnique = make_unique<Wt::WHBoxLayout>();
-	auto hLayout = box->setLayout(std::move(hLayoutUnique));
-
-	auto labelUnique = make_unique<Wt::WText>("All");
-	auto label = hLayout->insertWidget(index::Label, std::move(labelUnique));
-	label->setStyleClass("wjfilterlabel");
-
-	hLayout->insertStretch(index::Stretch, 1);
-
-	auto pbUnique = make_unique<Wt::WPushButton>();
-	auto pb = hLayout->insertWidget(index::Button, std::move(pbUnique));
-	pb->setStyleClass("pbfilter");
-
-	auto popup = make_unique<Wt::WPopupMenu>();
-	popup->setStyleClass("wjfilterlist");
-	pb->setMenu(std::move(popup));
 }
 void WJFILTER::initList(vector<string>& vsLive, vector<string>& vsDead)
 {

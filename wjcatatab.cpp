@@ -2,7 +2,7 @@
 
 using namespace std;
 
-WJCATATAB::WJCATATAB() : WContainerWidget(), numCata(-1)
+WJCATATAB::WJCATATAB() : numCata(-1)
 {
 	initGrid();
 	initGUI();
@@ -39,16 +39,25 @@ void WJCATATAB::highlightRow(const int& iRow)
 	auto boxLayout = (Wt::WVBoxLayout*)box->layout();
 	wlItem = boxLayout->itemAt(0);
 	auto filteredList = (Wt::WTable*)wlItem->widget();
-	filteredList->elementAt(iRow, 0)->toggleStyleClass("highlighted", 1, 1);
-	filteredList->elementAt(iRow, 0)->toggleStyleClass("normal", 0, 1);
-	displayCata_.emit(iRow);
+	auto cell = filteredList->elementAt(iRow, 0);
+	cell->toggleStyleClass("highlighted", 1, 1);
+	cell->toggleStyleClass("normal", 0, 1);
+	
+	auto it = setPassed->begin();
+	if (it != setPassed->end()) {
+		int cataIndex = *next(it, iRow);
+		populateCataInfo(vCata->at(cataIndex));
+	}
+	else { clearInfo(); }
 }
 void WJCATATAB::initGrid()
 {
-	mapGrid.emplace("filteredLabel", make_pair(0, 0));
-	mapGrid.emplace("cataLabel", make_pair(0, 1));
-	mapGrid.emplace("filteredList", make_pair(1, 0));
-	mapGrid.emplace("cataInfo", make_pair(1, 1));
+	mapGrid.emplace("filterboxLabel", make_pair(0, 0));
+	mapGrid.emplace("filterbox", make_pair(1, 0));
+	mapGrid.emplace("filteredLabel", make_pair(0, 1));
+	mapGrid.emplace("filteredList", make_pair(1, 1));
+	mapGrid.emplace("cataLabel", make_pair(0, 2));
+	mapGrid.emplace("cataInfo", make_pair(1, 2));
 }
 void WJCATATAB::initGUI()
 {
@@ -57,10 +66,14 @@ void WJCATATAB::initGUI()
 
 	auto gLayoutUnique = make_unique<WJGRIDLAYOUT>();
 	auto gLayout = this->setLayout(std::move(gLayoutUnique));
-	gLayout->setColumnStretch(0, 1);
-	gLayout->setColumnStretch(1, 5);
+	gLayout->setColumnStretch(2, 1);
 
-	auto filteredLabelUnique = make_unique<Wt::WText>("X catalogues satisfy the chosen filters.");
+	auto filterboxLabelUnique = make_unique<Wt::WText>("Apply filters to\nthe catalogue list.");
+	auto filterboxLabel = gLayout->addWidget(std::move(filterboxLabelUnique), get<0>(mapGrid.at("filterboxLabel")), get<1>(mapGrid.at("filterboxLabel")));
+	filterboxLabel->setStyleClass("textlabel");
+	filterboxLabel->setWordWrap(1);
+
+	auto filteredLabelUnique = make_unique<Wt::WText>("X catalogues satisfy\nthe chosen filters.");
 	auto filteredLabel = gLayout->addWidget(std::move(filteredLabelUnique), get<0>(mapGrid.at("filteredLabel")), get<1>(mapGrid.at("filteredLabel")));
 	filteredLabel->setStyleClass("textlabel");
 	filteredLabel->setWordWrap(1);
@@ -69,6 +82,10 @@ void WJCATATAB::initGUI()
 	auto cataLabel = gLayout->addWidget(std::move(cataLabelUnique), get<0>(mapGrid.at("cataLabel")), get<1>(mapGrid.at("cataLabel")));
 	cataLabel->setStyleClass("textlabel");
 	cataLabel->setWordWrap(1);
+
+	auto filterboxUnique = make_unique<WJFILTERBOX>(vCata, setPassed);
+	auto filterbox = gLayout->addWidget(std::move(filterboxUnique), get<0>(mapGrid.at("filterbox")), get<1>(mapGrid.at("filterbox")));
+	filterbox->populateCataList().connect(this, bind(&WJCATATAB::populateCataList, this));
 
 	auto filteredListBoxUnique = make_unique<Wt::WContainerWidget>();
 	auto filteredListBox = gLayout->addWidget(std::move(filteredListBoxUnique), get<0>(mapGrid.at("filteredList")), get<1>(mapGrid.at("filteredList")));
@@ -84,14 +101,19 @@ void WJCATATAB::initGUI()
 	auto cataInfo = gLayout->addWidget(std::move(cataInfoUnique), get<0>(mapGrid.at("cataInfo")), get<1>(mapGrid.at("cataInfo")));
 	cataInfo->setOverflow(Wt::Overflow::Auto, Wt::Orientation::Vertical | Wt::Orientation::Horizontal);
 }
-void WJCATATAB::itemClicked(const std::string& sCata)
+void WJCATATAB::itemClicked(const int& iRow)
 {
-	selectCata_.emit(sCata);
+	int cataIndex{ -1 };
+	auto it = setPassed->begin();
+	if (it != setPassed->end()) { cataIndex = *next(it, iRow); }
+	if (cataIndex < 0) { return; }
 
 	auto gLayout = (WJGRIDLAYOUT*)this->layout();
 	auto wlItem = gLayout->itemAtPosition(mapGrid.at("cataLabel"));
 	auto label = (Wt::WText*)wlItem->widget();
-	label->setText("Selected Catalogue: " + sCata);
+	label->setText("Selected Catalogue: " + vCata->at(cataIndex).name);
+
+	selectCata_.emit(vCata->at(cataIndex).year, vCata->at(cataIndex).name);
 }
 void WJCATATAB::resetList()
 {
@@ -121,11 +143,24 @@ void WJCATATAB::setList(vector<string>& vsCata)
 		filteredList->elementAt(ii, 0)->toggleStyleClass("highlighted", 0);
 		filteredList->elementAt(ii, 0)->mouseWentOver().connect(this, bind(&WJCATATAB::highlightRow, this, ii));
 		filteredList->elementAt(ii, 0)->mouseWentOut().connect(this, bind(&WJCATATAB::unhighlightRow, this, ii));
-		filteredList->elementAt(ii, 0)->clicked().connect(this, bind(&WJCATATAB::itemClicked, this, vsCata[ii]));
+		filteredList->elementAt(ii, 0)->clicked().connect(this, bind(&WJCATATAB::itemClicked, this, ii));
 	}
 	updateFilteredLabel();
 }
-void WJCATATAB::populateInfo(WJCATA& wjCata)
+void WJCATATAB::populateCataList()
+{
+	// Populate the widget showing a list of all catalogues which satisfy the current filters.
+	
+	int numFiltered = (int)setPassed->size();
+	vector<string> vsCata(numFiltered);
+	int index{ 0 };
+	for (auto it = setPassed->begin(); it != setPassed->end(); ++it) {
+		vsCata[index] = vCata->at(*it).name;
+		index++;
+	}
+	setList(vsCata);
+}
+void WJCATATAB::populateCataInfo(WJCATA& wjCata)
 {
 	auto gLayout = (WJGRIDLAYOUT*)this->layout();
 	auto wlItem = gLayout->itemAtPosition(mapGrid.at("cataInfo"));

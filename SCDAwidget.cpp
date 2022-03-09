@@ -19,24 +19,23 @@ void SCDAwidget::err(string message)
 }
 void SCDAwidget::initGUI()
 {
-	auto hLayoutUnique = make_unique<Wt::WHBoxLayout>();
-	auto hLayout = this->setLayout(std::move(hLayoutUnique));
+	auto mainLayoutUnique = make_unique<Wt::WVBoxLayout>();
+	auto mainLayout = this->setLayout(std::move(mainLayoutUnique));
 
-	auto wjFilterBoxUnique = make_unique<WJFILTERBOX>();
-	auto wjFilterBox = hLayout->insertWidget(layoutMain::Filter, std::move(wjFilterBoxUnique));
-	wjFilterBox->populateCataList().connect(this, bind(&SCDAwidget::populateCataList, this));
+	auto wjParamBoxUnique = make_unique<WJPARAMBOX>();
+	auto wjParamBox = mainLayout->insertWidget(layoutMain::Parameter, std::move(wjParamBoxUnique));
 
 	auto tabBoxUnique = make_unique<Wt::WContainerWidget>();
-	auto tabBox = hLayout->insertWidget(layoutMain::Tab, std::move(tabBoxUnique));
-	auto vLayoutUnique = make_unique<Wt::WVBoxLayout>();
-	auto vLayout = tabBox->setLayout(std::move(vLayoutUnique));
+	auto tabBox = mainLayout->insertWidget(layoutMain::Tab, std::move(tabBoxUnique));
+	auto tabLayoutUnique = make_unique<Wt::WVBoxLayout>();
+	auto tabLayout = tabBox->setLayout(std::move(tabLayoutUnique));
 	auto tabUnique = make_unique<Wt::WTabWidget>();
-	auto tab = vLayout->addWidget(std::move(tabUnique));
+	auto tab = tabLayout->addWidget(std::move(tabUnique));
 
 	auto cataListUnique = make_unique<WJCATATAB>();
 	auto wmItem = tab->insertTab(tabIndex::Catalogue, std::move(cataListUnique), "Catalogues");
 	auto cataTab = (WJCATATAB*)wmItem->contents();
-	cataTab->displayCata().connect(this, bind(&SCDAwidget::populateCataInfo, this, placeholders::_1));
+	cataTab->selectCata().connect(this, bind(&SCDAwidget::pullCatalogueFirst, this, placeholders::_1, placeholders::_2));
 
 	auto wjTreeUnique = make_unique<WJTREE>();
 	wmItem = tab->insertTab(tabIndex::Tree, std::move(wjTreeUnique), "Geographic Regions");
@@ -51,63 +50,42 @@ void SCDAwidget::initGUI()
 	auto wjMap = (WJMAP*)wmItem->contents();
 
 }
-void SCDAwidget::populateCataInfo(const int& cataIndex)
-{
-	auto hLayout = (Wt::WHBoxLayout*)this->layout();
-	auto wlItem = hLayout->itemAt(layoutMain::Filter);
-	auto wjFilterBox = (WJFILTERBOX*)wlItem->widget();
-	wlItem = hLayout->itemAt(layoutMain::Tab);
-	auto tabBox = (Wt::WContainerWidget*)wlItem->widget();
-	auto vLayout = (Wt::WVBoxLayout*)tabBox->layout();
-	wlItem = vLayout->itemAt(0);
-	auto tab = (Wt::WTabWidget*)wlItem->widget();
-	auto wjCataTab = (WJCATATAB*)tab->widget(tabIndex::Catalogue);
-
-	auto it = wjFilterBox->setPassed->begin();
-	if (it != wjFilterBox->setPassed->end()) {
-		int overallIndex = *next(it, cataIndex);
-		wjCataTab->populateInfo(wjFilterBox->vCata->at(overallIndex));
-	}
-	else { wjCataTab->clearInfo(); }
-}
-void SCDAwidget::populateCataList()
-{
-	auto hLayout = (Wt::WHBoxLayout*)this->layout();
-	auto wlItem = hLayout->itemAt(layoutMain::Filter);
-	auto wjFilterBox = (WJFILTERBOX*)wlItem->widget();
-	wlItem = hLayout->itemAt(layoutMain::Tab);
-	auto tabBox = (Wt::WContainerWidget*)wlItem->widget();
-	auto vLayout = (Wt::WVBoxLayout*)tabBox->layout();
-	wlItem = vLayout->itemAt(0);
-	auto tab = (Wt::WTabWidget*)wlItem->widget();
-	auto wjCataList = (WJCATATAB*)tab->widget(tabIndex::Catalogue);
-
-	int numFiltered = (int)wjFilterBox->setPassed->size();
-	vector<string> vsCata(numFiltered);
-	int index{ 0 };
-	for (auto it = wjFilterBox->setPassed->begin(); it != wjFilterBox->setPassed->end(); ++it) {
-		vsCata[index] = wjFilterBox->vCata->at(*it).name;
-		index++;
-	}
-	wjCataList->setList(vsCata);
-}
 void SCDAwidget::processDataEvent(const DataEvent& event)
 {
 	switch (event.type()) {
 	case DataEvent::CatalogueList:
 	{
-		auto hLayout = (Wt::WHBoxLayout*)this->layout();
-		auto wlItem = hLayout->itemAt(layoutMain::Filter);
-		auto wjFilterBox = (WJFILTERBOX*)wlItem->widget();
-		wjFilterBox->initCataAll(event.getCataList());
-		wjFilterBox->initFilter();
-		populateCataList();
+		auto mainLayout = (Wt::WVBoxLayout*)this->layout();
+		auto wlItem = mainLayout->itemAt(layoutMain::Tab);
+		auto tabBox = (Wt::WContainerWidget*)wlItem->widget();
+		auto vLayout = (Wt::WVBoxLayout*)tabBox->layout();
+		wlItem = vLayout->itemAt(0);
+		auto tab = (Wt::WTabWidget*)wlItem->widget();
+		auto cataTab = (WJCATATAB*)tab->widget(tabIndex::Catalogue);
+		auto gLayout = (WJGRIDLAYOUT*)cataTab->layout();
+		wlItem = gLayout->itemAtPosition(cataTab->mapGrid.at("filterbox"));
+		auto filterBox = (WJFILTERBOX*)wlItem->widget();
+		filterBox->initCataAll(event.getCataList());
+		filterBox->initFilter();
+
+		cataTab->populateCataList();
+		break;
+	}
+	case DataEvent::Data:
+	{
+
 		break;
 	}
 	}
 
 }
-void SCDAwidget::pullCatalogue(const string& sCata)
+void SCDAwidget::pullCatalogueFirst(const string& sYear, const string& sCata)
 {
-	//sRef.pullCatalogue(sCata);
+	// Send a request to the server for a new catalogue's data, using default
+	// DIMs and the root geographic region as the parent region.
+	string sessionID = Wt::WApplication::instance()->sessionId();
+	CataRequest cataReq;
+	cataReq.sYear = sYear;
+	cataReq.sCata = sCata;
+	sRef.pullCatalogue(sessionID, cataReq);
 }

@@ -3,7 +3,7 @@
 
 struct WJGRIDLAYOUT : public Wt::WGridLayout
 {
-	WJGRIDLAYOUT() : WGridLayout() {}
+	WJGRIDLAYOUT() {}
 	~WJGRIDLAYOUT() = default;
 
 	Wt::WLayoutItem* itemAtPosition(int iRow, int iCol);

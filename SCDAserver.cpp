@@ -1411,10 +1411,6 @@ vector<vector<string>> SCDAserver::getRowTitle(string sYear, string sCata)
 	vvsDIM.push_back({ vsResult[index] });
 	return vvsDIM;
 }
-long long SCDAserver::getTimer()
-{
-	return jtime.timerStop();
-}
 vector<string> SCDAserver::getTopicList(vector<string> vsYear)
 {
 	// Returns an alphabetically-sorted list of topical categories for the 
@@ -1566,13 +1562,6 @@ void SCDAserver::postDataEvent(const DataEvent& event, string sID)
 	}
 }
 
-void SCDAserver::pullCata(string sessionID, CataFilter cataFilter)
-{
-	// Return a list of catalogues which satisfy the given criteria.
-	vector<string> vsCata;
-	cataFind->applyFilter(vsCata, cataFilter);
-	postDataEvent(DataEvent(DataEvent::Catalogue, (int)vsCata.size(), vsCata), sessionID);
-}
 void SCDAserver::pullCataAll(string sessionID)
 {
 	// Send the client a list of all catalogues available for viewing.
@@ -1616,6 +1605,116 @@ void SCDAserver::pullCataAll(string sessionID)
 	}
 
 	postDataEvent(DataEvent(DataEvent::CatalogueList, vCata), sessionID);
+}
+void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
+{
+	// Return all requested data for the given catalogue.
+	CataReturn cataRet;
+	if (cataReq.sYear.size() == 0 || cataReq.sCata.size() == 0) { 
+		err("Missing cataReq-pullCatalogue");
+	}
+
+	int iGeoCode, iGeoLevel, indexLevel{ -1 }, numGeo, numResult;
+	string tname, tnameGeo, sGeoLevel;
+	vector<string> conditions, search, vsGeoLayer;
+	vector<vector<string>> vvsColTitle;
+	if (cataReq.parentGeoCode < 0) {
+		// Client needs all the geographic region data.
+		tname = "Geo$" + cataReq.sYear + "$" + cataReq.sCata;
+		numGeo = sf.select({ "*" }, tname, cataRet.vvsGeo);
+		if (numGeo == 0) { err("No geo table found-pullCatalogue"); }
+		vvsColTitle = sf.getColTitle(tname);
+		for (int ii = 0; ii < vvsColTitle[0].size(); ii++) {
+			if (vvsColTitle[0][ii] == "GEO_LEVEL") {
+				indexLevel = ii;
+				break;
+			}
+		}
+		if (indexLevel < 0) { err("Failed to locate GEO_LEVEL column-pullCatalogue"); }
+
+		// Send map data for the root region and its immediate children.
+		sGeoLevel = "0";
+		iGeoLevel = 0;
+		tname = "GeoLayer$" + cataReq.sYear;
+		conditions = { "Catalogue LIKE '" + cataReq.sCata + "'" };
+		numResult = sf.select({ "*" }, tname, vsGeoLayer, conditions);
+		if (numResult == 0) { err("Failed to load GeoLayer data-pullCatalogue"); }
+		for (int ii = 0; ii < numGeo; ii++) {
+			// Locate the root region.
+			if (cataRet.vvsGeo[ii][indexLevel] == sGeoLevel) {
+				cataRet.vsMapGeo.emplace_back(cataRet.vvsGeo[ii][0]);
+
+				tname = "Map$" + vsGeoLayer[1 + iGeoLevel] + "$" + cataRet.vvsGeo[ii][0];
+				cataRet.vvvsMap.push_back(vector<vector<string>>());
+				numResult = sf.select({ "*" }, tname, cataRet.vvvsMap[0]);
+				if (numResult == 0) { err("Failed to load root map-pullCatalogue"); }
+
+				tname = "MapFrame$" + vsGeoLayer[1 + iGeoLevel] + "$" + cataRet.vvsGeo[ii][0];
+				cataRet.vvvsMapFrame.push_back(vector<vector<string>>());
+				numResult = sf.select({ "*" }, tname, cataRet.vvvsMapFrame[0]);
+				if (numResult == 0) { err("Failed to load root map frame-pullCatalogue"); }
+
+				break;
+			}
+			else if (ii == numGeo - 1) { err("Failed to locate root region-pullCatalogue"); }
+		}
+		for (int ii = 0; ii < numGeo; ii++) {
+			// Locate the root region's immediate children.
+			if (cataRet.vvsGeo[ii].size() == (4 + iGeoLevel) && cataRet.vvsGeo[ii][3 + iGeoLevel] == cataRet.vsMapGeo[0]) {
+				tname = "Map$" + vsGeoLayer[2 + iGeoLevel] + "$" + cataRet.vvsGeo[ii][0];
+				cataRet.vvvsMap.push_back(vector<vector<string>>());
+				numResult = sf.select({ "*" }, tname, cataRet.vvvsMap.back());
+				if (numResult == 0) { err("Failed to load root map-pullCatalogue"); }
+
+				tname = "MapFrame$" + vsGeoLayer[1] + "$" + cataRet.vvsGeo[ii][0];
+				cataRet.vvvsMapFrame.push_back(vector<vector<string>>());
+				numResult = sf.select({ "*" }, tname, cataRet.vvvsMapFrame.back());
+				if (numResult == 0) { err("Failed to load root map frame-pullCatalogue"); }
+			}
+		}
+	}
+	else if (cataReq.vsGeoCode.size() > 0) {
+		// Send map data for the requested regions only.
+		cataRet.vsMapGeo = std::move(cataReq.vsGeoCode);
+
+		tname = "GeoLayer$" + cataReq.sYear;
+		conditions = { "Catalogue LIKE '" + cataReq.sCata + "'" };
+		numResult = sf.select({ "*" }, tname, vsGeoLayer, conditions);
+		if (numResult == 0) { err("Failed to load GeoLayer data-pullCatalogue"); }
+		
+		tnameGeo = "Geo$" + cataReq.sYear + "$" + cataReq.sCata;
+		numGeo = (int)cataRet.vsMapGeo.size();
+		search = { "GEO_LEVEL" };
+		for (int ii = 0; ii < numGeo; ii++) {
+			// Locate each requested region.
+			sGeoLevel.clear();
+			conditions = { "GEO_CODE = " + cataRet.vsMapGeo[ii] };
+			sf.select(search, tnameGeo, sGeoLevel, conditions);
+			try { iGeoLevel = stoi(sGeoLevel); }
+			catch (invalid_argument) { err("sGeoLevel stoi-pullCatalogue"); }
+
+			tname = "Map$" + vsGeoLayer[1 + iGeoLevel] + "$" + cataRet.vsMapGeo[ii];
+			cataRet.vvvsMap.push_back(vector<vector<string>>());
+			numResult = sf.select({ "*" }, tname, cataRet.vvvsMap.back());
+			if (numResult == 0) { err("Failed to load requested map-pullCatalogue"); }
+
+			tname = "MapFrame$" + vsGeoLayer[1 + iGeoLevel] + "$" + cataRet.vsMapGeo[ii];
+			cataRet.vvvsMapFrame.push_back(vector<vector<string>>());
+			numResult = sf.select({ "*" }, tname, cataRet.vvvsMapFrame.back());
+			if (numResult == 0) { err("Failed to load requested map frame-pullCatalogue"); }
+		}
+	}
+
+	if (cataReq.vsDIM.size() == 0) {
+		// Client needs the DIM list.
+		tname = "Census$" + cataReq.sYear + "$" + cataReq.sCata + "$DIMIndex";
+		numResult = sf.select({ "*" }, tname, cataRet.vvsDIM);
+		if (numResult == 0) { err("No DIMIndex table found-pullCatalogue"); }
+	}
+
+
+
+	postDataEvent(DataEvent(DataEvent::Data, cataRet), sessionID);
 }
 
 void SCDAserver::pullCategory(vector<string> prompt)

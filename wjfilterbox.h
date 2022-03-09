@@ -11,9 +11,11 @@
 class WJFILTERBOX : public Wt::WContainerWidget
 {
 	JSORT jsort;
-	const int numParameter{ 4 };
+	//const int numParameter{ 4 };
 	Wt::Signal<> populateCataList_;
 	std::shared_ptr<std::set<int>> setCataAll;
+	std::shared_ptr<std::set<int>>& setPassed;
+	std::shared_ptr<std::vector<WJCATA>>& vCata;
 	std::shared_ptr<std::vector<std::set<std::string>>> vFilterCandidate;
 
 	void err(std::string message);
@@ -26,15 +28,12 @@ class WJFILTERBOX : public Wt::WContainerWidget
 	void updatePassed(std::vector<std::string>& vsFilter);
 
 public:
-	WJFILTERBOX();
+	WJFILTERBOX(std::shared_ptr<std::vector<WJCATA>>& vCataRef, std::shared_ptr<std::set<int>>& setPassedRef);
 	~WJFILTERBOX() = default;
 
 	enum index{ Year, Category, RowTopic, ColumnTopic, Parameter, Count };
-	std::shared_ptr<std::set<int>> setPassed;
-	std::shared_ptr<std::vector<WJCATA>> vCata;
 
 	void initCataAll(std::vector<WJCATA> vCataAll);
 	void initFilter();
 	Wt::Signal<>& populateCataList() { return populateCataList_; }
-	void setIcon(std::vector<unsigned char>& binIcon);
 };

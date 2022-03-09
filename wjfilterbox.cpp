@@ -2,7 +2,8 @@
 
 using namespace std;
 
-WJFILTERBOX::WJFILTERBOX() : WContainerWidget()
+WJFILTERBOX::WJFILTERBOX(shared_ptr<vector<WJCATA>>& vCataRef, std::shared_ptr<std::set<int>>& setPassedRef) 
+	: vCata(vCataRef), setPassed(setPassedRef)
 {
 	setStyleClass("wjfilterbox");
 	initGUI();
@@ -59,36 +60,37 @@ void WJFILTERBOX::initGUI()
 	auto vLayout = this->setLayout(std::move(vLayoutUnique));
 
 	string name = "year";
-	auto filterYearUnique = make_unique<WJFILTER>("Select Census Year");
+	auto filterYearUnique = make_unique<WJFILTER>("Census Year");
 	auto filterYear = vLayout->insertWidget(index::Year, std::move(filterYearUnique));
 	filterYear->setObjectName(name);
 	filterYear->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "category";
-	auto filterCategoryUnique = make_unique<WJFILTER>("Select Census Category");
+	auto filterCategoryUnique = make_unique<WJFILTER>("Census Category");
 	auto filterCategory = vLayout->insertWidget(index::Category, std::move(filterCategoryUnique));
 	filterCategory->setObjectName(name);
 	filterCategory->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "rowTopic";
-	auto filterRowUnique = make_unique<WJFILTER>("Select Row Topic");
+	auto filterRowUnique = make_unique<WJFILTER>("Row Topic");
 	auto filterRow = vLayout->insertWidget(index::RowTopic, std::move(filterRowUnique));
 	filterRow->setObjectName(name);
 	filterRow->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
 	name = "colTopic";
-	auto filterColUnique = make_unique<WJFILTER>("Select Column Topic");
+	auto filterColUnique = make_unique<WJFILTER>("Column Topic");
 	auto filterCol = vLayout->insertWidget(index::ColumnTopic, std::move(filterColUnique));
 	filterCol->setObjectName(name);
 	filterCol->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
-	name = "parameter1";
-	auto filterParam1Unique = make_unique<WJFILTER>("Select a Parameter");
+	name = "parameter0";
+	auto filterParam1Unique = make_unique<WJFILTER>("Parameter");
 	auto filterParam1 = (WJFILTER*)vLayout->insertWidget(index::Parameter, std::move(filterParam1Unique));
 	filterParam1->setObjectName(name);
 	filterParam1->setEnabled(1);
 	filterParam1->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
 
+	/*
 	name = "parameter2";
 	auto filterParam2Unique = make_unique<WJFILTER>("Select a Parameter");
 	auto filterParam2 = (WJFILTER*)vLayout->insertWidget(index::Parameter + 1, std::move(filterParam2Unique));
@@ -109,6 +111,8 @@ void WJFILTERBOX::initGUI()
 	filterParam4->setObjectName(name);
 	filterParam4->setEnabled(0);
 	filterParam4->updateFilter().connect(this, bind(&WJFILTERBOX::updateFilterAll, this));
+	*/
+
 }
 void WJFILTERBOX::initFilter()
 {
@@ -152,6 +156,8 @@ void WJFILTERBOX::initFilter()
 		jsort.sortAlphabetically(vsFilter);
 		wjFilter->initList(vsFilter, vsBlank);
 	}
+
+	/*
 	for (int ii = 1; ii < numParameter; ii++) {
 		wlItem = vLayout->itemAt(index::Parameter + ii);
 		wjFilter = (WJFILTER*)wlItem->widget();
@@ -164,7 +170,7 @@ void WJFILTERBOX::initFilter()
 		jsort.sortAlphabetically(vsFilter);
 		wjFilter->initList(vsFilter, vsBlank);
 	}
-
+	*/
 
 	/*
 	auto wlItem = gLayout->itemAt(index::Year);

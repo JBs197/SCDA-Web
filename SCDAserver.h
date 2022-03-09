@@ -8,18 +8,16 @@
 #include <Wt/WMemoryResource.h>
 #include <Wt/WTime.h>
 #include <functional>
-#include "catafilter.h"
-#include "catafind.h"
 #include "dataevent.h"
 #include "jcrc32.h"
 #include "jfile.h"
 #include "jscalebar.h"
 #include "jsort.h"
 #include "jtree.h"
+#include "sqlfunc.h"
 #include "winfunc.h"
 #include "wjbargraph.h"
 #include "wjcata.h"
-#include "wjconfig.h"
 #include "wjdownload.h"
 #include "wjdrag.h"
 #include "wjmap.h"
@@ -31,15 +29,12 @@ extern std::mutex m_err, m_server;
 
 class SCDAserver
 {
-	std::shared_ptr<CataFind> cataFind;
-
 	void err(std::string message);
 
 public:
 	SCDAserver(Wt::WServer& wtServer, std::string& dbPath)
 		: serverRef(wtServer), db_path(dbPath) {
 		sf.init(db_path);
-		cataFind = std::make_shared<CataFind>(dbPath);
 	}
 	SCDAserver(const SCDAserver&) = delete;
 	SCDAserver& operator=(const SCDAserver&) = delete;
@@ -81,7 +76,6 @@ public:
 	std::vector<std::vector<std::vector<std::string>>> getParameter(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsFixed);
 	std::vector<double> getPopulationFamily(std::string sYear, std::vector<std::string>& vsGeoCode);
 	std::vector<std::vector<std::string>> getRowTitle(std::string sYear, std::string sCata);
-	long long getTimer();
 	std::vector<std::string> getTopicList(std::vector<std::string> vsYear);
 	std::string getUnit(int clientIndex, std::string sYear, std::string sCata, std::string sDimMID);
 	std::vector<std::string> getYear(std::string sYear);
@@ -90,8 +84,8 @@ public:
 	void log(std::vector<std::string> vsColumn);
 	void makeTreeGeo(JTREE& jt, std::vector<std::vector<std::string>>& geo);
 	
-	void pullCata(std::string sessionID, CataFilter cataFilter);
 	void pullCataAll(std::string sessionID);
+	void pullCatalogue(std::string sessionID, CataRequest cataReq);
 	void pullCategory(std::vector<std::string> prompt);
 	void pullConnection(std::string sessionID);
 	void pullDifferentiator(std::string prompt, std::vector<std::vector<std::string>> vvsCata, std::vector<std::vector<std::string>> vvsDiff);
@@ -105,7 +99,6 @@ private:
 	JNUMBER jnumber;
 	JSORT jsort;
 	JSTRING jstr;
-	JTIME jtime;
 	JTREE jt;
 	SQLFUNC sf, sfLog;
 	std::vector<std::shared_ptr<WJTABLE>> wjTable;
