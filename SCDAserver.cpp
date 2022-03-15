@@ -1437,6 +1437,12 @@ vector<string> SCDAserver::getTopicList(vector<string> vsYear)
 	sort(vsTopic.begin(), vsTopic.end());
 	return vsTopic;
 }
+void SCDAserver::getTreeInit(int& numRow)
+{
+	string sNumRow = jparse.getXML1(configXML, { "settings", "default_tree_row_expansion" });
+	try { numRow = stoi(sNumRow); }
+	catch (invalid_argument) { err("numRow stoi-getTreeInit"); }
+}
 vector<string> SCDAserver::getYear(string sYear)
 {
 	// Returns a list of internal years represented by a single external year. 
@@ -1609,10 +1615,10 @@ void SCDAserver::pullCataAll(string sessionID)
 void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 {
 	// Return all requested data for the given catalogue.
-	CataReturn cataRet;
 	if (cataReq.sYear.size() == 0 || cataReq.sCata.size() == 0) { 
 		err("Missing cataReq-pullCatalogue");
 	}
+	CataReturn cataRet(cataReq.sYear, cataReq.sCata);
 
 	int iGeoCode, iGeoLevel, indexLevel{ -1 }, numGeo, numResult;
 	string tname, tnameGeo, sGeoLevel;
@@ -1639,17 +1645,22 @@ void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 		conditions = { "Catalogue LIKE '" + cataReq.sCata + "'" };
 		numResult = sf.select({ "*" }, tname, vsGeoLayer, conditions);
 		if (numResult == 0) { err("Failed to load GeoLayer data-pullCatalogue"); }
+		else { vsGeoLayer.erase(vsGeoLayer.begin()); }
 		for (int ii = 0; ii < numGeo; ii++) {
 			// Locate the root region.
 			if (cataRet.vvsGeo[ii][indexLevel] == sGeoLevel) {
-				cataRet.vsMapGeo.emplace_back(cataRet.vvsGeo[ii][0]);
+				cataRet.vsMapGeo.insert(cataRet.vsMapGeo.begin(), cataRet.vvsGeo[ii][0]);
 
-				tname = "Map$" + vsGeoLayer[1 + iGeoLevel] + "$" + cataRet.vvsGeo[ii][0];
+				tname = "Map";
+				for (int jj = 0; jj <= iGeoLevel; jj++) {
+					tname += "$" + vsGeoLayer[jj];
+				}
+				tname += "$" + cataRet.vvsGeo[ii][0];
 				cataRet.vvvsMap.push_back(vector<vector<string>>());
 				numResult = sf.select({ "*" }, tname, cataRet.vvvsMap[0]);
 				if (numResult == 0) { err("Failed to load root map-pullCatalogue"); }
 
-				tname = "MapFrame$" + vsGeoLayer[1 + iGeoLevel] + "$" + cataRet.vvsGeo[ii][0];
+				tname.insert(3, "Frame");
 				cataRet.vvvsMapFrame.push_back(vector<vector<string>>());
 				numResult = sf.select({ "*" }, tname, cataRet.vvvsMapFrame[0]);
 				if (numResult == 0) { err("Failed to load root map frame-pullCatalogue"); }
@@ -1661,12 +1672,18 @@ void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 		for (int ii = 0; ii < numGeo; ii++) {
 			// Locate the root region's immediate children.
 			if (cataRet.vvsGeo[ii].size() == (4 + iGeoLevel) && cataRet.vvsGeo[ii][3 + iGeoLevel] == cataRet.vsMapGeo[0]) {
-				tname = "Map$" + vsGeoLayer[2 + iGeoLevel] + "$" + cataRet.vvsGeo[ii][0];
+				cataRet.vsMapGeo.emplace_back(cataRet.vvsGeo[ii][0]);
+				
+				tname = "Map";
+				for (int jj = 0; jj <= iGeoLevel + 1; jj++) {
+					tname += "$" + vsGeoLayer[jj];
+				}
+				tname += "$" + cataRet.vvsGeo[ii][0];
 				cataRet.vvvsMap.push_back(vector<vector<string>>());
 				numResult = sf.select({ "*" }, tname, cataRet.vvvsMap.back());
 				if (numResult == 0) { err("Failed to load root map-pullCatalogue"); }
 
-				tname = "MapFrame$" + vsGeoLayer[1] + "$" + cataRet.vvsGeo[ii][0];
+				tname.insert(3, "Frame");
 				cataRet.vvvsMapFrame.push_back(vector<vector<string>>());
 				numResult = sf.select({ "*" }, tname, cataRet.vvvsMapFrame.back());
 				if (numResult == 0) { err("Failed to load root map frame-pullCatalogue"); }

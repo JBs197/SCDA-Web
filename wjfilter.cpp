@@ -107,7 +107,7 @@ void WJFILTER::initList(vector<string>& vsLive, vector<string>& vsDead)
 	index = 0;
 	for (int ii = 0; ii < numLive; ii++) {
 		wmItem = popup->addItem(vsLive[ii], nullptr, Wt::ContentLoading::Eager);
-		wmItem->setStyleClass("wjfilterlistitem itemlive itemlivehighlighted");
+		wmItem->setStyleClass("wjfilterpopupitem itemlive itemlivehighlighted");
 		wmItem->toggleStyleClass("itemlivehighlighted", 0);
 		wmItem->clicked().connect(this, bind(&WJFILTER::selectionChanged, this, vsLive[ii]));
 		wmItem->mouseWentOut().connect(this, bind(&WJFILTER::unhighlightItem, this, 0, index));
@@ -120,7 +120,7 @@ void WJFILTER::initList(vector<string>& vsLive, vector<string>& vsDead)
 
 		for (int ii = 0; ii < numDead; ii++) {
 			wmItem = popup->addItem(vsDead[ii], nullptr, Wt::ContentLoading::Eager);
-			wmItem->setStyleClass("wjfilterlistitem itemdead itemdeadhighlighted");
+			wmItem->setStyleClass("wjfilterpopupitem itemdead itemdeadhighlighted");
 			wmItem->toggleStyleClass("itemdeadhighlighted", 0);
 			wmItem->clicked().connect(this, bind(&WJFILTER::selectionChanged, this, vsDead[ii]));
 			wmItem->mouseWentOut().connect(this, bind(&WJFILTER::unhighlightItem, this, 1, index));

@@ -47,6 +47,10 @@ public:
 	JPARSE jparse;
 	class User {};
 
+	void getTreeInit(int& numRow);
+	void pullCataAll(std::string sessionID);
+	void pullCatalogue(std::string sessionID, CataRequest cataReq);
+
 	int applyCataFilter(std::vector<std::vector<std::string>>& vvsCata, std::vector<std::vector<std::string>>& vvsDIM);
 	std::vector<std::vector<int>> binMapBorder(std::string& tname0);
 	std::vector<std::vector<std::vector<int>>> binMapFrames(std::string& tname0);
@@ -83,9 +87,8 @@ public:
 	
 	void log(std::vector<std::string> vsColumn);
 	void makeTreeGeo(JTREE& jt, std::vector<std::vector<std::string>>& geo);
-	
-	void pullCataAll(std::string sessionID);
-	void pullCatalogue(std::string sessionID, CataRequest cataReq);
+
+
 	void pullCategory(std::vector<std::string> prompt);
 	void pullConnection(std::string sessionID);
 	void pullDifferentiator(std::string prompt, std::vector<std::vector<std::string>> vvsCata, std::vector<std::vector<std::string>> vvsDiff);

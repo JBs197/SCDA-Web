@@ -40,6 +40,7 @@ void SCDAwidget::initGUI()
 	auto wjTreeUnique = make_unique<WJTREE>();
 	wmItem = tab->insertTab(tabIndex::Tree, std::move(wjTreeUnique), "Geographic Regions");
 	auto wjTree = (WJTREE*)wmItem->contents();
+	sRef.getTreeInit(wjTree->defaultRowExpansion);
 
 	auto wjTableUnique = make_unique<WJTABLE>();
 	wmItem = tab->insertTab(tabIndex::Table, std::move(wjTableUnique), "Data Table");
@@ -52,15 +53,16 @@ void SCDAwidget::initGUI()
 }
 void SCDAwidget::processDataEvent(const DataEvent& event)
 {
+	auto mainLayout = (Wt::WVBoxLayout*)this->layout();
+	auto wlItem = mainLayout->itemAt(layoutMain::Tab);
+	auto tabBox = (Wt::WContainerWidget*)wlItem->widget();
+	auto vLayout = (Wt::WVBoxLayout*)tabBox->layout();
+	wlItem = vLayout->itemAt(0);
+	auto tab = (Wt::WTabWidget*)wlItem->widget();
+
 	switch (event.type()) {
 	case DataEvent::CatalogueList:
 	{
-		auto mainLayout = (Wt::WVBoxLayout*)this->layout();
-		auto wlItem = mainLayout->itemAt(layoutMain::Tab);
-		auto tabBox = (Wt::WContainerWidget*)wlItem->widget();
-		auto vLayout = (Wt::WVBoxLayout*)tabBox->layout();
-		wlItem = vLayout->itemAt(0);
-		auto tab = (Wt::WTabWidget*)wlItem->widget();
 		auto cataTab = (WJCATATAB*)tab->widget(tabIndex::Catalogue);
 		auto gLayout = (WJGRIDLAYOUT*)cataTab->layout();
 		wlItem = gLayout->itemAtPosition(cataTab->mapGrid.at("filterbox"));
@@ -72,12 +74,15 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		break;
 	}
 	case DataEvent::Data:
-	{
-
+	{		
+		if (event.cataRet.vvsGeo.size() > 0) {
+			auto wjTree = (WJTREE*)tab->widget(tabIndex::Tree);			
+			wjTree->setLabel(event.cataRet.sCata);
+			wjTree->setTree(event.cataRet.vvsGeo);
+		}
 		break;
 	}
 	}
-
 }
 void SCDAwidget::pullCatalogueFirst(const string& sYear, const string& sCata)
 {

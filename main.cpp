@@ -26,7 +26,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 	string docRoot = Wt::WApplication::docRoot();
 	serv.cleanTempFolder(docRoot);
 
-	vector<vector<string>> vvsTag = serverRef.jparse.getXML(serverRef.configXML, { "settings" });
+	vector<vector<string>> vvsTag = serverRef.jparse.getXML(serverRef.configXML, { "settings", "require" });
 	for (int ii = 0; ii < vvsTag.size(); ii++) {
 		require(vvsTag[ii][1]);  // Javascript libraries, such as PDF.
 	}
@@ -36,6 +36,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 
 	SCDAwidget* scdaWidget = root()->addWidget(make_unique<SCDAwidget>(serverRef));
 	scdaWidget->setStyleClass("SCDAwidget");
+
 
 	int binSize, index;
 	vector<unsigned char> binResource;
@@ -57,6 +58,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 		binSize = (int)binResource.size();
 		scdaWidget->vResource.back()->setData(&binResource[0], binSize);
 	}
+
 
 	this->setLoadingIndicator(make_unique<Wt::WOverlayLoadingIndicator>());
 }
