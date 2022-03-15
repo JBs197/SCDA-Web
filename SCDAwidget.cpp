@@ -53,6 +53,9 @@ void SCDAwidget::initGUI()
 }
 void SCDAwidget::processDataEvent(const DataEvent& event)
 {
+	vector<int> vStatus;
+	size_t numThread{ 0 };
+
 	auto mainLayout = (Wt::WVBoxLayout*)this->layout();
 	auto wlItem = mainLayout->itemAt(layoutMain::Tab);
 	auto tabBox = (Wt::WContainerWidget*)wlItem->widget();
@@ -83,6 +86,20 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		break;
 	}
 	}
+
+	int count;
+	numThread = (int)vStatus.size();
+	if (numThread > 0) {
+		while (1) {
+			count = 0;
+			for (int ii = 0; ii < numThread; ii++) {
+				count += vStatus[ii];
+			}
+			if (count == numThread) { break; }
+			this_thread::sleep_for(20ms);
+		}
+	}
+	int bbq = 1;
 }
 void SCDAwidget::pullCatalogueFirst(const string& sYear, const string& sCata)
 {
