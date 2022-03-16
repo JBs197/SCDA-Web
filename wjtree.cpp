@@ -9,6 +9,7 @@ WJTREE::WJTREE()
 	initGUI();
 
 	jtGeo = make_shared<JTREE>();
+	selectedRegion = make_pair(-1, "");
 }
 
 void WJTREE::addChildren(int parentID, Wt::WTreeNode*& parentNode, int genRemaining)
@@ -21,6 +22,7 @@ void WJTREE::addChildren(int parentID, Wt::WTreeNode*& parentNode, int genRemain
 	size_t pos1 = parentIndexChain.rfind(parentIndexChain[0]);
 	parentIndexChain = parentIndexChain.substr(pos1);
 
+	vector<int> grandchildrenID;
 	vector<int> childrenID = jtGeo->getChildrenID(parentID);
 	int numChildren = (int)childrenID.size();
 	if (numChildren == 0) { return; }
@@ -33,7 +35,23 @@ void WJTREE::addChildren(int parentID, Wt::WTreeNode*& parentNode, int genRemain
 		node->setObjectName(sName);
 		node->expanded().connect(this, bind(&WJTREE::expandNode, this, sName));
 
-		if (genRemaining > 1) { addChildren(childrenID[ii], node, genRemaining - 1); }
+		if (genRemaining > 1) { 
+			node->expand();
+			addChildren(childrenID[ii], node, genRemaining - 1); 
+		}
+		else {
+			grandchildrenID = jtGeo->getChildrenID(childrenID[ii]);
+			if (grandchildrenID.size() > 0) {
+				addPlaceholderNode(node);
+			}
+		}
+	}
+}
+void WJTREE::addPlaceholderNode(Wt::WTreeNode*& node)
+{
+	if (node != nullptr) {
+		auto placeholderUnique = make_unique<Wt::WTreeNode>(" ");
+		node->addChildNode(std::move(placeholderUnique));
 	}
 }
 void WJTREE::err(string message)
@@ -69,7 +87,16 @@ void WJTREE::expandNode(const string& sName)
 		vChildren = node->childNodes();
 		node = vChildren[viIndex[ii]];
 	}
+
+	vChildren = node->childNodes();
+	for (int ii = 0; ii < vChildren.size(); ii++) {
+		node->removeChildNode(vChildren[ii]);
+	}
 	addChildren(parentID, node, 1);
+}
+pair<int, string> WJTREE::getSelectedRegion()
+{
+	return selectedRegion;
 }
 void WJTREE::initGUI()
 {
@@ -85,6 +112,7 @@ void WJTREE::initGUI()
 	auto tree = vLayout->insertWidget(index::Tree, std::move(treeUnique));
 	tree->setObjectName("Tree");
 	tree->setSelectionMode(Wt::SelectionMode::Single);
+	tree->itemSelectionChanged().connect(this, bind(&WJTREE::updateSelectedRegion, this));
 
 	vLayout->insertStretch(index::Stretch, 1);
 }
@@ -118,30 +146,6 @@ void WJTREE::makeTreeGeo(const vector<vector<string>>& vvsGeo, JTREE*& jt)
 
 	if (defaultRowExpansion >= 0) { jt->setExpandGeneration(defaultRowExpansion); }
 }
-/*
-void WJTREE::populateTree(JTREE*& jt, int parentID, Wt::WTreeNode*& parentNode)
-{
-	// Recursive function that takes an existing node and makes its children.
-
-	string sID;
-	Wt::WTreeNode* child = nullptr;
-	vector<int> childrenID = jt->getChildrenID(parentID);
-	int numChildren = (int)childrenID.size();
-	if (numChildren == 0) { return; }
-	for (int ii = 0; ii < numChildren; ii++) {
-		JNODE& jn = jt->getNode(childrenID[ii]);
-		sID = to_string(jn.ID);
-
-		auto childUnique = make_unique<Wt::WTreeNode>(jn.vsData[0]);
-		child = childUnique.get();
-		parentNode->addChildNode(move(childUnique));
-		child->setObjectName(sID);
-		if (jn.expanded) { child->expand(); }
-
-		populateTree(jt, childrenID[ii], child);
-	}
-}
-*/
 void WJTREE::setLabel(const string& cata)
 {
 	sCata = cata;
@@ -149,6 +153,10 @@ void WJTREE::setLabel(const string& cata)
 	auto wlItem = vLayout->itemAt(index::Label);
 	auto label = (Wt::WText*)wlItem->widget();
 	label->setText("Displaying geographic region tree for catalogue " + cata);
+}
+void WJTREE::setSelectedRegion(const std::pair<int, std::string>& selRegion)
+{
+	selectedRegion = selRegion;
 }
 void WJTREE::setTree(const vector<vector<string>>& vvsGeo)
 {
@@ -161,42 +169,62 @@ void WJTREE::setTree(const vector<vector<string>>& vvsGeo)
 	makeTreeGeo(vvsGeo, jt);
 
 	// JTREE -> widget.
+	int genRemaining, rootID;
+	unique_ptr<Wt::WTreeNode> rootUnique;
 	auto vLayout = (Wt::WVBoxLayout*)this->layout();
 	auto wlItem = vLayout->itemAt(index::Tree);
 	auto tree = (Wt::WTree*)wlItem->widget();
-	JNODE& jnRoot = jt->getRoot();
+	JNODE& jnRoot = jt->getRoot();  // Blank root node.
+	vector<int> childrenID = jt->getChildrenID(jnRoot.ID);
+	if (childrenID.size() == 1) {
+		JNODE& jn = jt->getNode(childrenID[0]);
+		rootUnique = make_unique<Wt::WTreeNode>(jn.vsData[0]);
+		genRemaining = 1;
+		rootID = jn.ID;
+	}
+	else { 
+		rootUnique = make_unique<Wt::WTreeNode>(" "); 
+		genRemaining = 2;
+		rootID = jnRoot.ID;
+	}
 	string sName = "$" + to_string(jnRoot.ID) + "$";
-	auto rootUnique = make_unique<Wt::WTreeNode>(" ");
 	auto root = rootUnique.get();
 	tree->setTreeRoot(std::move(rootUnique));
 	root->setObjectName(sName);
-	addChildren(jnRoot.ID, root, 2);
+	root->expand();
+	addChildren(rootID, root, genRemaining);
 
-	/*
-	JTREE* jt = jtGeo.get();
-	JNODE& jnRoot = jt->getRoot();		
-	Wt::WTreeNode* treeRoot = nullptr;
-	
+	// Root region is selected by default.
+	if (genRemaining == 1) { tree->select(root); }
+	else if (genRemaining == 2) {
+		auto vNode = root->childNodes();
+		tree->select(vNode[0]);
+	}
+}
+void WJTREE::updateSelectedRegion()
+{
+	// Use the tree widget's selected item to determine which region is currently selected.
+
+	int geoCode, nodeID;
 	auto vLayout = (Wt::WVBoxLayout*)this->layout();
 	auto wlItem = vLayout->itemAt(index::Tree);
 	auto tree = (Wt::WTree*)wlItem->widget();
-	
-	if (jnRoot.vsData[0].size() > 0) {
-		const Wt::WString wsName(jnRoot.vsData[0]);
-		auto treeRootUnique = make_unique<Wt::WTreeNode>(wsName);
-		treeRoot = treeRootUnique.get();
-		tree->setTreeRoot(std::move(treeRootUnique));
+	const set<Wt::WTreeNode*>& setSel = tree->selectedNodes();
+	if (setSel.size() == 0) { selectedRegion = make_pair(-1, ""); }
+	else if (setSel.size() == 1) {
+		auto it = setSel.begin();
+		Wt::WTreeNode* node = *it;
+		string sName = node->objectName();
+		size_t pos1 = sName.find(sName[0], 1);
+		string sID = sName.substr(1, pos1 - 1);
+		try { nodeID = stoi(sID); }
+		catch (invalid_argument) { err("nodeID stoi-updateSelectedRegion"); }
+		JNODE& jn = jtGeo->getNode(nodeID);
+		if (jn.vsData.size() > 1) {
+			try { geoCode = stoi(jn.vsData[1]); }
+			catch (invalid_argument) { err("geoCode stoi-updateSelectedRegion"); }
+			selectedRegion = make_pair(geoCode, jn.vsData[0]);
+		}
 	}
-	else {
-		const Wt::WString wsName(" ");
-		auto treeRootUnique = make_unique<Wt::WTreeNode>(wsName);
-		treeRoot = treeRootUnique.get();
-		tree->setTreeRoot(std::move(treeRootUnique));
-	}
-
-	treeRoot->setNodeVisible(0);
-	treeRoot->expand();
-	populateTree(jt, jnRoot.ID, treeRoot);
-	*/
-
+	else { err("Multiple geographic regions selected-updatedSelectedRegion"); }
 }

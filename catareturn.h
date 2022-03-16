@@ -10,6 +10,6 @@ struct CataReturn : public JSTRING
 
 	std::string sCata, sYear;
 	std::vector<std::string> vsMapGeo;
-	std::vector<std::vector<std::string>> vvsGeo, vvsDIM;
-	std::vector<std::vector<std::vector<std::string>>> vvvsMap, vvvsMapFrame;
+	std::vector<std::vector<std::string>> vvsDIM, vvsGeo;
+	std::vector<std::vector<std::vector<std::string>>> vvvsMap, vvvsMapFrame, vvvsMID, vvvsTable;
 };

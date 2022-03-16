@@ -17,22 +17,26 @@ void WJTABLE::initGUI()
 	auto hLayoutUnique = make_unique<Wt::WHBoxLayout>();
 	auto hLayout = boxUnitPin->setLayout(std::move(hLayoutUnique));
 
-	auto unitLabelUnique = make_unique<Wt::WText>();
+	auto unitLabelUnique = make_unique<Wt::WText>("None");
 	auto unitLabel = hLayout->insertWidget(indexUnitPin::UnitLabel, std::move(unitLabelUnique));
 
 	auto pbUnitUnique = make_unique<Wt::WPushButton>();
 	auto pbUnit = hLayout->insertWidget(indexUnitPin::UnitButton, std::move(pbUnitUnique));
+	pbUnit->setStyleClass("pbunit");
 
 	hLayout->insertStretch(indexUnitPin::Stretch, 1);
 
 	auto pbPinRowUnique = make_unique<Wt::WPushButton>("Pin Row Data To Bar Graph");
 	auto pbPinRow = hLayout->insertWidget(indexUnitPin::PinRow, std::move(pbPinRowUnique));
+	pbPinRow->setStyleClass("pbpin");
 
 	auto pbPinColUnique = make_unique<Wt::WPushButton>("Pin Column Data To Bar Graph");
 	auto pbPinCol = hLayout->insertWidget(indexUnitPin::PinColumn, std::move(pbPinColUnique));
+	pbPinCol->setStyleClass("pbpin");
 
 	auto pbResetUnique = make_unique<Wt::WPushButton>("Reset Bar Graph");
 	auto pbReset = hLayout->insertWidget(indexUnitPin::Reset, std::move(pbResetUnique));
+	pbReset->setStyleClass("pbpin");
 
 	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
 	auto boxTable = vLayout->insertWidget(indexMain::Table, std::move(boxTableUnique));

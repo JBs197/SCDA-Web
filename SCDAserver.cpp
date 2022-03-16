@@ -764,14 +764,10 @@ vector<string> SCDAserver::getDataIndex(string sYear, string sCata, vector<vecto
 	search = { "MID" };
 	if (vvsDIM.size() >= vsDIMTitle.size()) { err("Invalid vvsDIM-SCDAserver.getDataIndex"); }
 	int iSearch = max(vsDIMTitle.size() - 2, vvsDIM.size());
-	if (iSearch > 0)
-	{
-		for (int ii = 0; ii < iSearch; ii++)
-		{
-			for (int jj = 0; jj < vvsDIM.size(); jj++)
-			{
-				if (vvsDIM[jj][0] == vsDIMTitle[ii])
-				{
+	if (iSearch > 0) {
+		for (int ii = 0; ii < iSearch; ii++) {
+			for (int jj = 0; jj < vvsDIM.size(); jj++) {
+				if (vvsDIM[jj][0] == vsDIMTitle[ii]) {
 					temp.clear();
 					conditions = { "DIM LIKE " + vvsDIM[jj][1] };
 					tname = "Census$" + sYear + "$" + sCata + "$DIM$" + to_string(ii);
@@ -782,10 +778,7 @@ vector<string> SCDAserver::getDataIndex(string sYear, string sCata, vector<vecto
 					vsMID.push_back(to_string(inum));
 					break;
 				}
-				else if (jj == vvsDIM.size() - 1)
-				{
-					err("Unresolved DIM-SCDAserver.getDataIndex");
-				}
+				else if (jj == vvsDIM.size() - 1) { err("Unresolved DIM-SCDAserver.getDataIndex"); }
 			}
 		}
 	}
@@ -1620,13 +1613,18 @@ void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 	}
 	CataReturn cataRet(cataReq.sYear, cataReq.sCata);
 
-	int iGeoCode, iGeoLevel, indexLevel{ -1 }, numGeo, numResult;
-	string tname, tnameGeo, sGeoLevel;
-	vector<string> conditions, search, vsGeoLayer;
+	int iGeoCode, iGeoLevel, indexLevel{ -1 }, numCol{ -1 }, numDataIndex;
+	int numGeo, numMap, numResult;
+	vector<int> viMID;
+	string orderby, tname, tnameGeo, sGeoLevel;
+	vector<string> conditions, search, vsDataIndex, vsDIM, vsGeoLayer, vsResult;
 	vector<vector<string>> vvsColTitle;
+
+	string internalYear = getYear(cataRet.sYear, cataRet.sCata);
+
 	if (cataReq.parentGeoCode < 0) {
 		// Client needs all the geographic region data.
-		tname = "Geo$" + cataReq.sYear + "$" + cataReq.sCata;
+		tname = "Geo$" + internalYear + "$" + cataReq.sCata;
 		numGeo = sf.select({ "*" }, tname, cataRet.vvsGeo);
 		if (numGeo == 0) { err("No geo table found-pullCatalogue"); }
 		vvsColTitle = sf.getColTitle(tname);
@@ -1641,7 +1639,7 @@ void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 		// Send map data for the root region and its immediate children.
 		sGeoLevel = "0";
 		iGeoLevel = 0;
-		tname = "GeoLayer$" + cataReq.sYear;
+		tname = "GeoLayer$" + internalYear;
 		conditions = { "Catalogue LIKE '" + cataReq.sCata + "'" };
 		numResult = sf.select({ "*" }, tname, vsGeoLayer, conditions);
 		if (numResult == 0) { err("Failed to load GeoLayer data-pullCatalogue"); }
@@ -1722,15 +1720,64 @@ void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 		}
 	}
 
-	if (cataReq.vsDIM.size() == 0) {
-		// Client needs the DIM list.
-		tname = "Census$" + cataReq.sYear + "$" + cataReq.sCata + "$DIMIndex";
-		numResult = sf.select({ "*" }, tname, cataRet.vvsDIM);
+	int numDIM = (int)cataReq.vsDIM.size();
+	if (numDIM == 0) {
+		// Client needs the full list of DIMs.
+		tname = "Census$" + internalYear + "$" + cataReq.sCata + "$DIMIndex";
+		orderby = "DIMIndex ASC";
+		numResult = sf.selectOrderBy({ "*" }, tname, cataRet.vvsDIM, orderby);
 		if (numResult == 0) { err("No DIMIndex table found-pullCatalogue"); }
+		for (int ii = 0; ii < cataRet.vvsDIM.size() - 1; ii++) {
+			vsDIM.emplace_back(cataRet.vvsDIM[ii][1]);  // Do not include column titles.
+		}
+
+		// Client needs the MID table for each DIM.
+		numDIM = (int)cataRet.vvsDIM.size();
+		cataRet.vvvsMID.resize(numDIM, vector<vector<string>>());
+		orderby = "MID ASC";
+		for (int ii = 0; ii < numDIM; ii++) {
+			tname = "Census$" + internalYear + "$" + cataReq.sCata + "$" + to_string(ii);
+			numResult = sf.selectOrderBy({ "*" }, tname, cataRet.vvvsMID[ii], orderby);
+			if (numResult == 0) { err("No MID table found-pullCatalogue"); }
+		}
+
+		// Send table data for default MID values.
+		numMap = (int)cataRet.vsMapGeo.size();
+		viMID.assign(numDIM - 1, 1);
+		cataRet.vvvsTable.resize(numMap, vector<vector<string>>());
+		for (int ii = 0; ii < numMap; ii++) {
+			tname = "Data$" + internalYear + "$" + cataReq.sCata + "$" + cataRet.vsMapGeo[ii];
+			vsDataIndex = getDataIndex(internalYear, cataReq.sCata, vsDIM, viMID);
+			numDataIndex = (int)vsDataIndex.size();
+			if (numDataIndex == 1) {
+				if (vsDataIndex[0] == "0") {
+					conditions = { "DataIndex = 0" };
+					numResult = sf.select({ "*" }, tname, vsResult, conditions);
+					if (numResult < 2) { err("Empty data row-pullCatalogue"); }
+					for (int jj = 0; jj < numResult; jj++) {
+						cataRet.vvvsTable[ii].push_back(std::move(vsResult));
+					}
+				}
+				else if (vsDataIndex[0] == "all") {
+					numResult = sf.select({ "*" }, tname, cataRet.vvvsTable[ii]);
+					if (numResult < 2) { err("Empty data row-pullCatalogue"); }
+				}
+				else { err("Unknown vsDataIndex-SCDAserver.pullTable"); }
+			}
+			else {
+				for (int jj = 0; jj < numDataIndex; jj++) {
+					conditions = { "DataIndex = " + vsDataIndex[jj] };
+					vsResult.clear();
+					numResult = sf.select(search, tname, vsResult, conditions);
+					if (numResult < 2) {
+						if (numCol < 0) { numCol = sf.getNumCol(tname); }
+						vsResult.assign(numCol, "-1.0");  // No source data !
+					}
+					cataRet.vvvsTable[ii][jj] = std::move(vsResult);
+				}
+			}
+		}		
 	}
-
-
-
 	postDataEvent(DataEvent(DataEvent::Data, cataRet), sessionID);
 }
 

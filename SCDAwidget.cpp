@@ -83,6 +83,8 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 			wjTree->setLabel(event.cataRet.sCata);
 			wjTree->setTree(event.cataRet.vvsGeo);
 		}
+
+
 		break;
 	}
 	}

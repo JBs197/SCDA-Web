@@ -10,8 +10,10 @@ class WJTREE : public Wt::WContainerWidget
 {
 	JSTRING jstr;
 	std::string sCata;
+	std::pair<int, std::string> selectedRegion;
 
 	void addChildren(int parentID, Wt::WTreeNode*& parentNode, int genRemaining);
+	void addPlaceholderNode(Wt::WTreeNode*& node);
 	void err(std::string message);
 	void expandNode(const std::string& sName);
 	void initGUI();
@@ -25,6 +27,9 @@ public:
 	enum index { Label, Tree, Stretch };
 	std::shared_ptr<JTREE> jtGeo;
 
+	std::pair<int, std::string> getSelectedRegion();
 	void setLabel(const std::string& sCata);
+	void setSelectedRegion(const std::pair<int, std::string>& selRegion);
 	void setTree(const std::vector<std::vector<std::string>>& vvsGeo);
+	void updateSelectedRegion();
 };
