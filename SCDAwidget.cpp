@@ -42,9 +42,10 @@ void SCDAwidget::initGUI()
 	auto wjTree = (WJTREE*)wmItem->contents();
 	sRef.getTreeInit(wjTree->defaultRowExpansion);
 
-	auto wjTableUnique = make_unique<WJTABLE>();
+	auto wjTableUnique = make_unique<WJTABLEBOX>();
 	wmItem = tab->insertTab(tabIndex::Table, std::move(wjTableUnique), "Data Table");
-	auto wjTable = (WJTABLE*)wmItem->contents();
+	auto wjTable = (WJTABLEBOX*)wmItem->contents();
+	wjTable->configure(sRef.configXML);
 
 	auto wjMapUnique = make_unique<WJMAP>();
 	wmItem = tab->insertTab(tabIndex::Map, std::move(wjMapUnique), "Map");
@@ -55,6 +56,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 {
 	vector<int> vStatus;
 	size_t numThread{ 0 };
+	pair<int, string> selRegion;
 
 	auto mainLayout = (Wt::WVBoxLayout*)this->layout();
 	auto wlItem = mainLayout->itemAt(layoutMain::Tab);
@@ -78,12 +80,25 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	}
 	case DataEvent::Data:
 	{		
-		if (event.cataRet.vvsGeo.size() > 0) {
-			auto wjTree = (WJTREE*)tab->widget(tabIndex::Tree);			
+		auto wjTree = (WJTREE*)tab->widget(tabIndex::Tree);
+		if (event.cataRet.vvsGeo.size() > 0) {		
 			wjTree->setLabel(event.cataRet.sCata);
 			wjTree->setTree(event.cataRet.vvsGeo);
 		}
+		selRegion = wjTree->getSelectedRegion();
 
+		auto wjTable = (WJTABLEBOX*)tab->widget(tabIndex::Table);
+		if (event.cataRet.vvsDIM.size() > 0) {
+			wjTable->setTopic(event.cataRet.vvsDIM);
+			// PARAMBOX
+		}
+		if (event.cataRet.vvvsTable.size() > 0) {			
+			wjTable->initTableAll(event.cataRet.vsMapGeo, event.cataRet.vvvsTable);
+			wjTable->selectRegion(selRegion);
+		}
+		if (event.cataRet.vvvsMID.size() > 0) {
+			wjTable->setHeader(event.cataRet.vvvsMID);
+		}
 
 		break;
 	}

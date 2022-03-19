@@ -1727,8 +1727,8 @@ void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 		orderby = "DIMIndex ASC";
 		numResult = sf.selectOrderBy({ "*" }, tname, cataRet.vvsDIM, orderby);
 		if (numResult == 0) { err("No DIMIndex table found-pullCatalogue"); }
-		for (int ii = 0; ii < cataRet.vvsDIM.size() - 1; ii++) {
-			vsDIM.emplace_back(cataRet.vvsDIM[ii][1]);  // Do not include column titles.
+		for (int ii = 0; ii < cataRet.vvsDIM.size() - 2; ii++) {
+			vsDIM.emplace_back(cataRet.vvsDIM[ii][1]);  // Do not include row/column titles.
 		}
 
 		// Client needs the MID table for each DIM.
@@ -1743,10 +1743,20 @@ void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 
 		// Send table data for default MID values.
 		numMap = (int)cataRet.vsMapGeo.size();
-		viMID.assign(numDIM - 1, 1);
+		if (numDIM > 2) { viMID.assign(numDIM - 2, 1); }
+		else { viMID.clear(); }		
 		cataRet.vvvsTable.resize(numMap, vector<vector<string>>());
 		for (int ii = 0; ii < numMap; ii++) {
 			tname = "Data$" + internalYear + "$" + cataReq.sCata + "$" + cataRet.vsMapGeo[ii];
+
+			// Prepare the list of column titles, omitting the DataIndex column.
+			vvsColTitle = sf.getColTitle(tname);
+			search.resize(vvsColTitle[0].size() - 1);
+			for (int jj = 0; jj < search.size(); jj++) {
+				search[jj] = vvsColTitle[0][1 + jj];
+			}
+
+			// Determine which rows will be sent to the client.
 			vsDataIndex = getDataIndex(internalYear, cataReq.sCata, vsDIM, viMID);
 			numDataIndex = (int)vsDataIndex.size();
 			if (numDataIndex == 1) {
@@ -1765,18 +1775,20 @@ void SCDAserver::pullCatalogue(string sessionID, CataRequest cataReq)
 				else { err("Unknown vsDataIndex-SCDAserver.pullTable"); }
 			}
 			else {
+				cataRet.vvvsTable[ii].resize(numDataIndex, vector<string>());
 				for (int jj = 0; jj < numDataIndex; jj++) {
 					conditions = { "DataIndex = " + vsDataIndex[jj] };
 					vsResult.clear();
 					numResult = sf.select(search, tname, vsResult, conditions);
-					if (numResult < 2) {
-						if (numCol < 0) { numCol = sf.getNumCol(tname); }
+					if (numResult == 0) {
+						if (numCol < 0) { numCol = sf.getNumCol(tname) - 1; }
 						vsResult.assign(numCol, "-1.0");  // No source data !
 					}
 					cataRet.vvvsTable[ii][jj] = std::move(vsResult);
 				}
 			}
-		}		
+		}
+		
 	}
 	postDataEvent(DataEvent(DataEvent::Data, cataRet), sessionID);
 }

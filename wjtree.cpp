@@ -187,7 +187,7 @@ void WJTREE::setTree(const vector<vector<string>>& vvsGeo)
 		genRemaining = 2;
 		rootID = jnRoot.ID;
 	}
-	string sName = "$" + to_string(jnRoot.ID) + "$";
+	string sName = "$" + to_string(rootID) + "$";
 	auto root = rootUnique.get();
 	tree->setTreeRoot(std::move(rootUnique));
 	root->setObjectName(sName);

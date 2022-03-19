@@ -21,7 +21,7 @@
 #include "wjdownload.h"
 #include "wjdrag.h"
 #include "wjmap.h"
-#include "wjtable.h"
+#include "wjtablebox.h"
 #include "wjtree.h"
 #include "wtpaint.h"
 
@@ -104,7 +104,7 @@ private:
 	JSTRING jstr;
 	JTREE jt;
 	SQLFUNC sf, sfLog;
-	std::vector<std::shared_ptr<WJTABLE>> wjTable;
+	//std::vector<std::shared_ptr<WJTABLE>> wjTable;
 	std::vector<std::shared_ptr<WTPAINT>> wtPaint;
 	struct UserInfo
 	{

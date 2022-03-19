@@ -40,7 +40,7 @@ SCDAapp::SCDAapp(const Wt::WEnvironment& env, SCDAserver& serv) : WApplication(e
 
 	int binSize, index;
 	vector<unsigned char> binResource;
-	vvsTag = serverRef.jparse.getXML(serverRef.configXML, { "path", "css" });
+	vvsTag = serverRef.jparse.getXML(serverRef.configXML, { "path", "css_pdf" });
 	for (int ii = 0; ii < vvsTag.size(); ii++) {
 		serverRef.jfile.load(binResource, vvsTag[ii][1]);
 		index = (int)scdaWidget->mapResource.size();
