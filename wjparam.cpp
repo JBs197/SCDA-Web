@@ -6,11 +6,13 @@ WJPARAM::WJPARAM()
 {
 	Wt::WPanel::setStyleClass("wjparam");
 	Wt::WPanel::setCollapsible(0);
+	Wt::WPanel::setTitle("");
 
 	WJPANEL::setLabel("");
 	WJPANEL::setStyleLabel("wjparamlabel");
 	WJPANEL::setStyleButton("wjparambutton");
 	WJPANEL::setStylePopup("wjparampopup");
+	WJPANEL::setStyleTitle("wjparamtitle");
 
 	jtMID = make_shared<JTREE>();
 }

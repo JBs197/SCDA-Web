@@ -17,9 +17,7 @@ void WJTABLEBOX::configure(string& configXML)
 	unordered_map<string, string> mapTag;
 	vector<string> vsTag{ "settings", "table" };
 	jparse.getXML(mapTag, configXML, vsTag);
-	//vsTag[2] = "row_height";
-	//jparse.getXML(mapTag, configXML, vsTag);
-	string cssCell, cssRowHeader, temp;
+	string cssCell, cssColHeader, cssRowHeader, cssTopLeft, temp;
 	
 	auto mainLayout = (Wt::WVBoxLayout*)this->layout();
 	auto wlItem = mainLayout->itemAt(indexMain::Table);
@@ -30,7 +28,9 @@ void WJTABLEBOX::configure(string& configXML)
 	
 	try {
 		cssCell = mapTag.at("cell");
+		cssColHeader = mapTag.at("col_header");
 		cssRowHeader = mapTag.at("row_header");
+		cssTopLeft = mapTag.at("top_left");
 		temp = mapTag.at("row_height");
 		table->rowHeight = stod(temp);
 		temp = mapTag.at("header_height");
@@ -45,7 +45,8 @@ void WJTABLEBOX::configure(string& configXML)
 	catch (out_of_range) { err("mapTag-configure"); }
 	catch (invalid_argument) { err("height stod-configure"); }
 
-	table->initCellDelegate(table->rowHeight, cssCell, cssRowHeader);
+	table->initCellDelegate(table->rowHeight, cssCell, cssRowHeader, cssColHeader, cssTopLeft);
+	table->setCellSize();
 }
 void WJTABLEBOX::err(string message)
 {
@@ -54,6 +55,8 @@ void WJTABLEBOX::err(string message)
 }
 void WJTABLEBOX::initGUI()
 {
+	Wt::WLength wlAuto = Wt::WLength::WLength();
+
 	auto vLayoutUnique = make_unique<Wt::WVBoxLayout>();
 	auto vLayout = this->setLayout(std::move(vLayoutUnique));
 
@@ -86,6 +89,7 @@ void WJTABLEBOX::initGUI()
 
 	auto boxTableUnique = make_unique<Wt::WContainerWidget>();
 	auto boxTable = vLayout->insertWidget(indexMain::Table, std::move(boxTableUnique));
+	boxTable->setMaximumSize(wlAuto, wlAuto);
 	auto tableLayoutUnique = make_unique<Wt::WVBoxLayout>();
 	auto tableLayout = boxTable->setLayout(std::move(tableLayoutUnique));
 	auto wjTableUnique = make_unique<WJTABLEVIEW>();
@@ -153,6 +157,8 @@ void WJTABLEBOX::populateHeader()
 			modelTable->setData(index - 1, 0, jn.vsData[0], Wt::ItemDataRole::Display);
 		}
 	}
+
+
 }
 void WJTABLEBOX::populateTable(int index)
 {
@@ -185,9 +191,6 @@ void WJTABLEBOX::populateTable(int index)
 }
 void WJTABLEBOX::selectRegion(pair<int, string> selRegion)
 {
-	// Display the region's name in the top-left table cell.
-	modelTable->setHeaderData(0, Wt::Orientation::Horizontal, get<1>(selRegion), Wt::ItemDataRole::Display);
-
 	// Load the selected region's table data into the model.
 	int indexTable{ -1 };
 	int geoCode = get<0>(selRegion);
@@ -195,6 +198,9 @@ void WJTABLEBOX::selectRegion(pair<int, string> selRegion)
 	else if (mapGeoCode.count(geoCode)) { indexTable = mapGeoCode.at(geoCode); }
 	else { err("mapGeoCode-selectRegion"); }
 	populateTable(indexTable);
+
+	// Display the region's name in the top-left table cell.
+	modelTable->setHeaderData(0, Wt::Orientation::Horizontal, get<1>(selRegion), Wt::ItemDataRole::Display);
 }
 void WJTABLEBOX::setHeader(const vector<vector<vector<string>>>& vvvsMID)
 {

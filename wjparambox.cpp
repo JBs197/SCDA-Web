@@ -26,9 +26,23 @@ void WJPARAMBOX::initGUI()
 
 	vLayout->addStretch(1);
 }
+void WJPARAMBOX::initParamAll(const vector<vector<string>>& vvsDIM)
+{
+	// Make a WJPARAM widget for each parameter (not including row/column topics)
+	// within the database DIM table.
+
+	resetAll();
+	int numParam = (int)vvsDIM.size() - 2;
+	if (numParam > 0) {
+		unique_ptr<WJPARAM> paramUnique;
+		for (int ii = 0; ii < numParam; ii++) {
+			paramUnique = make_unique<WJPARAM>();
+		}
+	}
+}
 void WJPARAMBOX::resetAll()
 {
-	// Note: the panel at index 0 is always kept (invisible) to act as a template.
+	// Note: the panel at index 0 is always kept (disabled).
 
 	auto vLayout = (Wt::WVBoxLayout*)this->layout();
 	Wt::WLayoutItem* wlItem = nullptr;
@@ -37,4 +51,8 @@ void WJPARAMBOX::resetAll()
 		wlItem = vLayout->itemAt(ii);
 		vLayout->removeItem(wlItem);
 	}
+
+	wlItem = vLayout->itemAt(0);
+	auto param = (WJPARAM*)wlItem->widget();
+	param->setDisabled(1);
 }

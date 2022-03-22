@@ -20,4 +20,5 @@ public:
 	void setStyleButton(std::string cssClass);
 	void setStyleLabel(std::string cssClass);
 	void setStylePopup(std::string cssClass);
+	void setStyleTitle(std::string cssClass);
 };

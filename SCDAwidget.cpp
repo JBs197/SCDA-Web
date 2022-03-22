@@ -19,7 +19,7 @@ void SCDAwidget::err(string message)
 }
 void SCDAwidget::initGUI()
 {
-	auto mainLayoutUnique = make_unique<Wt::WVBoxLayout>();
+	auto mainLayoutUnique = make_unique<Wt::WHBoxLayout>();
 	auto mainLayout = this->setLayout(std::move(mainLayoutUnique));
 
 	auto wjParamBoxUnique = make_unique<WJPARAMBOX>();
@@ -58,12 +58,14 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 	size_t numThread{ 0 };
 	pair<int, string> selRegion;
 
-	auto mainLayout = (Wt::WVBoxLayout*)this->layout();
+	auto mainLayout = (Wt::WHBoxLayout*)this->layout();
 	auto wlItem = mainLayout->itemAt(layoutMain::Tab);
 	auto tabBox = (Wt::WContainerWidget*)wlItem->widget();
 	auto vLayout = (Wt::WVBoxLayout*)tabBox->layout();
 	wlItem = vLayout->itemAt(0);
 	auto tab = (Wt::WTabWidget*)wlItem->widget();
+	wlItem = mainLayout->itemAt(layoutMain::Parameter);
+	auto paramBox = (WJPARAMBOX*)wlItem->widget();
 
 	switch (event.type()) {
 	case DataEvent::CatalogueList:
@@ -90,7 +92,7 @@ void SCDAwidget::processDataEvent(const DataEvent& event)
 		auto wjTable = (WJTABLEBOX*)tab->widget(tabIndex::Table);
 		if (event.cataRet.vvsDIM.size() > 0) {
 			wjTable->setTopic(event.cataRet.vvsDIM);
-			// PARAMBOX
+			paramBox->initParamAll(event.cataRet.vvsDIM);
 		}
 		if (event.cataRet.vvvsTable.size() > 0) {			
 			wjTable->initTableAll(event.cataRet.vsMapGeo, event.cataRet.vvvsTable);

@@ -59,3 +59,8 @@ void WJPANEL::setStylePopup(string cssClass)
 	auto popup = pb->menu();
 	popup->setStyleClass(cssClass);
 }
+void WJPANEL::setStyleTitle(string cssClass)
+{
+	auto title = Wt::WPanel::titleBarWidget();
+	title->setStyleClass(cssClass);
+}

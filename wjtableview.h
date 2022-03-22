@@ -9,6 +9,7 @@
 class WJTABLEVIEW : public Wt::WTableView
 {
 	std::shared_ptr<WJCELL> wjCell;
+	std::shared_ptr<WJHEADER> wjHeader;
 
 	void err(std::string message);
 
@@ -18,6 +19,6 @@ public:
 
 	double colWidth, headerHeight, headerWidth, preloadMargin, rowHeight;
 
-	void initCellDelegate(double height, std::string& cssCell, std::string& cssRowHeader);
+	void initCellDelegate(double height, std::string& cssCell, std::string& cssRowHeader, std::string& cssColHeader, std::string& cssTopLeft);
 	void setCellSize();
 };

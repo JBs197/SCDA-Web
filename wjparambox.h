@@ -11,5 +11,6 @@ public:
 	WJPARAMBOX();
 	~WJPARAMBOX() = default;
 
+	void initParamAll(const std::vector<std::vector<std::string>>& vvsDIM);
 	void resetAll();
 };
